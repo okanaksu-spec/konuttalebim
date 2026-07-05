@@ -1,0 +1,13 @@
+{
+  "name": "konuttalebim-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Konuttalebim API + statik site sunucusu (sifir dis bagimlilik)",
+  "scripts": {
+    "start": "node --experimental-sqlite server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

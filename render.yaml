@@ -1,0 +1,14 @@
+# Render.com ucretsiz yayin ayari (Blueprint).
+# Render bu dosyayi otomatik okur; elle ayar gerekmez.
+services:
+  - type: web
+    name: konuttalebim
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: ""
+    startCommand: node --experimental-sqlite server.mjs
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

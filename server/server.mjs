@@ -155,6 +155,23 @@ function buildState(user) {
   }
   const plans = all("plans").map((p) => ({ ...p, features: JSON.parse(p.features || "[]") }));
 
+  // --- Gizlilik: teklif/eslesme/mesaj/bildirim/odeme yalnizca sahibine (ve admin'e) doner. ---
+  const isAdmin = Boolean(user && user.role === "ADMIN");
+  const myMatches = isAdmin ? matches
+    : (user ? matches.filter((m) => m.buyerId === user.id || m.sellerId === user.id) : []);
+  const myMatchIds = new Set(myMatches.map((m) => m.id));
+  const allOffers = all("offers");
+  const myOffers = isAdmin ? allOffers
+    : (user ? allOffers.filter((o) => o.buyerId === user.id || o.sellerId === user.id) : []);
+  const myMessages = conv(all("messages"), boolFields.messages)
+    .filter((m) => isAdmin || myMatchIds.has(m.matchId))
+    .map(({ body, ...rest }) => rest);          // ham govde asla istemciye gonderilmez
+  const myNotifications = isAdmin ? all("notifications")
+    : (user ? all("notifications").filter((n) => n.userId === user.id) : []);
+  const myPayments = isAdmin ? all("payments")
+    : (user ? all("payments").filter((p) => p.userId === user.id) : []);
+  const demandsArr = conv(all("demands"), boolFields.demands);
+
   return {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
@@ -163,18 +180,24 @@ function buildState(user) {
     authAccounts: [],
     buyerProfiles,
     plans,
-    demands: conv(all("demands"), boolFields.demands),
+    demands: demandsArr,
     properties: conv(all("properties"), boolFields.properties),
-    offers: all("offers"),
-    matches,
-    messages: conv(all("messages"), boolFields.messages),
-    verificationDocuments: [],
-    notifications: all("notifications"),
-    emailOutbox: user && user.role === "ADMIN" ? all("email_outbox") : [],
+    offers: myOffers,
+    matches: myMatches,
+    messages: myMessages,
+    verificationDocuments: !user
+      ? []
+      : (["ADMIN", "REVIEWER"].includes(user.role)
+        ? all("verification_documents")
+        : all("verification_documents").filter((d) => d.userId === user.id)),
+    notifications: myNotifications,
+    emailOutbox: isAdmin ? all("email_outbox") : [],
     complaints: [],
     abuseSignals: [],
-    auditLogs: user && user.role === "ADMIN" ? all("audit_logs") : [],
-    payments: all("payments")
+    auditLogs: isAdmin ? all("audit_logs") : [],
+    payments: myPayments,
+    // Ana sayfa vitrin sayaclari (kisisel veri degil, sadece toplam adet)
+    stats: { demands: demandsArr.length, offers: allOffers.length, matches: matches.length }
   };
 }
 
@@ -425,6 +448,32 @@ async function handleApi(req, res, url) {
     return ok(res, { paymentId: pid });
   }
 
+  // --- satici/danisman dogrulama belgesi yukle ---
+  if (seg[0] === "verification-documents" && method === "POST" && seg.length === 1) {
+    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı veya emlak danışmanı belge yükleyebilir.");
+    const type = (body.type || "Tapu / yetki belgesi").toString().trim().slice(0, 120) || "Tapu / yetki belgesi";
+    const id = uid("doc");
+    const risk = Math.floor(Math.random() * 25) + 10;
+    db.prepare("INSERT INTO verification_documents (id,userId,type,status,riskScore,reviewedById,reviewedAt) VALUES (?,?,?,?,?,?,?)")
+      .run(id, user.id, type, "PENDING", risk, null, null);
+    addAudit(user.id, "DOCUMENT_SUBMITTED", "VerificationDocument", id, type);
+    return ok(res, { id });
+  }
+
+  // --- admin/moderator belge inceleme ---
+  if (seg[0] === "documents" && seg[2] === "review" && method === "POST") {
+    if (!["ADMIN", "REVIEWER"].includes(user.role)) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const doc = db.prepare("SELECT * FROM verification_documents WHERE id = ?").get(seg[1]);
+    if (!doc) return err(res, 404, "Belge bulunamadı.");
+    const status = ["APPROVED", "REJECTED"].includes(body.status) ? body.status : "APPROVED";
+    db.prepare("UPDATE verification_documents SET status=?, reviewedById=?, reviewedAt=? WHERE id=?")
+      .run(status, user.id, today(), doc.id);
+    notify(doc.userId, `DOCUMENT_${status}`, status === "APPROVED" ? "Belgen onaylandı" : "Belgen reddedildi",
+      status === "APPROVED" ? "Doğrulama belgen onaylandı." : "Doğrulama belgen reddedildi, tekrar yükleyebilirsin.", "dashboard/satici/dogrulama");
+    addAudit(user.id, `DOCUMENT_${status}`, "VerificationDocument", doc.id, "Belge durumu güncellendi.");
+    return ok(res);
+  }
+
   return err(res, 404, "Bilinmeyen API isteği.");
 }
 
@@ -434,11 +483,16 @@ const sessionCookie = (token) => ({
 
 // ---------- Statik dosya servisi ----------
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon" };
+// Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
+// Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
+const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico"]);
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (p === "/") p = "/index.html";
+  const isAsset = p.startsWith("/assets/") && !p.includes("..");
+  if (!STATIC_ALLOW.has(p) && !isAsset) { res.writeHead(404); return res.end("Bulunamadı"); }
   const filePath = normalize(join(WEB_DIR, p));
-  if (!filePath.startsWith(WEB_DIR)) { res.writeHead(403); return res.end("Forbidden"); }
+  if (filePath !== WEB_DIR && !filePath.startsWith(WEB_DIR + "/")) { res.writeHead(403); return res.end("Forbidden"); }
   if (!existsSync(filePath)) { res.writeHead(404); return res.end("Bulunamadı"); }
   try {
     const data = await readFile(filePath);

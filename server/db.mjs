@@ -84,6 +84,10 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS entitlements (
   id TEXT PRIMARY KEY, userId TEXT, planId TEXT, activeFrom TEXT, activeTo TEXT
 );
+CREATE TABLE IF NOT EXISTS verification_documents (
+  id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
+  riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT
+);
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY, actorId TEXT, action TEXT, entityType TEXT, entityId TEXT,
   metadata TEXT, createdAt TEXT
@@ -194,6 +198,10 @@ export function seedIfEmpty() {
 
   db.prepare("INSERT INTO payments (id,userId,planId,provider,amount,currency,status,createdAt) VALUES (?,?,?,?,?,?,?,?)")
     .run("pay-1", "u-seller-1", "plan-seller-boost", "MockPaymentProvider", 149, "TRY", "SUCCESS", "2026-07-01");
+
+  const insDoc = db.prepare("INSERT INTO verification_documents (id,userId,type,status,riskScore,reviewedById,reviewedAt) VALUES (?,?,?,?,?,?,?)");
+  insDoc.run("doc-3", "u-seller-1", "Tapu / yetki belgesi", "PENDING", 24, null, null);
+  insDoc.run("doc-4", "u-agent-1", "Vergi levhası", "PENDING", 28, null, null);
 
   console.log("[db] Seed tamamlandi: demo kullanicilar ve veriler yuklendi.");
 }

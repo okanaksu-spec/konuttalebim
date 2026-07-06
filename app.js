@@ -621,9 +621,9 @@ function homePage() {
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
           </div>
           <div class="hero-metrics">
-            <div class="metric-tile"><b>${state.demands.length}</b><span>aktif talep</span></div>
-            <div class="metric-tile"><b>${state.offers.length}</b><span>teklif kartı</span></div>
-            <div class="metric-tile"><b>${state.matches.length}</b><span>güvenli eşleşme</span></div>
+            <div class="metric-tile"><b>${(state.stats || {}).demands ?? state.demands.length}</b><span>aktif talep</span></div>
+            <div class="metric-tile"><b>${(state.stats || {}).offers ?? state.offers.length}</b><span>teklif kartı</span></div>
+            <div class="metric-tile"><b>${(state.stats || {}).matches ?? state.matches.length}</b><span>güvenli eşleşme</span></div>
           </div>
         </div>
         <div class="hero-preview" aria-hidden="true">
@@ -2024,20 +2024,17 @@ window.KT = {
     toast("Bütçe beyanın güncellendi. Belge yüklemesi gerekmez.");
     render();
   },
-  addSellerDoc() {
-    state.verificationDocuments.unshift({ id: nextId("doc"), userId: currentUser().id, type: "Tapu / yetki belgesi", status: "PENDING", riskScore: 22, reviewedById: null, reviewedAt: null });
-    saveState();
+  async addSellerDoc() {
+    const r = await api("/verification-documents", "POST", { type: "Tapu / yetki belgesi" });
+    if (!r.ok) return toast(r.data.error || "Belge gönderilemedi.");
+    await refreshState();
     toast("Belge admin incelemesine gönderildi.");
     render();
   },
-  reviewDocument(docId, status) {
-    const doc = state.verificationDocuments.find((item) => item.id === docId);
-    if (!doc) return;
-    doc.status = status;
-    doc.reviewedById = currentUser().id;
-    doc.reviewedAt = today();
-    addAudit(`DOCUMENT_${status}`, "VerificationDocument", docId, `Admin belge durumunu ${status} yaptı.`);
-    saveState();
+  async reviewDocument(docId, status) {
+    const r = await api(`/documents/${docId}/review`, "POST", { status });
+    if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
+    await refreshState();
     toast(`Belge ${status === "APPROVED" ? "onaylandı" : "reddedildi"}.`);
     render();
   },

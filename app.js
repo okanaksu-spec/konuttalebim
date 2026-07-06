@@ -940,7 +940,6 @@ function authLoginPage() {
         <div class="auth-benefits">
           <span>deniz@ornek.com</span>
           <span>selin@ornek.com</span>
-          <span>admin@konuttalebim.com</span>
         </div>
       </aside>
     </div>

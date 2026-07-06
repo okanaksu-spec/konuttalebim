@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS demands (
   minBudget INTEGER, maxBudget INTEGER, downPayment INTEGER,
   usesCredit INTEGER, cashReady INTEGER, exchangePossible INTEGER,
   purchaseTimeline TEXT, description TEXT, privacyLevel TEXT, status TEXT DEFAULT 'ACTIVE',
-  boostedUntil TEXT, viewCount INTEGER DEFAULT 0, offerCount INTEGER DEFAULT 0, createdAt TEXT
+  boostedUntil TEXT, viewCount INTEGER DEFAULT 0, offerCount INTEGER DEFAULT 0, imageData TEXT, createdAt TEXT
 );
 CREATE TABLE IF NOT EXISTS properties (
   id TEXT PRIMARY KEY, sellerId TEXT, title TEXT, city TEXT, district TEXT, neighborhood TEXT,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS properties (
   hasBalcony INTEGER, hasParking INTEGER, hasElevator INTEGER, inComplex INTEGER,
   dues INTEGER, occupancyStatus TEXT, deedStatus TEXT, creditEligible INTEGER,
   exchangePossible INTEGER, price INTEGER, negotiable INTEGER, description TEXT,
-  status TEXT DEFAULT 'ACTIVE', boostedUntil TEXT, photoClass TEXT, createdAt TEXT
+  status TEXT DEFAULT 'ACTIVE', boostedUntil TEXT, photoClass TEXT, imageData TEXT, createdAt TEXT
 );
 CREATE TABLE IF NOT EXISTS offers (
   id TEXT PRIMARY KEY, demandId TEXT, propertyId TEXT, sellerId TEXT, buyerId TEXT,
@@ -89,6 +89,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   metadata TEXT, createdAt TEXT
 );
 `);
+
+// ---------- Migrasyonlar (mevcut DB'ye eksik sutunlari ekle) ----------
+for (const alter of [
+  "ALTER TABLE properties ADD COLUMN imageData TEXT",
+  "ALTER TABLE demands ADD COLUMN imageData TEXT"
+]) {
+  try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
+}
 
 // ---------- Yardimcilar ----------
 export const uid = (p = "id") => `${p}-${randomUUID().slice(0, 8)}`;
@@ -188,4 +196,29 @@ export function seedIfEmpty() {
     .run("pay-1", "u-seller-1", "plan-seller-boost", "MockPaymentProvider", 149, "TRY", "SUCCESS", "2026-07-01");
 
   console.log("[db] Seed tamamlandi: demo kullanicilar ve veriler yuklendi.");
+}
+
+// Admin hesabini ortam degiskenlerinden (Render ayarlari) guvenli sekilde kurar.
+// ADMIN_EMAIL ve ADMIN_PASSWORD ayarliysa admin girisi bunlarla calisir; kod/sohbet sifreyi gormez.
+export function ensureAdminFromEnv() {
+  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || "";
+  if (!email || !password) {
+    console.log("[db] ADMIN_EMAIL/ADMIN_PASSWORD ayarli degil; varsayilan demo admin gecerli.");
+    return;
+  }
+  const existing = db.prepare("SELECT * FROM users WHERE role = 'ADMIN' ORDER BY createdAt ASC").get();
+  if (existing) {
+    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email, existing.id);
+    db.prepare("UPDATE auth_accounts SET email = ?, passwordHash = ?, emailVerified = 1 WHERE userId = ?")
+      .run(email, hashPassword(password), existing.id);
+    console.log("[db] Admin hesabi ortam degiskenlerinden guncellendi.");
+  } else {
+    const id = uid("u");
+    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt) VALUES (?,?,?,?,?,?,?,?,?)")
+      .run(id, "ADMIN", "Yönetici", email, "", "İstanbul", "ACTIVE", 100, today());
+    db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
+      .run(id, email, hashPassword(password), 1, today(), null);
+    console.log("[db] Admin hesabi ortam degiskenlerinden olusturuldu.");
+  }
 }

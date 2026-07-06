@@ -560,9 +560,9 @@ function header() {
   return `
     <header class="topbar">
       <div class="topbar-inner">
-        <a class="brand" href="#/home" aria-label="Konuttalebim ana sayfa">
+        <a class="brand" href="#/home" aria-label="Konuttalebi ana sayfa">
           <span class="brand-mark">${icon("key", 19)}</span>
-          <span class="brand-text"><strong>Konuttalebim</strong><span>Talep ve teklif</span></span>
+          <span class="brand-text"><strong>Konuttalebi</strong><span>Talep ve teklif</span></span>
         </a>
         <nav class="nav" aria-label="Ana menü">
           ${publicLinks.map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#/${path}">${label}</a>`).join("")}
@@ -589,9 +589,9 @@ function footer() {
         <div>
           <a class="brand" href="#/home">
             <span class="brand-mark">${icon("key", 18)}</span>
-            <span class="brand-text"><strong style="color:#fff">Konuttalebim</strong><span>Güvenli eşleşme</span></span>
+            <span class="brand-text"><strong style="color:#fff">Konuttalebi</strong><span>Güvenli eşleşme</span></span>
           </a>
-          <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebim ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
+          <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
         </div>
         <div class="footer-links">
           <a href="#/kvkk">KVKK</a>
@@ -615,7 +615,7 @@ function homePage() {
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye odaklı alıcı talebi pazaryeri</span>
           <h1>Aradığın evi sadece arama, talebini oluştur.</h1>
-          <p>Konuttalebim, alıcıların konut talebi oluşturduğu, satıcıların ise bu taleplere uygun ev teklifleri sunduğu çift yönlü emlak platformudur.</p>
+          <p>Konuttalebi, alıcıların konut talebi oluşturduğu, satıcıların ise bu taleplere uygun ev teklifleri sunduğu çift yönlü emlak platformudur.</p>
           <div class="hero-actions">
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
@@ -666,7 +666,7 @@ function homePage() {
         <div class="color-copy">
           <div class="kicker">Canlı talep piyasası</div>
           <h2>Alıcı aradığını açıkça söyler; satıcı doğru evi renkli, net ve hızlı bir teklif kartıyla sunar.</h2>
-          <p>Konuttalebim'de alıcıdan belge istenmez. Bütçe aralığı, peşinat, kredi/nakit tercihi ve alım zamanı beyan edilir; satıcı da bu niyete göre teklif verir.</p>
+          <p>Konuttalebi'de alıcıdan belge istenmez. Bütçe aralığı, peşinat, kredi/nakit tercihi ve alım zamanı beyan edilir; satıcı da bu niyete göre teklif verir.</p>
           <div class="color-chip-row">
             <span class="color-chip chip-coral">Bütçe beyanı</span>
             <span class="color-chip chip-teal">Talebe özel teklif</span>
@@ -727,7 +727,7 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Rolünü seç</div>
-            <h2>Alıcı, satıcı ya da emlak danışmanı: Konuttalebim sana göre çalışır.</h2>
+            <h2>Alıcı, satıcı ya da emlak danışmanı: Konuttalebi sana göre çalışır.</h2>
             <p class="lead">Her rol için ayrı bir akış var. Sana uygun alanı seç, üye ol ve hemen başla.</p>
           </div>
         </div>
@@ -986,7 +986,7 @@ function publicPage(kind) {
     return publicShell("Fiyatlandırma", "Gelir modeli: ilan/talep üste taşıma reklamları ve eşleşme sonrası bilgileri görme üyelikleri.", pricingCards());
   }
   if (kind === "yardim") {
-    return publicShell("Yardım ve SSS", "Konuttalebim'in temel kurallarını sade biçimde incele.", faq());
+    return publicShell("Yardım ve SSS", "Konuttalebi'nin temel kurallarını sade biçimde incele.", faq());
   }
   if (["kvkk", "gizlilik", "kullanim-sartlari", "cerez-politikasi", "guvenli-islem-rehberi", "blog"].includes(kind)) {
     return legalPage(kind);
@@ -995,7 +995,7 @@ function publicPage(kind) {
 }
 
 function publicShell(title, subtitle, body) {
-  return `<section class="band band-white"><div class="container"><div class="section-head"><div class="section-title"><div class="kicker">Konuttalebim</div><h2>${title}</h2><p class="lead">${subtitle}</p></div></div>${body}</div></section>`;
+  return `<section class="band band-white"><div class="container"><div class="section-head"><div class="section-title"><div class="kicker">Konuttalebi</div><h2>${title}</h2><p class="lead">${subtitle}</p></div></div>${body}</div></section>`;
 }
 
 function pricingCards(roleTypes = null) {
@@ -1016,7 +1016,7 @@ function pricingCards(roleTypes = null) {
 
 function faq() {
   const rows = [
-    ["Konuttalebim nedir?", "Alıcıların konut talebi oluşturduğu, satıcıların bu taleplere uygun teklif gönderdiği çift yönlü emlak platformudur."],
+    ["Konuttalebi nedir?", "Alıcıların konut talebi oluşturduğu, satıcıların bu taleplere uygun teklif gönderdiği çift yönlü emlak platformudur."],
     ["Belge yüklemem gerekiyor mu?", "Hayır. Alıcı yalnızca bütçe aralığını, peşinatını ve alım zamanını beyan eder."],
     ["Telefonum ne zaman görünür?", "Bilgileri görme üyeliği alındığında ve ilgili eşleşmede hem alıcı hem satıcı iletişim açmayı onayladığında görünür."],
     ["Emlak danışmanları kullanabilir mi?", "Evet, ancak daha sıkı rate limit ve kalite skoruna tabidir."],
@@ -1038,7 +1038,7 @@ function legalPage(kind) {
   const title = titles[kind] || "Bilgilendirme";
   return publicShell(title, "Bu sayfa MVP için profesyonel placeholder içerik olarak hazırlanmıştır.", `
     <article class="panel">
-      <p class="muted">Konuttalebim; talep, teklif, mesajlaşma, bütçe beyanı ve güvenlik süreçlerinde veri minimizasyonu, erişim kontrolü ve kayıt izlenebilirliği ilkelerini esas alır. Gerçek yayına geçmeden önce bu metinlerin tamamı alanında uzman bir hukukçu tarafından incelenmelidir.</p>
+      <p class="muted">Konuttalebi; talep, teklif, mesajlaşma, bütçe beyanı ve güvenlik süreçlerinde veri minimizasyonu, erişim kontrolü ve kayıt izlenebilirliği ilkelerini esas alır. Gerçek yayına geçmeden önce bu metinlerin tamamı alanında uzman bir hukukçu tarafından incelenmelidir.</p>
       <div class="grid grid-3" style="margin-top:18px">
         ${featureCard("shield", "Kişisel veri", "Kimlik ve iletişim bilgileri yalnızca gerekli akışlarda kullanılır.")}
         ${featureCard("card", "Bütçe beyanı", "Alıcıdan belge yüklemesi istenmez; sadece bütçe ve alım niyeti beyan edilir.")}

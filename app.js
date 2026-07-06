@@ -250,11 +250,35 @@ function showFormError(id, message) {
   el.classList.add("show");
 }
 
-function resetState() {
-  state = seedState();
-  saveState();
-  toast("Demo verileri sıfırlandı.");
-  render();
+// Secilen gorseli okur, tarayicida kucultur (max 1100px, JPEG) ve data URL dondurur.
+function readImageInput(id) {
+  const input = document.getElementById(id);
+  const file = input && input.files && input.files[0];
+  if (!file || !file.type.startsWith("image/")) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1100;
+        let width = img.width, height = img.height;
+        if (width > max || height > max) {
+          const r = Math.min(max / width, max / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => resolve(null);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
 }
 
 function nextId(type) {
@@ -527,8 +551,6 @@ function header() {
   const publicLinks = [
     ["home", "Ana Sayfa"],
     ["nasil-calisir", "Nasıl Çalışır"],
-    ["alici", "Alıcıyım"],
-    ["satici", "Satıcıyım"],
     ["fiyatlandirma", "Fiyatlandırma"],
     ["yardim", "Yardım"]
   ];
@@ -551,12 +573,6 @@ function header() {
             <button class="btn btn-outline" onclick="KT.goDashboard()">${icon("chart", 16)} Panel</button>
             <button class="btn btn-ghost" onclick="KT.logout()">Çıkış</button>
           ` : `
-            <select class="role-select" aria-label="Demo rol seçimi" onchange="KT.switchRole(this.value)">
-              <option value="buyer" ${state.currentRole === "buyer" ? "selected" : ""}>Alıcı modu</option>
-              <option value="seller" ${state.currentRole === "seller" ? "selected" : ""}>Satıcı modu</option>
-              <option value="agent" ${state.currentRole === "agent" ? "selected" : ""}>Danışman modu</option>
-              <option value="admin" ${state.currentRole === "admin" ? "selected" : ""}>Admin modu</option>
-            </select>
             <a class="btn btn-outline" href="#/giris">${icon("lock", 16)} Giriş</a>
             <a class="btn btn-secondary" href="#/uye-ol">Üye ol</a>
           `}
@@ -706,16 +722,46 @@ function homePage() {
         </div>
       </div>
     </section>
+    <section class="band band-soft" id="roller">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="kicker">Rolünü seç</div>
+            <h2>Alıcı, satıcı ya da emlak danışmanı: Konuttalebim sana göre çalışır.</h2>
+            <p class="lead">Her rol için ayrı bir akış var. Sana uygun alanı seç, üye ol ve hemen başla.</p>
+          </div>
+        </div>
+        <div class="grid grid-3 role-areas">
+          <article class="card role-area">
+            <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
+            <h3>Alıcıyım</h3>
+            <p>Aradığın evi tarif et, talebini oluştur; uygun satıcılar sana özel teklif göndersin. Belge istenmez, sadece bütçe beyanı.</p>
+            <ul class="role-points"><li>Talep oluştur, gelen teklifleri incele</li><li>Bütçe, peşinat ve kredi beyanı</li><li>İstersen görsel de ekle</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 16)} Alıcı olarak üye ol</button>
+          </article>
+          <article class="card role-area">
+            <span class="role-ic role-ic-teal">${icon("home", 26)}</span>
+            <h3>Satıcıyım</h3>
+            <p>Elindeki eve uygun alıcı taleplerini gör, talebe özel teklif gönder. İlanına görsel ekleyip öne çık.</p>
+            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Talebe özel teklif gönder</li><li>İlan görselleri yükle</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller')">${icon("home", 16)} Satıcı olarak üye ol</button>
+          </article>
+          <article class="card role-area">
+            <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>
+            <h3>Emlak danışmanıyım</h3>
+            <p>Çoklu portföyünü yönet, uygun alıcılara talebe özel teklifler sun. Profesyonel paketle daha geniş haklar.</p>
+            <ul class="role-points"><li>Çoklu portföy yönetimi</li><li>Toplu teklif ve öne çıkarma</li><li>Bilgileri görme üyeliği dahil</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Emlak danışmanı olarak üye ol</button>
+          </article>
+        </div>
+      </div>
+    </section>
     <section class="band band-white">
       <div class="container">
         <div class="section-head">
           <div class="section-title">
-            <div class="kicker">Deneyebileceğin akış</div>
-            <h2>Bu MVP'de alıcıdan satıcıya uçtan uca akışı çalıştırabilirsin.</h2>
-          </div>
-          <div class="section-actions">
-            <button class="btn btn-primary" onclick="KT.startByRole()">Panelde dene</button>
-            <button class="btn btn-outline" onclick="KT.resetState()">Demo verisini sıfırla</button>
+            <div class="kicker">Nasıl işliyor?</div>
+            <h2>Alıcıdan satıcıya uçtan uca, güvenli ve adım adım.</h2>
           </div>
         </div>
         ${howSteps()}
@@ -729,13 +775,48 @@ function featureCard(iconName, title, body) {
 }
 
 function howSteps() {
+  const illus1 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Talep oluştur">
+    <rect x="10" y="10" width="108" height="80" rx="14" fill="#eef3f8"/>
+    <rect x="34" y="24" width="60" height="58" rx="8" fill="#fff" stroke="#cdd9e6" stroke-width="2"/>
+    <rect x="52" y="19" width="24" height="10" rx="4" fill="#4b7bec"/>
+    <path d="M50 48 l14-11 14 11 v16 h-28 z" fill="#12243b"/>
+    <rect x="58" y="54" width="12" height="10" fill="#eef3f8"/>
+    <rect x="44" y="71" width="40" height="5" rx="2.5" fill="#e0a83e"/>
+  </svg>`;
+  const illus2 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Satıcı talebi görür">
+    <rect x="10" y="10" width="108" height="80" rx="14" fill="#eef3f8"/>
+    <rect x="26" y="22" width="76" height="16" rx="5" fill="#fff" stroke="#cdd9e6" stroke-width="2"/>
+    <rect x="32" y="28" width="24" height="4" rx="2" fill="#12243b"/>
+    <rect x="62" y="27" width="34" height="6" rx="3" fill="#2bb3a3"/>
+    <rect x="26" y="43" width="76" height="16" rx="5" fill="#fff" stroke="#cdd9e6" stroke-width="2"/>
+    <rect x="32" y="49" width="18" height="4" rx="2" fill="#12243b"/>
+    <g fill="#cdd9e6"><rect x="60" y="48" width="6" height="6" rx="1"/><rect x="70" y="48" width="6" height="6" rx="1"/><rect x="80" y="48" width="6" height="6" rx="1"/><rect x="90" y="48" width="6" height="6" rx="1"/></g>
+    <ellipse cx="64" cy="76" rx="20" ry="11" fill="#12243b"/>
+    <circle cx="64" cy="76" r="6" fill="#e0a83e"/><circle cx="64" cy="76" r="2.4" fill="#12243b"/>
+  </svg>`;
+  const illus3 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Teklif kartı gönderilir">
+    <rect x="10" y="10" width="108" height="80" rx="14" fill="#eef3f8"/>
+    <rect x="24" y="24" width="58" height="52" rx="8" fill="#fff" stroke="#cdd9e6" stroke-width="2"/>
+    <rect x="30" y="30" width="46" height="20" rx="4" fill="#12243b"/>
+    <rect x="30" y="56" width="30" height="5" rx="2.5" fill="#4b7bec"/>
+    <rect x="30" y="65" width="22" height="5" rx="2.5" fill="#e0a83e"/>
+    <path d="M88 50 h18 m-7-7 l7 7-7 7" stroke="#2bb3a3" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+  const illus4 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Güvenli mesajlaşma">
+    <rect x="10" y="10" width="108" height="80" rx="14" fill="#eef3f8"/>
+    <path d="M28 32 h46 a6 6 0 0 1 6 6 v14 a6 6 0 0 1-6 6 h-30 l-11 9 v-9 a6 6 0 0 1-5-6 v-14 a6 6 0 0 1 6-6z" fill="#4b7bec"/>
+    <g fill="#fff"><circle cx="42" cy="45" r="2.6"/><circle cx="52" cy="45" r="2.6"/><circle cx="62" cy="45" r="2.6"/></g>
+    <rect x="72" y="52" width="34" height="30" rx="8" fill="#12243b"/>
+    <rect x="83" y="45" width="12" height="13" rx="6" fill="none" stroke="#12243b" stroke-width="4"/>
+    <circle cx="89" cy="66" r="4" fill="#e0a83e"/><rect x="87.5" y="66" width="3" height="9" rx="1.5" fill="#e0a83e"/>
+  </svg>`;
   const steps = [
-    ["1", "Alıcı talep oluşturur", "Şehir, ilçe, bütçe, oda, m2, alım zamanı ve gizlilik tercihleri belirlenir."],
-    ["2", "Satıcı uygun talebi görür", "Kimlik ve telefon görünmez; rozet, bütçe aralığı ve talep özeti görünür."],
-    ["3", "Teklif kartı gönderilir", "Ev, fiyat, özellikler, fotoğraf temsili, mesaj ve uyum puanı alıcıya ulaşır."],
-    ["4", "Mesajlaşma başlar", "İletişim bilgileri maskelenir; bilgileri görme üyeliği ve iki taraf onayıyla kart açılır."]
+    [illus1, "Alıcı talep oluşturur", "Şehir, ilçe, bütçe, oda, m2 ve alım zamanı belirlenir; istenirse görsel eklenir."],
+    [illus2, "Satıcı uygun talebi görür", "Kimlik ve telefon görünmez; rozet, bütçe aralığı ve talep özeti görünür."],
+    [illus3, "Teklif kartı gönderilir", "Ev, fiyat, özellikler, görsel, mesaj ve uyum puanı alıcıya ulaşır."],
+    [illus4, "Güvenli mesajlaşma", "İletişim maskelenir; üyelik ve iki taraf onayıyla iletişim kartı açılır."]
   ];
-  return `<div class="grid grid-4">${steps.map(([n, title, body]) => `<article class="card"><span class="badge badge-gold">${n}. adım</span><h3 style="margin-top:12px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
+  return `<div class="grid grid-4 how-steps">${steps.map(([svg, title, body], i) => `<article class="card how-step"><div class="how-illus">${svg}</div><span class="badge badge-gold">${i + 1}. adım</span><h3 style="margin-top:10px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
 }
 
 function demandCard(demand, options = {}) {
@@ -743,7 +824,7 @@ function demandCard(demand, options = {}) {
   const score = profile.budgetTrustScore || 40;
   return `
     <article class="${options.sample ? "sample-card" : "row-card"}">
-      ${options.sample ? "" : `<div class="thumb">${icon("key", 28)}</div>`}
+      ${options.sample ? "" : (demand.imageData ? `<div class="thumb"><img class="thumb-img" src="${demand.imageData}" alt=""></div>` : `<div class="thumb">${icon("key", 28)}</div>`)}
       <div>
         <div class="sample-top">
           <span class="badge ${badgeForProfile(profile)}">${icon("shield", 13)} ${escapeHtml(profile.verificationLevel)}</span>
@@ -793,7 +874,7 @@ function authRegisterPage(roleKey = "buyer") {
     ["seller", "Satıcı"],
     ["agent", "Emlak danışmanı"]
   ];
-  return publicShell("Üyelik oluştur", "Alıcı, satıcı veya danışman hesabını aç; panelin seçtiğin role göre hazırlanır.", `
+  return publicShell("Üyelik oluştur", "Alıcı, satıcı veya emlak danışmanı hesabını aç; panelin seçtiğin role göre hazırlanır.", `
     <div class="auth-layout">
       <form class="panel auth-panel" onsubmit="KT.register(event)">
         <div class="form-grid">
@@ -889,7 +970,7 @@ function publicPage(kind) {
         ${featureCard("card", "Bütçeni beyan et", "Belge yüklemeden bütçe aralığını, peşinatını ve alım zamanını belirt.")}
         ${featureCard("chat", "Kontrollü konuş", "Satıcılarla platform içinde, maskelenmiş iletişimle görüş.")}
       </div>
-      <div class="section-actions"><button class="btn btn-primary" onclick="KT.switchRole('buyer');KT.goDashboard('dashboard/alici/talep-olustur')">Talep oluştur</button></div>
+      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('buyer')">Alıcı olarak üye ol</button></div>
     `);
   }
   if (kind === "satici") {
@@ -899,7 +980,7 @@ function publicPage(kind) {
         ${featureCard("send", "Talebe özel teklif", "Teklif kartını sadece uygun talebe gönder.")}
         ${featureCard("chart", "Kalite ve limit", "Paket limitleri ve risk skoru ile sürdürülebilir pazaryeri.")}
       </div>
-      <div class="section-actions"><button class="btn btn-primary" onclick="KT.switchRole('seller');KT.goDashboard('dashboard/satici/talepler')">Alıcı taleplerini gör</button></div>
+      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('seller')">Satıcı olarak üye ol</button></div>
     `);
   }
   if (kind === "fiyatlandirma") {
@@ -1023,10 +1104,6 @@ function dashboardLayout(role, content, activePath) {
           <p class="sidebar-title">${escapeHtml(currentUser().name)}</p>
           ${list.map(([path, label, iconName]) => `<a class="${activePath === path || activePath.startsWith(`${path}/`) ? "active" : ""}" href="#/${path}">${icon(iconName, 17)} ${label}</a>`).join("")}
         </div>
-        <div class="sidebar-section">
-          <p class="sidebar-title">Demo</p>
-          <button onclick="KT.resetState()">${icon("x", 16)} Veriyi sıfırla</button>
-        </div>
       </aside>
       <main class="main">${content}</main>
     </div>
@@ -1114,6 +1191,12 @@ function buyerDemandForm() {
           </div>
         </div>
         <div class="field full"><label>Açıklama</label><textarea id="d-desc" placeholder="Aradığın evi, çevre beklentini ve olmazsa olmazlarını yaz."></textarea><span class="helper">En az 20 karakter önerilir.</span></div>
+        <div class="field full">
+          <label>Görsel (opsiyonel)</label>
+          <input id="d-image" type="file" accept="image/*" class="file-input" onchange="KT.previewImage(event,'d-image-preview')">
+          <img id="d-image-preview" class="img-preview" alt="" style="display:none">
+          <span class="helper">Aradığın ev tarzını gösteren bir görsel ekleyebilirsin.</span>
+        </div>
       </div>
       <div id="d-error" class="error"></div>
       <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("check", 16)} Talebi yayınla</button><a class="btn btn-outline" href="#/dashboard/alici/taleplerim">Vazgeç</a></div>
@@ -1248,6 +1331,12 @@ function propertyForm() {
           </div>
         </div>
         <div class="field full"><label>Açıklama</label><textarea id="p-desc" placeholder="Evin güçlü yönlerini ve tapu/kullanım durumunu yaz."></textarea></div>
+        <div class="field full">
+          <label>İlan görseli (opsiyonel)</label>
+          <input id="p-image" type="file" accept="image/*" class="file-input" onchange="KT.previewImage(event,'p-image-preview')">
+          <img id="p-image-preview" class="img-preview" alt="" style="display:none">
+          <span class="helper">Evin fotoğrafını ekleyerek ilanını öne çıkarabilirsin.</span>
+        </div>
       </div>
       <div id="p-error" class="error"></div>
       <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("check", 16)} Evi ekle</button><a class="btn btn-outline" href="#/dashboard/satici/evlerim">Vazgeç</a></div>
@@ -1608,7 +1697,7 @@ function propertyRow(property) {
   const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType).length;
   return `
     <article class="row-card ${property.featuredUntil ? "promoted-card" : ""}">
-      <div class="thumb photo ${property.photoClass || ""}"></div>
+      ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
       <div>
         <div class="row-title">${escapeHtml(property.title)}</div>
         <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${money(property.price)}</div>
@@ -1627,7 +1716,7 @@ function offerRow(offer, view) {
   const target = view === "buyer" ? `dashboard/alici/teklifler/${offer.id}` : `dashboard/satici/mesajlar/${matchForOffer(offer.id)?.id || ""}`;
   return `
     <article class="row-card">
-      <div class="thumb photo ${property.photoClass || ""}"></div>
+      ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
       <div>
         <div class="row-title">${escapeHtml(property.title)}</div>
         <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · talep: ${escapeHtml(demand.title)}</div>
@@ -1698,6 +1787,11 @@ function ensureMatch(offer) {
 
 function render() {
   const path = route();
+  // Panel sayfalari giris gerektirir; admin paneli sadece ADMIN rolune acik.
+  if (path.startsWith("dashboard")) {
+    if (!isSignedIn()) { location.hash = "/giris"; return; }
+    if (path.startsWith("dashboard/admin") && currentUser().role !== "ADMIN") { location.hash = "/home"; return; }
+  }
   const content = path.startsWith("dashboard/alici")
     ? renderBuyer(path)
     : path.startsWith("dashboard/satici")
@@ -1730,7 +1824,14 @@ window.KT = {
     if (state.currentRole === "admin") return setRoute("dashboard/admin");
     return setRoute("dashboard/satici");
   },
-  resetState,
+  previewImage(event, previewId) {
+    const file = event.target.files && event.target.files[0];
+    const el = document.getElementById(previewId);
+    if (!file || !el) return;
+    const reader = new FileReader();
+    reader.onload = () => { el.src = reader.result; el.style.display = "block"; };
+    reader.readAsDataURL(file);
+  },
   async register(event) {
     event.preventDefault();
     document.getElementById("r-error").classList.remove("show");
@@ -1811,6 +1912,7 @@ window.KT = {
     };
     if (!payload.title || !payload.minBudget || !payload.maxBudget || payload.maxBudget < payload.minBudget || payload.description.length < 20)
       return showFormError("d-error", "Başlık, geçerli bütçe aralığı ve en az 20 karakter açıklama gerekli.");
+    payload.imageData = await readImageInput("d-image");
     const r = await api("/demands", "POST", payload);
     if (!r.ok) return showFormError("d-error", r.data.error || "Talep oluşturulamadı.");
     toast("Talebin yayına alındı. Uygun satıcılara bildirim hazırlandı.");
@@ -1844,6 +1946,7 @@ window.KT = {
     };
     if (!payload.title || !payload.price || payload.description.length < 15)
       return showFormError("p-error", "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
+    payload.imageData = await readImageInput("p-image");
     const r = await api("/properties", "POST", payload);
     if (!r.ok) return showFormError("p-error", r.data.error || "Ev eklenemedi.");
     toast("Ev portföyüne eklendi. Uygun alıcılara bildirim hazırlandı.");

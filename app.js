@@ -38,6 +38,11 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Bir talep/ilan "üste taşınmış" (boost) mı? boostedUntil bugüne eşit/ileri ise evet.
+function isBoosted(item) {
+  return Boolean(item && item.boostedUntil && item.boostedUntil >= today());
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -1149,7 +1154,7 @@ function buyerOverview() {
 
 function buyerDemands() {
   const user = currentUser();
-  const demands = state.demands.filter((d) => d.buyerId === user.id).sort((a, b) => Number(Boolean(b.featuredUntil)) - Number(Boolean(a.featuredUntil)));
+  const demands = state.demands.filter((d) => d.buyerId === user.id).sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)));
   return `
     ${pageHead("Taleplerim", "Yayındaki, taslak veya pasif taleplerini yönet.", `<a class="btn btn-primary" href="#/dashboard/alici/talep-olustur">${icon("send", 16)} Yeni talep</a>`)}
     <div class="list">${demands.map((d) => demandRow(d, false)).join("") || empty("Henüz talep yok", "Yeni talep oluşturarak satıcılardan teklif almaya başlayabilirsin.")}</div>
@@ -1294,7 +1299,7 @@ function sellerOverview() {
 
 function sellerProperties() {
   const user = currentUser();
-  const properties = state.properties.filter((property) => property.sellerId === user.id).sort((a, b) => Number(Boolean(b.featuredUntil)) - Number(Boolean(a.featuredUntil)));
+  const properties = state.properties.filter((property) => property.sellerId === user.id).sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)));
   return `
     ${pageHead("Evlerim", "Portföyündeki evleri ve uygun alıcı sayılarını takip et.", `<a class="btn btn-primary" href="#/dashboard/satici/ev-ekle">${icon("send", 16)} Yeni ev ekle</a>`)}
     <div class="list">${properties.map(propertyRow).join("") || empty("Henüz ev eklemedin", "Evini ekleyerek uygun alıcı taleplerini görebilirsin.")}</div>
@@ -1348,7 +1353,7 @@ function sellerDemands() {
   const properties = state.properties.filter((p) => p.sellerId === user.id);
   const rows = state.demands
     .slice()
-    .sort((a, b) => Number(Boolean(b.featuredUntil)) - Number(Boolean(a.featuredUntil)))
+    .sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)))
     .map((demand) => {
     const best = properties.map((property) => calculateMatchScore(demand, property).score).sort((a, b) => b - a)[0] || 0;
     return demandRow(demand, true, best);
@@ -1676,12 +1681,12 @@ function empty(title, body) {
 function demandRow(demand, sellerView, score = null) {
   const profile = buyerProfile(demand.buyerId);
   return `
-    <article class="row-card ${demand.featuredUntil ? "promoted-card" : ""}">
+    <article class="row-card ${isBoosted(demand) ? "promoted-card" : ""}">
       <div class="thumb">${icon("key", 28)}</div>
       <div>
         <div class="row-title">${escapeHtml(demand.title)}</div>
         <div class="row-meta">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)} · ${shortMoney(demand.minBudget)}-${shortMoney(demand.maxBudget)}</div>
-        <div class="pill-row" style="margin-top:8px"><span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${demand.featuredUntil ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        <div class="pill-row" style="margin-top:8px"><span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(demand.description)}</p>
       </div>
       <div class="row-side">
@@ -1695,12 +1700,12 @@ function demandRow(demand, sellerView, score = null) {
 function propertyRow(property) {
   const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType).length;
   return `
-    <article class="row-card ${property.featuredUntil ? "promoted-card" : ""}">
+    <article class="row-card ${isBoosted(property) ? "promoted-card" : ""}">
       ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
       <div>
         <div class="row-title">${escapeHtml(property.title)}</div>
         <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${money(property.price)}</div>
-        <div class="pill-row" style="margin-top:8px">${property.featuredUntil ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        <div class="pill-row" style="margin-top:8px">${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(property.description)}</p>
       </div>
       <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı</button></div>
@@ -2041,7 +2046,7 @@ window.KT = {
   async mockPromote(itemType, itemId) {
     const planId = itemType === "demand" ? "plan-buyer-boost" : "plan-seller-boost";
     const plan = planById(planId);
-    const r = await api("/payments/checkout", "POST", { planId });
+    const r = await api("/payments/checkout", "POST", { planId, itemType, itemId });
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
     await refreshState();
     toast(`${plan ? plan.name : "Öne çıkarma"} aktif edildi.`);

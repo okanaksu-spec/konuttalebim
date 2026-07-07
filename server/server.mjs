@@ -30,12 +30,34 @@ const B = (v) => v === 1 || v === true;        // int -> boolean
 const parseCookies = (h = "") =>
   Object.fromEntries(h.split(";").map((c) => c.trim().split("=").map(decodeURIComponent)).filter((p) => p[0]));
 
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;   // oturum 7 gun sonra gecersiz
 function sessionUser(req) {
   const token = parseCookies(req.headers.cookie).kt_session;
   if (!token) return null;
-  const s = db.prepare("SELECT userId FROM sessions WHERE token = ?").get(token);
+  const s = db.prepare("SELECT userId, createdAt FROM sessions WHERE token = ?").get(token);
   if (!s) return null;
+  const age = Date.now() - new Date(s.createdAt).getTime();
+  if (!s.createdAt || Number.isNaN(age) || age > SESSION_TTL_MS) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
   return db.prepare("SELECT * FROM users WHERE id = ?").get(s.userId) || null;
+}
+
+// --- Basit bellek-ici hiz siniri (kaba kuvvet denemelerine karsi) ---
+const rateBuckets = new Map();
+function clientIp(req) {
+  return (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "unknown";
+}
+function rateLimit(key, maxHits, windowMs) {
+  const t = Date.now();
+  const arr = (rateBuckets.get(key) || []).filter((x) => t - x < windowMs);
+  arr.push(t);
+  rateBuckets.set(key, arr);
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) if (!v.some((x) => t - x < windowMs)) rateBuckets.delete(k);
+  }
+  return arr.length <= maxHits;
 }
 
 function readBody(req) {
@@ -214,6 +236,8 @@ async function handleApi(req, res, url) {
 
   // --- kayit ---
   if (seg[0] === "register" && method === "POST") {
+    if (!rateLimit(`register:${clientIp(req)}`, 6, 15 * 60 * 1000))
+      return err(res, 429, "Çok fazla kayıt denemesi. Lütfen biraz sonra tekrar deneyin.");
     const name = (body.name || "").trim();
     const email = norm(body.email);
     const phone = (body.phone || "").trim();
@@ -237,12 +261,14 @@ async function handleApi(req, res, url) {
     queueEmail(id, "Konuttalebim üyeliğiniz oluşturuldu", "Hesabınız hazır.", "", "Yeni üyelik karşılama");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği oluşturuldu.`);
     const token = randomUUID();
-    db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, today());
+    db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
     return ok(res, { userId: id, role }, sessionCookie(token));
   }
 
   // --- giris ---
   if (seg[0] === "login" && method === "POST") {
+    if (!rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000))
+      return err(res, 429, "Çok fazla giriş denemesi. Lütfen birkaç dakika sonra tekrar deneyin.");
     const email = norm(body.email);
     const acc = db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(email);
     if (!acc || !verifyPassword(body.password || "", acc.passwordHash))
@@ -252,7 +278,7 @@ async function handleApi(req, res, url) {
     db.prepare("UPDATE auth_accounts SET lastLoginAt = ? WHERE userId = ?").run(today(), u.id);
     addAudit(u.id, "USER_LOGGED_IN", "User", u.id, "Giriş yapıldı.");
     const token = randomUUID();
-    db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, u.id, today());
+    db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, u.id, new Date().toISOString());
     return ok(res, { userId: u.id, role: u.role }, sessionCookie(token));
   }
 
@@ -443,6 +469,17 @@ async function handleApi(req, res, url) {
       .run(pid, user.id, plan.id, "MockPaymentProvider", plan.price, "TRY", "SUCCESS", today());
     db.prepare("INSERT INTO entitlements (id,userId,planId,activeFrom,activeTo) VALUES (?,?,?,?,?)")
       .run(uid("ent"), user.id, plan.id, today(), null);
+    // "Uste tasi" paketi: ilgili talep/ilana 7 gunluk boost uygula (yalniz sahibine)
+    if ((plan.id === "plan-buyer-boost" || plan.id === "plan-seller-boost") && body.itemType && body.itemId) {
+      const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      if (body.itemType === "demand") {
+        const d = db.prepare("SELECT id FROM demands WHERE id = ? AND buyerId = ?").get(body.itemId, user.id);
+        if (d) db.prepare("UPDATE demands SET boostedUntil = ? WHERE id = ?").run(until, d.id);
+      } else if (body.itemType === "property") {
+        const p = db.prepare("SELECT id FROM properties WHERE id = ? AND sellerId = ?").get(body.itemId, user.id);
+        if (p) db.prepare("UPDATE properties SET boostedUntil = ? WHERE id = ?").run(until, p.id);
+      }
+    }
     queueEmail(user.id, "Paket satın alındı", `${plan.name} paketiniz aktif.`, "", "Ödeme bildirimi");
     addAudit(user.id, "PAYMENT_SUCCESS", "Payment", pid, plan.name);
     return ok(res, { paymentId: pid });

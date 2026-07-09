@@ -527,10 +527,12 @@ const sessionCookie = (token) => ({
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml; charset=utf-8" };
 // Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
 // Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
-const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html"]);
+const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html"]);
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (p === "/") p = "/index.html";
+  else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
+  else if (p === "/evine-kiraci-bul") p = "/evine-kiraci-bul.html";
   const isAsset = p.startsWith("/assets/") && !p.includes("..");
   if (!STATIC_ALLOW.has(p) && !isAsset) { res.writeHead(404); return res.end("Bulunamadı"); }
   const filePath = normalize(join(WEB_DIR, p));

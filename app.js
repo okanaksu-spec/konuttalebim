@@ -169,6 +169,7 @@ function seedState() {
 // Baslangic yer tutucu; ilk render'dan once sunucudan gercek durum cekilir.
 let state = normalizeState(seedState());
 let uiTxMode = "SALE"; // Satilik/Kiralik UI secimi (state disinda; refreshState ezmesin)
+try { if (new URLSearchParams(location.search).get("tx") === "RENT") uiTxMode = "RENT"; } catch {}
 
 function loadState() {
   try {
@@ -616,6 +617,8 @@ function footer() {
           <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
         </div>
         <div class="footer-links">
+          <a href="/kiralik-ev-arayan">Kiralık ev arayan</a>
+          <a href="/evine-kiraci-bul">Evine kiracı bul</a>
           <a href="#/kvkk">KVKK</a>
           <a href="#/gizlilik">Gizlilik</a>
           <a href="#/kullanim-sartlari">Kullanım Şartları</a>

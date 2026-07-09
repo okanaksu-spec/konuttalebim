@@ -902,14 +902,46 @@ function propertyOfferSample(property, demand, profile) {
   `;
 }
 
+function registerFlowInfo(roleKey) {
+  const rent = uiTxMode === "RENT";
+  if (roleKey === "agent") return { label: "Emlak danışmanı", steps: [
+    "Satılık ve kiralık portföyünü ekle; tam adres karşı tarafa gösterilmez.",
+    "Sana uygun alıcı ve kiracı taleplerini eşleşme puanına göre gör.",
+    "Talebe özel teklif gönder; iki taraf onayıyla iletişim açılır, doğrudan anlaşılır."
+  ]};
+  if (roleKey === "seller") return rent
+    ? { label: "Ev sahibi", steps: [
+        "İlanını ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
+        "Kiralık ev arayan kiracıların taleplerini gör.",
+        "Uygun kiracıya doğrudan teklif gönder; kirayı ve şartları siz belirlersiniz."
+      ]}
+    : { label: "Satıcı", steps: [
+        "Evini ekle; konum, özellik ve fiyatını gir, tam adres alıcıya gösterilmez.",
+        "Evine uygun, gerçek alıcı taleplerini gör.",
+        "Talebe özel teklif gönder; iki taraf onayıyla iletişim açılır, doğrudan anlaşırsın."
+      ]};
+  return rent
+    ? { label: "Kiracı", steps: [
+        "Kiralık talebini oluştur; bölge, aylık kira aralığı, oda ve eşyalı tercihini belirt.",
+        "İlan avlama; ev sahipleri sana özel kiralık teklifler getirsin.",
+        "İki taraf onayıyla iletişim açılır; doğrudan ev sahibiyle anlaşırsın."
+      ]}
+    : { label: "Alıcı", steps: [
+        "Talebini oluştur; bölge, bütçe aralığı, oda ve tercihlerini belirt (belge istenmez).",
+        "Talebine uygun satıcılar sana özel ev teklifleri gönderir.",
+        "İki taraf onayıyla iletişim açılır; fiyatı doğrudan siz belirlersiniz."
+      ]};
+}
+
 function authRegisterPage(roleKey = "buyer") {
   const selectedRole = ["buyer", "seller", "agent"].includes(roleKey) ? roleKey : "buyer";
+  const flow = registerFlowInfo(selectedRole);
   const roleOptions = [
     ["buyer", "Alıcı"],
     ["seller", "Satıcı"],
     ["agent", "Emlak danışmanı"]
   ];
-  return publicShell("Üyelik oluştur", "Alıcı, satıcı veya emlak danışmanı hesabını aç; panelin seçtiğin role göre hazırlanır.", `
+  return publicShell("Üyelik oluştur", "Alıcı, kiracı, satıcı, ev sahibi veya emlak danışmanı olarak hesabını aç; panelin rolüne göre hazırlanır.", `
     <div class="auth-layout">
       <form class="panel auth-panel" onsubmit="KT.register(event)">
         <div class="form-grid">
@@ -941,14 +973,12 @@ function authRegisterPage(roleKey = "buyer") {
         </div>
       </form>
       <aside class="auth-side">
-        <span class="badge badge-blue">${icon("shield", 13)} Güvenli üyelik</span>
-        <h3>Aradığını söyle, teklifler sana gelsin.</h3>
-        <p>Alıcı veya kiracı olarak talebini oluştur; satıcı ve ev sahipleri sana özel teklif sunsun. İletişim bilgilerin iki taraf onayı olmadan gizli kalır.</p>
-        <div class="auth-benefits">
-          <span>${icon("user", 16)} Ücretsiz başlangıç</span>
-          <span>${icon("lock", 16)} Gizli iletişim</span>
-          <span>${icon("mail", 16)} Talebine özel teklifler</span>
-        </div>
+        <span class="badge badge-blue">${icon("shield", 13)} ${flow.label} üyeliği</span>
+        <h3>Nasıl çalışır?</h3>
+        <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
+          ${flow.steps.map((s, i) => `<li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">${i + 1}</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">${s}</span></li>`).join("")}
+        </ol>
+        <p style="font-size:14px;margin-top:16px">Zaten üyeysen <a href="#/giris">giriş yap</a>.</p>
       </aside>
     </div>
   `);

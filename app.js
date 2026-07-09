@@ -43,6 +43,21 @@ function isBoosted(item) {
   return Boolean(item && item.boostedUntil && item.boostedUntil >= today());
 }
 
+// Satilik/Kiralik yardimcilari
+function isRent(item) {
+  return Boolean(item && item.transactionType === "RENT");
+}
+function txPill(item) {
+  return isRent(item) ? `<span class="badge badge-gold">Kiralık</span>` : "";
+}
+function priceText(item) {
+  return isRent(item) ? `${money(item.price)}/ay` : money(item.price);
+}
+function rangeText(item) {
+  const r = `${shortMoney(item.minBudget)}-${shortMoney(item.maxBudget)}`;
+  return isRent(item) ? `${r}/ay` : r;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -153,6 +168,7 @@ function seedState() {
 
 // Baslangic yer tutucu; ilk render'dan once sunucudan gercek durum cekilir.
 let state = normalizeState(seedState());
+let uiTxMode = "SALE"; // Satilik/Kiralik UI secimi (state disinda; refreshState ezmesin)
 
 function loadState() {
   try {
@@ -401,6 +417,7 @@ function calculateMatchScore(demand, property) {
   const reasons = [];
   const warnings = [];
   if (!demand || !property) return { score: 0, reasons, warnings: ["Eksik talep veya ev verisi"] };
+  if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return { score: 0, reasons, warnings: ["İşlem tipi farklı (satılık/kiralık)"] };
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) {
     score += 13;
@@ -620,7 +637,7 @@ function homePage() {
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye odaklı alıcı talebi pazaryeri</span>
           <h1>Aradığın evi sadece arama, talebini oluştur.</h1>
-          <p>Konuttalebi, alıcıların konut talebi oluşturduğu, satıcıların ise bu taleplere uygun ev teklifleri sunduğu çift yönlü emlak platformudur.</p>
+          <p>Konuttalebi'de ev <b>al</b>, evini <b>sat</b>, ev <b>kirala</b> veya evini <b>kiraya ver</b>. Talebini oluştur; karşı taraf sana özel teklif sunsun. Fiyata biz karışmayız — doğrudan siz anlaşırsınız.</p>
           <div class="hero-actions">
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
@@ -732,33 +749,41 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Rolünü seç</div>
-            <h2>Alıcı, satıcı ya da emlak danışmanı: Konuttalebi sana göre çalışır.</h2>
-            <p class="lead">Her rol için ayrı bir akış var. Sana uygun alanı seç, üye ol ve hemen başla.</p>
+            <h2>Ev al, evini sat, ev kirala veya evini kiraya ver — Konuttalebi sana göre çalışır.</h2>
+            <p class="lead">Dört akıştan sana uygun olanı seç: talebini oluştur ya da ilanını ver, karşı taraf sana özel teklif sunsun. Emlak danışmanları için profesyonel paket de var.</p>
           </div>
         </div>
-        <div class="grid grid-3 role-areas">
+        <div class="grid grid-2 role-areas">
           <article class="card role-area">
             <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
-            <h3>Alıcıyım</h3>
-            <p>Aradığın evi tarif et, talebini oluştur; uygun satıcılar sana özel teklif göndersin. Belge istenmez, sadece bütçe beyanı.</p>
-            <ul class="role-points"><li>Talep oluştur, gelen teklifleri incele</li><li>Bütçe, peşinat ve kredi beyanı</li><li>İstersen görsel de ekle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 16)} Alıcı olarak üye ol</button>
+            <h3>Ev Al</h3>
+            <p>Satın almak istediğin evi tarif et, talebini oluştur; uygun satıcılar sana özel teklif göndersin. Belge istenmez, sadece bütçe beyanı.</p>
+            <ul class="role-points"><li>Bütçe aralığı ve peşinat beyanı</li><li>Bölge, oda ve tipe göre eşleşme</li><li>Gelen teklifleri incele</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('buyer','SALE')">${icon("key", 16)} Ev Al — talep oluştur</button>
+          </article>
+          <article class="card role-area">
+            <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
+            <h3>Ev Kirala</h3>
+            <p>Kiralamak istediğin evi tarif et; ev sahipleri sana özel kiralık teklifleri sunsun. Aylık kira ve depozito aralığını beyan et.</p>
+            <ul class="role-points"><li>Aylık kira aralığı ve eşyalı tercihi</li><li>Bölgeye göre kiralık eşleşme</li><li>Doğrudan ev sahibiyle anlaş</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('buyer','RENT')">${icon("key", 16)} Ev Kirala — talep oluştur</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-teal">${icon("home", 26)}</span>
-            <h3>Satıcıyım</h3>
-            <p>Elindeki eve uygun alıcı taleplerini gör, talebe özel teklif gönder. İlanına görsel ekleyip öne çık.</p>
-            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Talebe özel teklif gönder</li><li>İlan görselleri yükle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller')">${icon("home", 16)} Satıcı olarak üye ol</button>
+            <h3>Evini Sat</h3>
+            <p>Satılık evine uygun alıcı taleplerini gör, talebe özel teklif gönder. Tam adres alıcıya gösterilmez.</p>
+            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Talebe özel teklif gönder</li><li>İlan görseli yükle</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — ilan ver</button>
           </article>
           <article class="card role-area">
-            <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>
-            <h3>Emlak danışmanıyım</h3>
-            <p>Çoklu portföyünü yönet, uygun alıcılara talebe özel teklifler sun. Profesyonel paketle daha geniş haklar.</p>
-            <ul class="role-points"><li>Çoklu portföy yönetimi</li><li>Toplu teklif ve öne çıkarma</li><li>Bilgileri görme üyeliği dahil</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Emlak danışmanı olarak üye ol</button>
+            <span class="role-ic role-ic-gold">${icon("home", 26)}</span>
+            <h3>Evini Kirala</h3>
+            <p>Kiraya vereceğin eve uygun kiracı taleplerini gör; aylık kira ve depozitoyu belirt, doğrudan anlaş. Fiyata biz karışmayız.</p>
+            <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Eşyalı/eşyasız seçeneği</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — ilan ver</button>
           </article>
         </div>
+        <p class="lead" style="text-align:center;margin-top:20px">Emlak danışmanı mısın? <button class="btn btn-outline" onclick="KT.startRegistration('agent')">${icon("chart", 15)} Profesyonel paketle üye ol</button></p>
       </div>
     </section>
     <section class="band band-white">
@@ -1166,30 +1191,34 @@ function buyerPackages() {
 }
 
 function buyerDemandForm() {
+  const rent = uiTxMode === "RENT";
   return `
-    ${pageHead("Yeni Talep Oluştur", "Satıcıların göreceği anonim talep kartını hazırla.")}
+    ${pageHead(rent ? "Yeni Kiralık Talebi" : "Yeni Talep Oluştur", "Satıcı/ev sahiplerinin göreceği anonim talep kartını hazırla.")}
     <div class="wizard-steps">
-      <div class="step active">1. Konum</div><div class="step active">2. Özellikler</div><div class="step active">3. Bütçe</div><div class="step active">4. Önizleme</div>
+      <div class="step active">1. Konum</div><div class="step active">2. Özellikler</div><div class="step active">3. ${rent ? "Kira" : "Bütçe"}</div><div class="step active">4. Önizleme</div>
     </div>
     <form class="panel" onsubmit="KT.createDemand(event)">
       <div class="form-grid">
-        ${field("Başlık", "d-title", "text", "Kadıköy'de aile için 3+1")}
+        <div class="field full"><label for="d-txtype">İşlem tipi</label><select id="d-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiralık ev arayan talebi (Ev Kirala)." : "Satılık ev arayan talebi (Ev Al)."}</span></div>
+        ${field("Başlık", "d-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de aile için 3+1")}
         ${field("Şehir", "d-city", "select", "", ["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa"])}
         ${field("İlçe", "d-district", "text", "Kadıköy")}
         ${field("Mahalle / bölge", "d-neighborhood", "text", "Göztepe / Feneryolu")}
         ${field("Konut tipi", "d-type", "select", "", ["Daire", "Villa", "Müstakil ev", "Rezidans", "Yazlık", "Arsa"])}
         ${field("Oda sayısı", "d-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"])}
-        ${field("Minimum m2", "d-minsqm", "number", "90")}
-        ${field("Maksimum m2", "d-maxsqm", "number", "140")}
-        ${field("Minimum bütçe", "d-minbudget", "number", "4500000")}
-        ${field("Maksimum bütçe", "d-maxbudget", "number", "6500000")}
-        ${field("Peşinat", "d-down", "number", "1500000")}
-        ${field("Alım zamanı", "d-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
+        ${field("Minimum m2", "d-minsqm", "number", rent ? "60" : "90")}
+        ${field("Maksimum m2", "d-maxsqm", "number", rent ? "110" : "140")}
+        ${field(rent ? "Minimum aylık kira" : "Minimum bütçe", "d-minbudget", "number", rent ? "20000" : "4500000")}
+        ${field(rent ? "Maksimum aylık kira" : "Maksimum bütçe", "d-maxbudget", "number", rent ? "30000" : "6500000")}
+        ${rent ? field("Öngörülen depozito", "d-deposit", "number", "30000") : field("Peşinat", "d-down", "number", "1500000")}
+        ${field(rent ? "Taşınma zamanı" : "Alım zamanı", "d-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
         <div class="field full">
           <label>Tercihler</label>
           <div class="check-grid">
-            <label class="check"><input id="d-credit" type="checkbox" checked> Kredi kullanacağım</label>
-            <label class="check"><input id="d-cash" type="checkbox"> Nakit alım olabilir</label>
+            ${rent
+              ? `<label class="check"><input id="d-furnished" type="checkbox"> Eşyalı olsun</label>`
+              : `<label class="check"><input id="d-credit" type="checkbox" checked> Kredi kullanacağım</label>
+            <label class="check"><input id="d-cash" type="checkbox"> Nakit alım olabilir</label>`}
             <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>
             <label class="check"><input id="d-private" type="checkbox" checked> Telefonum gizli kalsın</label>
           </div>
@@ -1307,22 +1336,25 @@ function sellerProperties() {
 }
 
 function propertyForm() {
+  const rent = uiTxMode === "RENT";
   return `
-    ${pageHead("Yeni Ev Ekle", "Evini portföye ekle; tam adres alıcıya gösterilmez.")}
+    ${pageHead(rent ? "Yeni Kiralık İlan" : "Yeni Ev Ekle", "İlanını portföye ekle; tam adres karşı tarafa gösterilmez.")}
     <form class="panel" onsubmit="KT.createProperty(event)">
       <div class="form-grid">
-        ${field("Başlık", "p-title", "text", "Kadıköy'de yenilenmiş 3+1")}
+        <div class="field full"><label for="p-txtype">İşlem tipi</label><select id="p-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiraya vereceğin ev ilanı (Evini Kirala)." : "Satılık ev ilanı (Evini Sat)."}</span></div>
+        ${field("Başlık", "p-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de yenilenmiş 3+1")}
         ${field("Şehir", "p-city", "select", "", ["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa"])}
         ${field("İlçe", "p-district", "text", "Kadıköy")}
         ${field("Mahalle", "p-neighborhood", "text", "Göztepe")}
         ${field("Konut tipi", "p-type", "select", "", ["Daire", "Villa", "Müstakil ev", "Rezidans", "Yazlık", "Arsa"])}
         ${field("Oda sayısı", "p-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"])}
-        ${field("Brüt m2", "p-gross", "number", "130")}
-        ${field("Net m2", "p-net", "number", "115")}
+        ${field("Brüt m2", "p-gross", "number", rent ? "95" : "130")}
+        ${field("Net m2", "p-net", "number", rent ? "80" : "115")}
         ${field("Bina yaşı", "p-age", "select", "", ["0-5", "6-10", "11-15", "16-20", "20+"])}
         ${field("Kat", "p-floor", "text", "4/8")}
         ${field("Aidat", "p-dues", "number", "950")}
-        ${field("Fiyat beklentisi", "p-price", "number", "6500000")}
+        ${field(rent ? "Aylık kira" : "Fiyat beklentisi", "p-price", "number", rent ? "32000" : "6500000")}
+        ${rent ? field("Depozito", "p-deposit", "number", "32000") : ""}
         <div class="field full">
           <label>Özellikler</label>
           <div class="check-grid">
@@ -1330,7 +1362,9 @@ function propertyForm() {
             <label class="check"><input id="p-parking" type="checkbox" checked> Otopark</label>
             <label class="check"><input id="p-elevator" type="checkbox" checked> Asansör</label>
             <label class="check"><input id="p-complex" type="checkbox"> Site içinde</label>
-            <label class="check"><input id="p-credit" type="checkbox" checked> Krediye uygun</label>
+            ${rent
+              ? `<label class="check"><input id="p-furnished" type="checkbox"> Eşyalı</label>`
+              : `<label class="check"><input id="p-credit" type="checkbox" checked> Krediye uygun</label>`}
             <label class="check"><input id="p-negotiable" type="checkbox" checked> Pazarlığa açık</label>
           </div>
         </div>
@@ -1343,7 +1377,7 @@ function propertyForm() {
         </div>
       </div>
       <div id="p-error" class="error"></div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("check", 16)} Evi ekle</button><a class="btn btn-outline" href="#/dashboard/satici/evlerim">Vazgeç</a></div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("check", 16)} ${rent ? "İlanı ekle" : "Evi ekle"}</button><a class="btn btn-outline" href="#/dashboard/satici/evlerim">Vazgeç</a></div>
     </form>
   `;
 }
@@ -1685,8 +1719,8 @@ function demandRow(demand, sellerView, score = null) {
       <div class="thumb">${icon("key", 28)}</div>
       <div>
         <div class="row-title">${escapeHtml(demand.title)}</div>
-        <div class="row-meta">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)} · ${shortMoney(demand.minBudget)}-${shortMoney(demand.maxBudget)}</div>
-        <div class="pill-row" style="margin-top:8px"><span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        <div class="row-meta">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)} · ${rangeText(demand)}</div>
+        <div class="pill-row" style="margin-top:8px">${txPill(demand)}<span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(demand.description)}</p>
       </div>
       <div class="row-side">
@@ -1698,14 +1732,14 @@ function demandRow(demand, sellerView, score = null) {
 }
 
 function propertyRow(property) {
-  const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType).length;
+  const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType && (d.transactionType || "SALE") === (property.transactionType || "SALE")).length;
   return `
     <article class="row-card ${isBoosted(property) ? "promoted-card" : ""}">
       ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
       <div>
         <div class="row-title">${escapeHtml(property.title)}</div>
-        <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${money(property.price)}</div>
-        <div class="pill-row" style="margin-top:8px">${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${priceText(property)}</div>
+        <div class="pill-row" style="margin-top:8px">${txPill(property)}${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(property.description)}</p>
       </div>
       <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı</button></div>
@@ -1813,8 +1847,13 @@ window.KT = {
     saveState();
     render();
   },
-  startRegistration(role) {
+  startRegistration(role, tx) {
+    if (tx) uiTxMode = tx === "RENT" ? "RENT" : "SALE";
     setRoute(`uye-ol/${role}`);
+  },
+  setTxMode(val) {
+    uiTxMode = (val === "Kiralık" || val === "RENT") ? "RENT" : "SALE";
+    render();
   },
   startByRole() {
     if (isSignedIn()) return this.goDashboard();
@@ -1895,65 +1934,77 @@ window.KT = {
   async createDemand(event) {
     event.preventDefault();
     document.getElementById("d-error").classList.remove("show");
+    const rent = uiTxMode === "RENT";
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+    const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
     const payload = {
-      title: document.getElementById("d-title").value.trim(),
-      city: document.getElementById("d-city").value,
-      district: document.getElementById("d-district").value.trim(),
-      neighborhood: document.getElementById("d-neighborhood").value.trim(),
-      propertyType: document.getElementById("d-type").value,
-      roomCount: document.getElementById("d-rooms").value,
-      minSqm: Number(document.getElementById("d-minsqm").value),
-      maxSqm: Number(document.getElementById("d-maxsqm").value),
-      minBudget: Number(document.getElementById("d-minbudget").value),
-      maxBudget: Number(document.getElementById("d-maxbudget").value),
-      downPayment: Number(document.getElementById("d-down").value),
-      usesCredit: document.getElementById("d-credit").checked,
-      cashReady: document.getElementById("d-cash").checked,
-      exchangePossible: document.getElementById("d-exchange").checked,
-      purchaseTimeline: document.getElementById("d-timeline").value,
-      description: document.getElementById("d-desc").value.trim(),
-      privacyLevel: document.getElementById("d-private").checked ? "Telefon gizli kalsın" : "Platform varsayılanı"
+      title: val("d-title").trim(),
+      city: val("d-city"),
+      district: val("d-district").trim(),
+      neighborhood: val("d-neighborhood").trim(),
+      propertyType: val("d-type"),
+      roomCount: val("d-rooms"),
+      minSqm: Number(val("d-minsqm")),
+      maxSqm: Number(val("d-maxsqm")),
+      minBudget: Number(val("d-minbudget")),
+      maxBudget: Number(val("d-maxbudget")),
+      downPayment: Number(val("d-down") || 0),
+      usesCredit: chk("d-credit"),
+      cashReady: chk("d-cash"),
+      exchangePossible: chk("d-exchange"),
+      purchaseTimeline: val("d-timeline"),
+      description: val("d-desc").trim(),
+      privacyLevel: chk("d-private") ? "Telefon gizli kalsın" : "Platform varsayılanı",
+      transactionType: rent ? "RENT" : "SALE",
+      depositAmount: Number(val("d-deposit") || 0),
+      furnished: chk("d-furnished")
     };
     if (!payload.title || !payload.minBudget || !payload.maxBudget || payload.maxBudget < payload.minBudget || payload.description.length < 20)
-      return showFormError("d-error", "Başlık, geçerli bütçe aralığı ve en az 20 karakter açıklama gerekli.");
+      return showFormError("d-error", rent ? "Başlık, geçerli kira aralığı ve en az 20 karakter açıklama gerekli." : "Başlık, geçerli bütçe aralığı ve en az 20 karakter açıklama gerekli.");
     payload.imageData = await readImageInput("d-image");
     const r = await api("/demands", "POST", payload);
     if (!r.ok) return showFormError("d-error", r.data.error || "Talep oluşturulamadı.");
-    toast("Talebin yayına alındı. Uygun satıcılara bildirim hazırlandı.");
+    toast(`Talebin yayına alındı. Uygun ${rent ? "ev sahiplerine" : "satıcılara"} bildirim hazırlandı.`);
     setRoute("dashboard/alici/taleplerim");
   },
   async createProperty(event) {
     event.preventDefault();
     document.getElementById("p-error").classList.remove("show");
-    const type = document.getElementById("p-type").value;
+    const rent = uiTxMode === "RENT";
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+    const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
+    const type = val("p-type");
     const payload = {
-      title: document.getElementById("p-title").value.trim(),
-      city: document.getElementById("p-city").value,
-      district: document.getElementById("p-district").value.trim(),
-      neighborhood: document.getElementById("p-neighborhood").value.trim(),
+      title: val("p-title").trim(),
+      city: val("p-city"),
+      district: val("p-district").trim(),
+      neighborhood: val("p-neighborhood").trim(),
       propertyType: type,
-      roomCount: document.getElementById("p-rooms").value,
-      grossSqm: Number(document.getElementById("p-gross").value),
-      netSqm: Number(document.getElementById("p-net").value),
-      buildingAge: document.getElementById("p-age").value,
-      floor: document.getElementById("p-floor").value.trim(),
-      dues: Number(document.getElementById("p-dues").value),
-      hasBalcony: document.getElementById("p-balcony").checked,
-      hasParking: document.getElementById("p-parking").checked,
-      hasElevator: document.getElementById("p-elevator").checked,
-      inComplex: document.getElementById("p-complex").checked,
-      creditEligible: document.getElementById("p-credit").checked,
-      negotiable: document.getElementById("p-negotiable").checked,
-      price: Number(document.getElementById("p-price").value),
-      description: document.getElementById("p-desc").value.trim(),
-      photoClass: type === "Villa" ? "villa" : type === "Rezidans" ? "residence" : "apartment"
+      roomCount: val("p-rooms"),
+      grossSqm: Number(val("p-gross")),
+      netSqm: Number(val("p-net")),
+      buildingAge: val("p-age"),
+      floor: val("p-floor").trim(),
+      dues: Number(val("p-dues")),
+      hasBalcony: chk("p-balcony"),
+      hasParking: chk("p-parking"),
+      hasElevator: chk("p-elevator"),
+      inComplex: chk("p-complex"),
+      creditEligible: chk("p-credit"),
+      negotiable: chk("p-negotiable"),
+      price: Number(val("p-price")),
+      description: val("p-desc").trim(),
+      photoClass: type === "Villa" ? "villa" : type === "Rezidans" ? "residence" : "apartment",
+      transactionType: rent ? "RENT" : "SALE",
+      depositAmount: Number(val("p-deposit") || 0),
+      furnished: chk("p-furnished")
     };
     if (!payload.title || !payload.price || payload.description.length < 15)
-      return showFormError("p-error", "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
+      return showFormError("p-error", `Başlık, ${rent ? "aylık kira" : "fiyat"} ve en az 15 karakter açıklama gerekli.`);
     payload.imageData = await readImageInput("p-image");
     const r = await api("/properties", "POST", payload);
-    if (!r.ok) return showFormError("p-error", r.data.error || "Ev eklenemedi.");
-    toast("Ev portföyüne eklendi. Uygun alıcılara bildirim hazırlandı.");
+    if (!r.ok) return showFormError("p-error", r.data.error || "İlan eklenemedi.");
+    toast(`${rent ? "İlanın" : "Evin"} portföyüne eklendi. Uygun ${rent ? "kiracılara" : "alıcılara"} bildirim hazırlandı.`);
     setRoute("dashboard/satici/evlerim");
   },
   goSellerOffer(demandId) {

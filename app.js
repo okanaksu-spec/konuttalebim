@@ -847,8 +847,8 @@ function howSteps() {
   </svg>`;
   const steps = [
     [illus1, "Talebini oluştur", "Şehir, ilçe, bütçe/kira, oda, m2 ve zaman belirlenir; istenirse görsel eklenir."],
-    [illus2, "Sistem eşleştirir", "Bölge, bütçe, oda ve tipe göre en uygun ilan ve talepler öne çıkar; kimliğin gizli kalır."],
-    [illus3, "İletişim bilgisine ulaş", "Bilgileri görme üyeliğiyle ilan sahibinin telefon ve e-postası açılır."],
+    [illus2, "Eşleş ve teklif al", "Bölge, bütçe, oda ve tipe göre eşleşirsin; uygun taraflar sana teklif gönderir, sen de gönderebilirsin. Kimliğin gizli kalır."],
+    [illus3, "Üyelikle iletişimi aç", "Beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın telefon ve e-postası açılır."],
     [illus4, "Doğrudan anlaş", "Fiyata, pazarlığa veya sözleşmeye karışmayız; şartları doğrudan siz belirlersiniz."]
   ];
   return `<div class="grid grid-4 how-steps">${steps.map(([svg, title, body], i) => `<article class="card how-step"><div class="how-illus">${svg}</div><span class="badge badge-gold">${i + 1}. adım</span><h3 style="margin-top:10px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
@@ -963,7 +963,7 @@ function authRegisterPage(roleKey = "buyer") {
           ${field("Şifre", "r-password", "password", "En az 6 karakter")}
           ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
           <div class="field full">
-            <label class="check"><input id="r-terms" type="checkbox"> KVKK, gizlilik ve kullanım şartlarını kabul ediyorum.</label>
+            <label class="check"><input id="r-terms" type="checkbox"> KVKK, gizlilik ve kullanım şartlarını kabul ediyorum; eşleştiğim ve bilgileri görme üyeliği olan tarafın iletişim bilgimi görebileceğini onaylıyorum.</label>
           </div>
         </div>
         <div id="r-error" class="error"></div>
@@ -1081,7 +1081,7 @@ function pricingCards(roleTypes = null) {
 
 function faq() {
   const rows = [
-    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu, satıcı ve ev sahiplerinin ilan verdiği çift yönlü bir emlak platformudur. Taraflar eşleşince, üyelikle ilan sahibinin iletişim bilgisine ulaşıp doğrudan kendi aralarında anlaşırlar. Tek hizmetimiz doğru tarafları buluşturmaktır; mesajlaşma veya teklif kartı yoktur."],
+    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu, satıcı ve ev sahiplerinin ilan verdiği çift yönlü bir emlak platformudur. Talebine/ilanına uygun taraflar sana teklif gönderir; beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın iletişim bilgisine ulaşır, doğrudan kendi aranızda anlaşırsınız. Platform içi mesajlaşma yoktur; fiyata ve pazarlığa karışmayız."],
     ["Belge yüklemem gerekiyor mu?", "Hayır. Yalnızca bütçe/kira aralığını, peşinatını ve zaman tercihini beyan edersin."],
     ["Telefonum ne zaman görünür?", "Karşı taraf, senin talebin/ilanın için bilgileri görme üyeliğini aldığında iletişim bilgin görünür. Bu bilgi yalnızca eşleşme kapsamında ve açık rızanla paylaşılır."],
     ["Emlak danışmanları kullanabilir mi?", "Evet, ancak daha sıkı rate limit ve kalite skoruna tabidir."],
@@ -1120,7 +1120,6 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/alici/taleplerim", "Taleplerim", "key"],
       ["dashboard/alici/talep-olustur", "Yeni Talep", "send"],
       ["dashboard/alici/teklifler", "Gelen Teklifler", "home"],
-      ["dashboard/alici/mesajlar", "Mesajlar", "chat"],
       ["dashboard/alici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/alici/butce-beyani", "Bütçe Beyanı", "card"],
       ["dashboard/alici/bildirimler", "Bildirimler", "bell"],
@@ -1133,7 +1132,6 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici/ev-ekle", "Yeni Ev", "send"],
       ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/satici/tekliflerim", "Tekliflerim", "card"],
-      ["dashboard/satici/mesajlar", "Mesajlar", "chat"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/satici/dogrulama", "Satıcı Doğrulama", "shield"],
       ["dashboard/satici/paketler", "Paketlerim", "card"]
@@ -1143,7 +1141,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici/evlerim", "Portföy", "home"],
       ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/satici/tekliflerim", "Teklifler", "card"],
-      ["dashboard/satici/mesajlar", "Mesajlar", "chat"],
+      ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/satici/paketler", "Kurumsal Paket", "card"]
     ],
     admin: [
@@ -1297,7 +1295,7 @@ function buyerOfferDetail(id) {
   const demand = demandById(offer.demandId);
   const match = calculateMatchScore(demand, property);
   return `
-    ${pageHead("Teklif Detayı", "Ev bilgilerini incele, yanıt ver veya satıcıyla güvenli mesajlaşmayı başlat.", `<a class="btn btn-outline" href="#/dashboard/alici/teklifler">Tüm tekliflere dön</a>`)}
+    ${pageHead("Teklif Detayı", "Ev bilgilerini incele ve teklife yanıt ver. İlgilenirsen eşleşirsiniz; iletişim bilgisi üyelikle açılır.", `<a class="btn btn-outline" href="#/dashboard/alici/teklifler">Tüm tekliflere dön</a>`)}
     <article class="panel">
       <div class="grid grid-2">
         <div class="photo ${property.photoClass || ""}" style="min-height:320px"></div>
@@ -1313,7 +1311,7 @@ function buyerOfferDetail(id) {
             <span class="pill">${property.negotiable ? "Pazarlığa açık" : "Net fiyat"}</span>
           </div>
           <p class="row-note" style="margin-top:16px">${escapeHtml(offer.message)}</p>
-          <div class="notice" style="margin-top:16px"><strong>Tam adres gizli.</strong> İletişim bilgileri yalnızca iki taraf onay verirse açılır.</div>
+          <div class="notice" style="margin-top:16px"><strong>Tam adres gizli.</strong> İlgilendiğinde eşleşme oluşur; iletişim bilgisi bilgileri görme üyeliğinle açılır.</div>
           <div class="form-actions">
             <button class="btn btn-primary" onclick="KT.respondOffer('${offer.id}','INTERESTED')">${icon("check", 16)} İlgileniyorum</button>
             <button class="btn btn-outline" onclick="KT.respondOffer('${offer.id}','INFO_REQUESTED')">Daha fazla bilgi iste</button>
@@ -1453,7 +1451,7 @@ function offerForm(demandId) {
       <div class="form-grid">
         <div class="field full"><label>Teklif edilecek ev</label><select id="o-property">${properties.map((p) => `<option value="${p.id}">${escapeHtml(p.title)} - ${money(p.price)}</option>`).join("")}</select></div>
         ${field("Teklif fiyatı", "o-price", "number", properties[0] ? properties[0].price : 0)}
-        <div class="field full"><label>Satıcı mesajı</label><textarea id="o-message" placeholder="Bu evi neden bu talebe uygun gördüğünü yaz."></textarea></div>
+        <div class="field full"><label>Teklif notu</label><textarea id="o-message" placeholder="Bu evi neden bu talebe uygun gördüğünü yaz."></textarea></div>
       </div>
       <div id="o-error" class="error"></div>
       <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("send", 16)} Teklif kartını gönder</button><a class="btn btn-outline" href="#/dashboard/satici/talepler">Vazgeç</a></div>
@@ -1562,70 +1560,32 @@ function formatCell(value, col) {
 }
 
 function messagesPage(matchId, roleName) {
-  const user = currentUser();
-  const matches = state.matches.filter((match) => roleName === "buyer" ? match.buyerId === user.id : match.sellerId === user.id);
-  const activeMatch = matchById(matchId) || matches[0];
-  if (!matches.length) return `${pageHead("Mesajlar", "Eşleşme başladığında güvenli mesajlaşma burada görünür.")}${empty("Henüz mesajlaşma başlamadı", "Bir teklif olumlu yanıtlandığında konuşma otomatik açılır.")}`;
-  const activeOffer = offerById(activeMatch.offerId);
-  const activeProperty = propertyById(activeOffer.propertyId);
-  const activeDemand = demandById(activeOffer.demandId);
-  const msgs = state.messages.filter((msg) => msg.matchId === activeMatch.id);
-  return `
-    ${pageHead("Mesajlar", "Telefon, e-posta ve adres otomatik maskelenir.")}
-    <div class="chat-shell">
-      <div class="conversation-list">
-        ${matches.map((match) => {
-          const offer = offerById(match.offerId);
-          const property = propertyById(offer.propertyId);
-          return `<button class="conversation-item ${match.id === activeMatch.id ? "active" : ""}" onclick="KT.openMatch('${match.id}')"><strong>${escapeHtml(property.title)}</strong><br><span class="muted">${statusLabel(match.status)} · ${money(offer.price)}</span></button>`;
-        }).join("")}
-      </div>
-      <section class="chat-panel">
-        <div class="chat-head"><strong>${escapeHtml(activeProperty.title)}</strong><br><span class="muted">${escapeHtml(activeDemand.title)} · ${statusLabel(activeMatch.status)}</span></div>
-        <div class="chat-log" id="chat-log">
-          ${msgs.map((msg) => bubble(msg, user.id)).join("")}
-        </div>
-        ${contactUnlockPanel(activeMatch, roleName)}
-        <form class="chat-input" onsubmit="KT.sendMessage(event,'${activeMatch.id}')">
-          <input id="chat-input-${activeMatch.id}" placeholder="Mesajını yaz. Telefon, e-posta ve adres otomatik gizlenir." autocomplete="off" />
-          <button class="btn btn-secondary" type="submit">${icon("send", 16)} Gönder</button>
-        </form>
-      </section>
-    </div>
-  `;
+  // Platform içi mesajlaşma kaldırıldı. Eşleşmeler + üyelikle iletişim ekranına yönlendirilir.
+  return matchesPage(roleName);
 }
 
 function contactUnlockPanel(match, roleName) {
-  if (match.contactUnlockedAt) {
-    const buyer = userById(match.buyerId);
-    const seller = userById(match.sellerId);
+  const membershipRole = roleName === "buyer" ? "buyer" : "seller";
+  const other = roleName === "buyer" ? userById(match.sellerId) : userById(match.buyerId);
+  const otherLabel = roleName === "buyer" ? "İlan sahibi" : "Talep sahibi";
+  const otherPossessive = roleName === "buyer" ? "İlan sahibinin" : "Talep sahibinin";
+  // Sunucu, aktif üyelik yoksa telefon/e-postayı boş döndürür.
+  const revealed = other && (other.phone || other.email);
+  if (revealed) {
     return `
       <div class="contact-card">
-        <strong>İletişim açıldı.</strong>
-        <div class="grid grid-2" style="margin-top:10px">
-          <span>Alıcı: ${escapeHtml(buyer.name)} · ${escapeHtml(buyer.phone)} · ${escapeHtml(buyer.email)}</span>
-          <span>Satıcı: ${escapeHtml(seller.name)} · ${escapeHtml(seller.phone)} · ${escapeHtml(seller.email)}</span>
-        </div>
-        <p class="muted" style="margin:10px 0 0">Kapora, ödeme ve tapu işlemlerini yalnızca resmi kanallar üzerinden yapın.</p>
+        <strong>İletişim bilgisi açık.</strong>
+        <div style="margin-top:10px">${otherLabel}: ${escapeHtml(other.name)} · ${escapeHtml(other.phone || "-")} · ${escapeHtml(other.email || "-")}</div>
+        <p class="muted" style="margin:10px 0 0">Fiyat, pazarlık ve sözleşmeyi doğrudan kendi aranızda yürütün. Kapora ve tapu işlemlerini yalnızca resmi kanallar üzerinden yapın.</p>
       </div>
     `;
   }
-  const approveSide = roleName === "buyer" ? "buyer" : "seller";
-  const membershipRole = roleName === "buyer" ? "buyer" : "seller";
   const contactPlanId = contactPlanForRole(membershipRole);
   const contactPlan = planById(contactPlanId);
-  const hasMembership = hasContactMembership(currentUser().id, membershipRole);
-  const canApprove = approveSide === "buyer" ? !match.buyerContactApproved : !match.sellerContactApproved;
   return `
     <div class="unlock-panel">
-      <div class="unlock-states">
-        <div><span>Alıcı onayı</span><b>${match.buyerContactApproved ? "Onaylandı" : "Bekleniyor"}</b></div>
-        <div><span>Satıcı onayı</span><b>${match.sellerContactApproved ? "Onaylandı" : "Bekleniyor"}</b></div>
-      </div>
-      ${canApprove && !hasMembership ? `<p class="muted">Telefon ve e-posta bilgilerini görmek için önce ${escapeHtml(contactPlan?.name || "bilgileri görme üyeliği")} gerekir.</p>` : ""}
-      ${canApprove && !hasMembership ? `<button class="btn btn-primary" onclick="KT.mockUpgrade('${contactPlanId}', true)">${icon("card", 16)} ${escapeHtml(contactPlan?.name || "Bilgileri Gör Üyeliği")} al</button>` : ""}
-      ${canApprove && hasMembership ? `<button class="btn btn-primary" onclick="KT.approveContact('${match.id}','${approveSide}')">${icon("lock", 16)} Bilgilerimi açmayı onayla</button>` : ""}
-      ${!canApprove ? `<span class="badge badge-yellow">Karşı taraf bekleniyor</span>` : ""}
+      <p class="muted">${otherPossessive} telefon ve e-postasını görmek için <strong>${escapeHtml(contactPlan?.name || "bilgileri görme üyeliği")}</strong> gerekir. Üyeliğinle bilgiyi görür, doğrudan iletişime geçersin.</p>
+      <button class="btn btn-primary" onclick="KT.mockUpgrade('${contactPlanId}', true)">${icon("card", 16)} ${escapeHtml(contactPlan?.name || "Bilgileri Gör Üyeliği")} al</button>
     </div>
   `;
 }
@@ -1639,11 +1599,20 @@ function matchesPage(roleName) {
   const user = currentUser();
   const matches = state.matches.filter((match) => roleName === "buyer" ? match.buyerId === user.id : match.sellerId === user.id);
   return `
-    ${pageHead("Eşleşmeler", "Mesajlaşma, onay bekleme ve iletişim açılma durumlarını takip et.")}
+    ${pageHead("Eşleşmeler", "Teklifin karşılık bulduğu eşleşmeler. İletişim bilgisini üyelikle aç, doğrudan anlaş.")}
     <div class="list">${matches.map((match) => {
       const offer = offerById(match.offerId);
       const property = propertyById(offer.propertyId);
-      return `<article class="row-card"><div class="thumb">${icon("lock", 28)}</div><div><div class="row-title">${escapeHtml(property.title)}</div><div class="row-meta">${money(offer.price)} · ${statusLabel(match.status)}</div></div><div class="row-side"><span class="badge ${match.contactUnlockedAt ? "badge-green" : "badge-yellow"}">${match.contactUnlockedAt ? "İletişim açık" : "Onay bekleniyor"}</span><button class="btn btn-small btn-primary" onclick="KT.openMatch('${match.id}')">Mesajlara git</button></div></article>`;
+      const other = roleName === "buyer" ? userById(match.sellerId) : userById(match.buyerId);
+      const open = other && (other.phone || other.email);
+      return `<article class="row-card" style="flex-direction:column;align-items:stretch;gap:12px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="thumb">${icon(open ? "key" : "lock", 24)}</div>
+          <div style="flex:1"><div class="row-title">${escapeHtml(property.title)}</div><div class="row-meta">${money(offer.price)} · ${escapeHtml(property.city || "")} ${escapeHtml(property.district || "")}</div></div>
+          <span class="badge ${open ? "badge-green" : "badge-yellow"}">${open ? "İletişim açık" : "Üyelikle açılır"}</span>
+        </div>
+        ${contactUnlockPanel(match, roleName)}
+      </article>`;
     }).join("") || empty("Henüz eşleşme yok", "Bir teklif olumlu yanıtlandığında eşleşme burada başlar.")}</div>
   `;
 }
@@ -1703,7 +1672,7 @@ function budgetDeclarationPage(userId) {
 
 function notificationsPage(userId) {
   const rows = state.notifications.filter((notification) => notification.userId === userId);
-  return `${pageHead("Bildirimler", "Teklif, mesaj ve bütçe beyanı güncellemeleri.")}<div class="list">${rows.map((n) => `<article class="notice"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.body)}<br><span class="muted">${n.createdAt}</span></article>`).join("") || empty("Bildirim yok", "Yeni gelişmeler burada görünür.")}</div>`;
+  return `${pageHead("Bildirimler", "Teklif, eşleşme ve bütçe beyanı güncellemeleri.")}<div class="list">${rows.map((n) => `<article class="notice"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.body)}<br><span class="muted">${n.createdAt}</span></article>`).join("") || empty("Bildirim yok", "Yeni gelişmeler burada görünür.")}</div>`;
 }
 
 function settingsPage(user) {
@@ -1786,7 +1755,7 @@ function offerRow(offer, view) {
   const property = propertyById(offer.propertyId);
   const demand = demandById(offer.demandId);
   const statusClass = offer.status === "INTERESTED" || offer.status === "MATCHED" ? "badge-gold" : offer.status === "DECLINED" ? "badge-neutral" : "badge-blue";
-  const target = view === "buyer" ? `dashboard/alici/teklifler/${offer.id}` : `dashboard/satici/mesajlar/${matchForOffer(offer.id)?.id || ""}`;
+  const target = view === "buyer" ? `dashboard/alici/teklifler/${offer.id}` : `dashboard/satici/eslesmeler`;
   return `
     <article class="row-card">
       ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
@@ -2057,7 +2026,7 @@ window.KT = {
     const price = Number(document.getElementById("o-price").value);
     const message = document.getElementById("o-message").value.trim();
     if (!propertyId || !price || message.length < 15)
-      return showFormError("o-error", "Ev seçimi, fiyat ve en az 15 karakter teklif mesajı gerekli.");
+      return showFormError("o-error", "Ev seçimi, fiyat ve en az 15 karakter teklif notu gerekli.");
     const r = await api("/offers", "POST", { demandId, propertyId, price, message });
     if (!r.ok) return showFormError("o-error", r.data.error || "Teklif gönderilemedi.");
     toast("Teklif kartı alıcıya gönderildi.");
@@ -2072,13 +2041,12 @@ window.KT = {
       setRoute("dashboard/alici/teklifler");
       return;
     }
-    toast("Eşleşme ve mesajlaşma başlatıldı.");
-    const match = matchForOffer(offerId);
-    setRoute(match ? `dashboard/alici/mesajlar/${match.id}` : "dashboard/alici/teklifler");
+    toast("Eşleşme oluştu. Üyelikle iletişim bilgisine ulaşabilirsin.");
+    setRoute("dashboard/alici/eslesmeler");
   },
   openMatch(matchId) {
-    if (state.currentRole === "buyer") setRoute(`dashboard/alici/mesajlar/${matchId}`);
-    else setRoute(`dashboard/satici/mesajlar/${matchId}`);
+    if (state.currentRole === "buyer") setRoute("dashboard/alici/eslesmeler");
+    else setRoute("dashboard/satici/eslesmeler");
   },
   async sendMessage(event, matchId) {
     event.preventDefault();

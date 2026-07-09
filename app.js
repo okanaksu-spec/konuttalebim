@@ -641,8 +641,8 @@ function homePage() {
       <div class="hero-inner">
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
-          <h1>Aradığın evi sadece arama, talebini oluştur.</h1>
-          <p>Konuttalebi'de ev <b>al</b>, evini <b>sat</b>, ev <b>kirala</b> veya evini <b>kiraya ver</b>. Talebini oluştur; karşı taraf sana özel teklif sunsun. Fiyata biz karışmayız — doğrudan siz anlaşırsınız.</p>
+          <h1>Sen ne aradığını söyle, teklifler sana gelsin.</h1>
+          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur; alıcı, satıcı, ev sahipleri veya kiracılar sana özel teklif sunsun.</p>
           <div class="hero-actions">
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>

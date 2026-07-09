@@ -152,13 +152,15 @@ function buildState(user) {
   });
 
   const matches = conv(all("matches"), boolFields.matches);
-  // iletisim kilidi kontrolu: sadece acikken karsi tarafin iletisimi gorunur
+  // Iletisim kilidi: eslesme varsa VE goruntuleyen tarafin aktif ucretli "bilgileri gorme"
+  // uyeligi varsa karsi tarafin iletisim bilgisi acilir. Tek tarafli: odeyen gorur, karsi onay gerekmez.
   const unlockedWith = new Set();
   if (user) {
+    const viewerHasMembership = hasContactMembership(user.id, user.role);
     for (const m of matches) {
-      if (m.status === "CONTACT_UNLOCKED" && (m.buyerId === user.id || m.sellerId === user.id)) {
-        unlockedWith.add(m.buyerId === user.id ? m.sellerId : m.buyerId);
-      }
+      if (m.buyerId !== user.id && m.sellerId !== user.id) continue;
+      const other = m.buyerId === user.id ? m.sellerId : m.buyerId;
+      if (viewerHasMembership || m.status === "CONTACT_UNLOCKED") unlockedWith.add(other);
     }
   }
   const users = all("users").map((u) => {
@@ -422,10 +424,8 @@ async function handleApi(req, res, url) {
       if (!match) {
         const mid = uid("m");
         db.prepare("INSERT INTO matches (id,offerId,buyerId,sellerId,status,createdAt) VALUES (?,?,?,?,?,?)")
-          .run(mid, offer.id, offer.buyerId, offer.sellerId, "WAITING_BUYER_APPROVAL", today());
-        db.prepare("INSERT INTO messages (id,matchId,senderId,body,maskedBody,containsSensitiveInfo,createdAt) VALUES (?,?,?,?,?,?,?)")
-          .run(uid("msg"), mid, "system", "Eşleşme başladı. İletişim bilgileri iki taraf onay verene kadar gizli kalır.", "Eşleşme başladı. İletişim bilgileri iki taraf onay verene kadar gizli kalır.", 0, now());
-        notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Alıcı teklifinizle ilgilendi.", "dashboard/satici/mesajlar");
+          .run(mid, offer.id, offer.buyerId, offer.sellerId, "MATCHED", today());
+        notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Alıcı teklifinizle ilgilendi. Üyelikle iletişim bilgisine ulaşabilirsiniz.", "dashboard/satici/eslesmeler");
       }
     }
     addAudit(user.id, "OFFER_RESPONDED", "Offer", offer.id, response);

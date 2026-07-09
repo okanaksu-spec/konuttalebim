@@ -170,6 +170,7 @@ function seedState() {
 let state = normalizeState(seedState());
 let uiTxMode = "SALE"; // Satilik/Kiralik UI secimi (state disinda; refreshState ezmesin)
 try { if (new URLSearchParams(location.search).get("tx") === "RENT") uiTxMode = "RENT"; } catch {}
+const PAYMENTS_LIVE = false; // POS entegrasyonu tamamlaninca true yapilacak; su an ucretli aksiyonlar "yakinda".
 
 function loadState() {
   try {
@@ -401,6 +402,7 @@ function planById(planId) {
 }
 
 function planCta(plan) {
+  if (!PAYMENTS_LIVE) return "Yakında";
   if ((plan.category || "").includes("İletişim")) return "Üyeliği al";
   if ((plan.category || "").includes("Reklam") && plan.interval === "7 gün") return "Reklamı başlat";
   return "Paketi seç";
@@ -1728,7 +1730,7 @@ function demandRow(demand, sellerView, score = null) {
       </div>
       <div class="row-side">
         <span class="badge ${demand.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${statusLabel(demand.status)}</span>
-        ${sellerView ? `<button class="btn btn-small btn-primary" onclick="KT.goSellerOffer('${demand.id}')">Bu alıcıya teklif ver</button>` : `<a class="btn btn-small btn-outline" href="#/dashboard/alici/teklifler">${demand.offerCount} teklifi gör</a><button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı</button>`}
+        ${sellerView ? `<button class="btn btn-small btn-primary" onclick="KT.goSellerOffer('${demand.id}')">Bu alıcıya teklif ver</button>` : `<a class="btn btn-small btn-outline" href="#/dashboard/alici/teklifler">${demand.offerCount} teklifi gör</a><button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı · yakında</button>`}
       </div>
     </article>
   `;
@@ -1745,7 +1747,7 @@ function propertyRow(property) {
         <div class="pill-row" style="margin-top:8px">${txPill(property)}${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(property.description)}</p>
       </div>
-      <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı</button></div>
+      <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı · yakında</button></div>
     </article>
   `;
 }
@@ -2098,6 +2100,7 @@ window.KT = {
     render();
   },
   async mockPromote(itemType, itemId) {
+    if (!PAYMENTS_LIVE) return toast("Ödeme altyapısı çok yakında aktifleşecek. Öne çıkarma kısa süre sonra kullanılabilir olacak.");
     const planId = itemType === "demand" ? "plan-buyer-boost" : "plan-seller-boost";
     const plan = planById(planId);
     const r = await api("/payments/checkout", "POST", { planId, itemType, itemId });
@@ -2107,6 +2110,7 @@ window.KT = {
     render();
   },
   async mockUpgrade(planId, rerender = false) {
+    if (!PAYMENTS_LIVE) return toast("Ödeme altyapısı çok yakında aktifleşecek. Paketler kısa süre sonra satın alınabilir olacak.");
     const plan = planById(planId);
     const r = await api("/payments/checkout", "POST", { planId });
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");

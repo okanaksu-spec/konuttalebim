@@ -325,15 +325,23 @@ async function handleApi(req, res, url) {
     const dImage = cleanImage(body.imageData);
     db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
       .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, today());
-    // uygun saticilara bildirim
+    // uygun saticilara bildirim + talep sahibine karsilikli eslesme bildirimi
     const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
     const seen = new Set();
+    let matchCount = 0;
     for (const p of props) {
-      if (calculateMatchScore(d, p) >= 70 && !seen.has(p.sellerId)) {
-        seen.add(p.sellerId);
-        notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", `${d.title} talebi ilanınıza uyuyor.`, "dashboard/satici/alici-talepleri");
-        queueEmail(p.sellerId, "Size uygun yeni alıcı talebi", `${d.title} talebi portföyünüze uygun.`, "", "Uygun talep bildirimi");
+      if (calculateMatchScore(d, p) >= 70) {
+        matchCount++;
+        if (!seen.has(p.sellerId)) {
+          seen.add(p.sellerId);
+          notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", `${d.title} talebi ilanınıza uyuyor.`, "dashboard/satici/alici-talepleri");
+          queueEmail(p.sellerId, "Size uygun yeni alıcı talebi", `${d.title} talebi portföyünüze uygun.`, "", "Uygun talep bildirimi");
+        }
       }
+    }
+    if (matchCount > 0) {
+      notify(d.buyerId, "MATCH_FOUND", "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan var. İlgili ${d.transactionType === "RENT" ? "ev sahipleri" : "satıcılar"} sana teklif gönderebilir; tekliflerini takip et.`, "dashboard/alici/teklifler");
+      queueEmail(d.buyerId, "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan bulundu. Panelinden teklifleri takip edebilirsin.`, "dashboard/alici/teklifler", "Eşleşme bildirimi");
     }
     addAudit(user.id, "DEMAND_CREATED", "Demand", id, d.title);
     return ok(res, { id });
@@ -364,11 +372,19 @@ async function handleApi(req, res, url) {
       .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, today());
     const demands = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
     const seen = new Set();
+    let matchCount = 0;
     for (const d of demands) {
-      if (calculateMatchScore(d, p) >= 70 && !seen.has(d.buyerId)) {
-        seen.add(d.buyerId);
-        notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", `${p.title} talebinize uyuyor.`, "dashboard/alici/teklifler");
+      if (calculateMatchScore(d, p) >= 70) {
+        matchCount++;
+        if (!seen.has(d.buyerId)) {
+          seen.add(d.buyerId);
+          notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", `${p.title} talebinize uyuyor.`, "dashboard/alici/teklifler");
+        }
       }
+    }
+    if (matchCount > 0) {
+      notify(p.sellerId, "MATCH_FOUND", "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} ${p.transactionType === "RENT" ? "kiracı" : "alıcı"} talebi var. Uygun talepleri görüp özel teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri");
+      queueEmail(p.sellerId, "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} talep bulundu. Panelinden görüp teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri", "Eşleşme bildirimi");
     }
     addAudit(user.id, "PROPERTY_CREATED", "Property", id, p.title);
     return ok(res, { id });

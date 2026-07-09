@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS demands (
   minBudget INTEGER, maxBudget INTEGER, downPayment INTEGER,
   usesCredit INTEGER, cashReady INTEGER, exchangePossible INTEGER,
   purchaseTimeline TEXT, description TEXT, privacyLevel TEXT, status TEXT DEFAULT 'ACTIVE',
-  boostedUntil TEXT, viewCount INTEGER DEFAULT 0, offerCount INTEGER DEFAULT 0, imageData TEXT, createdAt TEXT
+  boostedUntil TEXT, viewCount INTEGER DEFAULT 0, offerCount INTEGER DEFAULT 0, imageData TEXT,
+  transactionType TEXT DEFAULT 'SALE', depositAmount INTEGER DEFAULT 0, furnished INTEGER DEFAULT 0, createdAt TEXT
 );
 CREATE TABLE IF NOT EXISTS properties (
   id TEXT PRIMARY KEY, sellerId TEXT, title TEXT, city TEXT, district TEXT, neighborhood TEXT,
@@ -52,7 +53,8 @@ CREATE TABLE IF NOT EXISTS properties (
   hasBalcony INTEGER, hasParking INTEGER, hasElevator INTEGER, inComplex INTEGER,
   dues INTEGER, occupancyStatus TEXT, deedStatus TEXT, creditEligible INTEGER,
   exchangePossible INTEGER, price INTEGER, negotiable INTEGER, description TEXT,
-  status TEXT DEFAULT 'ACTIVE', boostedUntil TEXT, photoClass TEXT, imageData TEXT, createdAt TEXT
+  status TEXT DEFAULT 'ACTIVE', boostedUntil TEXT, photoClass TEXT, imageData TEXT,
+  transactionType TEXT DEFAULT 'SALE', depositAmount INTEGER DEFAULT 0, furnished INTEGER DEFAULT 0, createdAt TEXT
 );
 CREATE TABLE IF NOT EXISTS offers (
   id TEXT PRIMARY KEY, demandId TEXT, propertyId TEXT, sellerId TEXT, buyerId TEXT,
@@ -97,7 +99,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 // ---------- Migrasyonlar (mevcut DB'ye eksik sutunlari ekle) ----------
 for (const alter of [
   "ALTER TABLE properties ADD COLUMN imageData TEXT",
-  "ALTER TABLE demands ADD COLUMN imageData TEXT"
+  "ALTER TABLE demands ADD COLUMN imageData TEXT",
+  "ALTER TABLE demands ADD COLUMN transactionType TEXT DEFAULT 'SALE'",
+  "ALTER TABLE demands ADD COLUMN depositAmount INTEGER DEFAULT 0",
+  "ALTER TABLE demands ADD COLUMN furnished INTEGER DEFAULT 0",
+  "ALTER TABLE properties ADD COLUMN transactionType TEXT DEFAULT 'SALE'",
+  "ALTER TABLE properties ADD COLUMN depositAmount INTEGER DEFAULT 0",
+  "ALTER TABLE properties ADD COLUMN furnished INTEGER DEFAULT 0"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }
@@ -179,6 +187,14 @@ export function seedIfEmpty() {
   insProp.run("p-1", "u-seller-1", "Kadıköy Göztepe'de yenilenmiş 3+1", "İstanbul", "Kadıköy", "Göztepe", "Daire", "3+1", 138, 122, "11-15", "4/8", 8, "Kombi", 2, 1, 1, 1, 0, 950, "Boş", "Kat mülkiyeti", 1, 0, 7350000, 1, "Bağdat Caddesi'ne yakın, bakımlı, krediye uygun daire.", "ACTIVE", "apartment", "2026-06-28");
   insProp.run("p-2", "u-seller-1", "Ataşehir'de 2+1 rezidans", "İstanbul", "Ataşehir", "Barbaros", "Rezidans", "2+1", 104, 86, "0-5", "12/24", 24, "Merkezi", 1, 0, 1, 1, 1, 2100, "Kiracılı", "Kat mülkiyeti", 1, 0, 5150000, 0, "Kurumsal kiracılı, sosyal alanlı, yatırım için uygun.", "ACTIVE", "residence", "2026-06-29");
   insProp.run("p-3", "u-seller-2", "Çankaya Oran'da bahçeli 4+1 villa", "Ankara", "Çankaya", "Oran", "Villa", "4+1", 310, 260, "6-10", "Villa", 2, "Yerden ısıtma", 3, 1, 1, 0, 1, 3600, "Boş", "Kat mülkiyeti", 1, 1, 13200000, 1, "Güvenlikli sitede, geniş bahçeli, masrafsız villa.", "ACTIVE", "villa", "2026-07-01");
+
+  // --- Kiralik demo (yeni modul): eslesecek talep + ilan cifti ---
+  db.prepare(
+    "INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).run("d-4", "u-buyer-1", "Kadıköy'de eşyalı kiralık 2+1", "İstanbul", "Kadıköy", "Göztepe / Feneryolu", "Daire", "2+1", 70, 110, 25000, 35000, 0, 0, 0, 0, "Bu ay taşınmak istiyorum", "Metroya yürüme mesafesinde, eşyalı, ara kat bir kiralık daire arıyorum.", "Rozet ve kira aralığı görünsün", "ACTIVE", 12, 0, "RENT", 35000, 1, "2026-07-05");
+  db.prepare(
+    "INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).run("p-4", "u-seller-1", "Göztepe'de eşyalı kiralık 2+1", "İstanbul", "Kadıköy", "Göztepe", "Daire", "2+1", 95, 80, "6-10", "3/6", 6, "Kombi", 1, 1, 1, 1, 0, 850, "Boş", "Kat mülkiyeti", 0, 0, 32000, 1, "Eşyalı, aydınlık, metroya yakın; hemen taşınmaya hazır kiralık daire.", "ACTIVE", "residence", "RENT", 32000, 1, "2026-07-05");
 
   const insOffer = db.prepare(
     "INSERT INTO offers (id,demandId,propertyId,sellerId,buyerId,price,message,matchScore,status,buyerResponse,seenAt,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"

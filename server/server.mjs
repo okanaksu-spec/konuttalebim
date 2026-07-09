@@ -94,6 +94,7 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
 function calculateMatchScore(demand, property) {
   let score = 0;
   if (!demand || !property) return 0;
+  if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return 0;
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) score += 13;
   if (property.price >= demand.minBudget && property.price <= demand.maxBudget) score += 25;
@@ -315,13 +316,15 @@ async function handleApi(req, res, url) {
       maxBudget: +body.maxBudget || 0, downPayment: +body.downPayment || 0,
       usesCredit: body.usesCredit ? 1 : 0, cashReady: body.cashReady ? 1 : 0, exchangePossible: body.exchangePossible ? 1 : 0,
       purchaseTimeline: body.purchaseTimeline || "Fırsat olursa", description: (body.description || "").trim(),
-      privacyLevel: body.privacyLevel || "Platform varsayılanı"
+      privacyLevel: body.privacyLevel || "Platform varsayılanı",
+      transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
+      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0
     };
     if (!d.title || !d.minBudget || !d.maxBudget || d.maxBudget < d.minBudget || d.description.length < 20)
       return err(res, 400, "Başlık, geçerli bütçe ve en az 20 karakter açıklama gerekli.");
     const dImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, today());
+    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, today());
     // uygun saticilara bildirim
     const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
     const seen = new Set();
@@ -351,12 +354,14 @@ async function handleApi(req, res, url) {
       occupancyStatus: body.occupancyStatus || "Boş", deedStatus: body.deedStatus || "Kat mülkiyeti",
       creditEligible: body.creditEligible ? 1 : 0, exchangePossible: body.exchangePossible ? 1 : 0,
       price: +body.price || 0, negotiable: body.negotiable ? 1 : 0, description: (body.description || "").trim(),
-      photoClass: body.photoClass || "apartment"
+      photoClass: body.photoClass || "apartment",
+      transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
+      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0
     };
     if (!p.title || !p.price || p.description.length < 15) return err(res, 400, "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
     const pImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, today());
+    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, today());
     const demands = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
     const seen = new Set();
     for (const d of demands) {

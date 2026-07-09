@@ -282,7 +282,7 @@ img {
   background:
     linear-gradient(90deg, rgba(16, 36, 58, 0.96) 0%, rgba(16, 36, 58, 0.78) 46%, rgba(16, 36, 58, 0.22) 100%),
     linear-gradient(180deg, rgba(10, 24, 40, 0.1) 0%, rgba(10, 24, 40, 0.65) 100%),
-    url("./assets/hero-konuttalebim.png") center right / cover no-repeat;
+    url("./assets/hero-konuttalebim.webp") center right / cover no-repeat;
 }
 
 .hero-inner {
@@ -605,7 +605,7 @@ img {
 
 .visual-photo {
   min-height: 230px;
-  background: url("./assets/property-apartment.png") center / cover no-repeat;
+  background: url("./assets/property-apartment.webp") center / cover no-repeat;
 }
 
 .visual-card-sm .visual-photo {
@@ -614,11 +614,11 @@ img {
 }
 
 .visual-photo.villa {
-  background-image: url("./assets/property-villa.png");
+  background-image: url("./assets/property-villa.webp");
 }
 
 .visual-photo.residence {
-  background-image: url("./assets/property-residence.png");
+  background-image: url("./assets/property-residence.webp");
 }
 
 .visual-card .badge {
@@ -876,7 +876,7 @@ h3 {
   content: "";
   background:
     linear-gradient(145deg, rgba(16, 36, 58, 0.04), rgba(22, 133, 121, 0.08)),
-    url("./assets/property-apartment.png") center / cover no-repeat;
+    url("./assets/property-apartment.webp") center / cover no-repeat;
   transform: scale(1.01);
 }
 
@@ -894,13 +894,13 @@ h3 {
 .photo.villa::before {
   background:
     linear-gradient(145deg, rgba(16, 36, 58, 0.04), rgba(31, 138, 91, 0.08)),
-    url("./assets/property-villa.png") center / cover no-repeat;
+    url("./assets/property-villa.webp") center / cover no-repeat;
 }
 
 .photo.residence::before {
   background:
     linear-gradient(145deg, rgba(16, 36, 58, 0.04), rgba(43, 111, 166, 0.08)),
-    url("./assets/property-residence.png") center / cover no-repeat;
+    url("./assets/property-residence.webp") center / cover no-repeat;
 }
 
 .layout {
@@ -1687,7 +1687,7 @@ tbody tr:hover td {
   .hero::before {
     background:
       linear-gradient(180deg, rgba(16, 36, 58, 0.96) 0%, rgba(16, 36, 58, 0.82) 56%, rgba(16, 36, 58, 0.42) 100%),
-      url("./assets/hero-konuttalebim.png") center bottom / cover no-repeat;
+      url("./assets/hero-konuttalebim.webp") center bottom / cover no-repeat;
   }
 
   .hero-inner {

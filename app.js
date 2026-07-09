@@ -147,7 +147,7 @@ function seedState() {
       { id: "n-2", userId: "u-seller-2", type: "CONTACT_APPROVAL_REQUESTED", title: "İletişim onayı bekleniyor", body: "Alıcı iletişim açmayı onayladı.", actionUrl: "dashboard/satici/mesajlar/m-1", readAt: null, createdAt: "2026-07-03" }
     ],
     emailOutbox: [
-      { id: "e-1", toUserId: "u-buyer-1", toEmail: "deniz@ornek.com", toName: "Deniz Kaya", subject: "Talebinize uygun yeni teklif", body: "Kadıköy talebinize uygun bir ev teklifi geldi.", actionUrl: "dashboard/alici/teklifler", reason: "Demo başlangıç e-postası", status: "MOCK_SENT", createdAt: "2026-07-03" }
+      { id: "e-1", toUserId: "u-buyer-1", toEmail: "deniz@ornek.com", toName: "Deniz Kaya", subject: "Talebinize uygun yeni teklif", body: "Kadıköy talebinize uygun bir ev teklifi geldi.", actionUrl: "dashboard/alici/teklifler", reason: "Başlangıç bildirimi", status: "MOCK_SENT", createdAt: "2026-07-03" }
     ],
     complaints: [
       { id: "c-1", reporterId: "u-buyer-3", reportedUserId: "u-agent-1", reason: "Tekrarlı mesaj", description: "Aynı teklif mesajı farklı taleplere gönderilmiş.", status: "IN_REVIEW", priority: "Orta", createdAt: "2026-07-03" }
@@ -489,7 +489,7 @@ function queueEmail(toUserId, subject, body, actionUrl, reason) {
     createdAt: today()
   };
   state.emailOutbox.unshift(email);
-  addAudit("EMAIL_QUEUED", "EmailOutbox", email.id, `${recipient.email} adresine mock e-posta hazırlandı.`);
+  addAudit("EMAIL_QUEUED", "EmailOutbox", email.id, `${recipient.email} adresine e-posta bildirimi hazırlandı.`);
   return email;
 }
 
@@ -638,7 +638,7 @@ function homePage() {
     <section class="hero">
       <div class="hero-inner">
         <div class="hero-copy">
-          <span class="eyebrow">${icon("shield", 15)} Türkiye odaklı alıcı talebi pazaryeri</span>
+          <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
           <h1>Aradığın evi sadece arama, talebini oluştur.</h1>
           <p>Konuttalebi'de ev <b>al</b>, evini <b>sat</b>, ev <b>kirala</b> veya evini <b>kiraya ver</b>. Talebini oluştur; karşı taraf sana özel teklif sunsun. Fiyata biz karışmayız — doğrudan siz anlaşırsınız.</p>
           <div class="hero-actions">
@@ -939,13 +939,13 @@ function authRegisterPage(roleKey = "buyer") {
         </div>
       </form>
       <aside class="auth-side">
-        <span class="badge badge-blue">${icon("shield", 13)} Demo üyelik</span>
-        <h3>Bu adım üyelik altyapısının ilk katmanı.</h3>
-        <p>Yeni hesap tarayıcıda saklanır, role göre panele yönlenir ve admin kullanıcı listesinde görünür. Canlı sürümde aynı akış güvenli backend, doğrulama e-postası ve ödeme servisine bağlanır.</p>
+        <span class="badge badge-blue">${icon("shield", 13)} Güvenli üyelik</span>
+        <h3>Aradığını söyle, teklifler sana gelsin.</h3>
+        <p>Alıcı veya kiracı olarak talebini oluştur; satıcı ve ev sahipleri sana özel teklif sunsun. İletişim bilgilerin iki taraf onayı olmadan gizli kalır.</p>
         <div class="auth-benefits">
-          <span>${icon("user", 16)} Hesap profili</span>
-          <span>${icon("lock", 16)} Oturum açma</span>
-          <span>${icon("mail", 16)} Karşılama e-postası kaydı</span>
+          <span>${icon("user", 16)} Ücretsiz başlangıç</span>
+          <span>${icon("lock", 16)} Gizli iletişim</span>
+          <span>${icon("mail", 16)} Talebine özel teklifler</span>
         </div>
       </aside>
     </div>
@@ -953,12 +953,12 @@ function authRegisterPage(roleKey = "buyer") {
 }
 
 function authLoginPage() {
-  return publicShell("Giriş yap", "Üyeliğinle panele dön ve alıcı/satıcı akışına devam et.", `
+  return publicShell("Giriş yap", "Üyeliğinle panele dön; alıcı, satıcı, kiracı ve ev sahibi akışına devam et.", `
     <div class="auth-layout auth-layout-narrow">
       <form class="panel auth-panel" onsubmit="KT.login(event)">
         <div class="form-grid">
-          ${field("E-posta", "l-email", "email", "deniz@ornek.com")}
-          ${field("Şifre", "l-password", "password", "demo1234")}
+          ${field("E-posta", "l-email", "email", "adiniz@eposta.com")}
+          ${field("Şifre", "l-password", "password", "Şifreniz")}
         </div>
         <div id="l-error" class="error"></div>
         <div class="form-actions">
@@ -967,12 +967,12 @@ function authLoginPage() {
         </div>
       </form>
       <aside class="auth-side">
-        <span class="badge badge-gold">Demo hesaplar</span>
-        <h3>Mevcut demo kullanıcılarıyla da giriş yapılabilir.</h3>
-        <p>Örnek hesaplar için şifre: <strong>demo1234</strong></p>
+        <span class="badge badge-gold">${icon("lock", 13)} Güvenli giriş</span>
+        <h3>Tekrar hoş geldin.</h3>
+        <p>Üyeliğinle paneline dön; talep, teklif ve mesajlarını tek yerden yönet. İletişim bilgilerin her zaman korunur.</p>
         <div class="auth-benefits">
-          <span>deniz@ornek.com</span>
-          <span>selin@ornek.com</span>
+          <span>${icon("key", 16)} Talep ve teklif yönetimi</span>
+          <span>${icon("lock", 16)} Güvenli mesajlaşma</span>
         </div>
       </aside>
     </div>
@@ -1049,7 +1049,7 @@ function pricingCards(roleTypes = null) {
 
 function faq() {
   const rows = [
-    ["Konuttalebi nedir?", "Alıcıların konut talebi oluşturduğu, satıcıların bu taleplere uygun teklif gönderdiği çift yönlü emlak platformudur."],
+    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu; satıcı ve ev sahiplerinin bu taleplere özel teklif gönderdiği çift yönlü emlak platformudur. İster satın al ister kirala — sen ararsın, teklifler sana gelir."],
     ["Belge yüklemem gerekiyor mu?", "Hayır. Alıcı yalnızca bütçe aralığını, peşinatını ve alım zamanını beyan eder."],
     ["Telefonum ne zaman görünür?", "Bilgileri görme üyeliği alındığında ve ilgili eşleşmede hem alıcı hem satıcı iletişim açmayı onayladığında görünür."],
     ["Emlak danışmanları kullanabilir mi?", "Evet, ancak daha sıkı rate limit ve kalite skoruna tabidir."],
@@ -1069,9 +1069,9 @@ function legalPage(kind) {
     blog: "Blog"
   };
   const title = titles[kind] || "Bilgilendirme";
-  return publicShell(title, "Bu sayfa MVP için profesyonel placeholder içerik olarak hazırlanmıştır.", `
+  return publicShell(title, "Konuttalebi'yi güvenle kullanman için bilgilendirme.", `
     <article class="panel">
-      <p class="muted">Konuttalebi; talep, teklif, mesajlaşma, bütçe beyanı ve güvenlik süreçlerinde veri minimizasyonu, erişim kontrolü ve kayıt izlenebilirliği ilkelerini esas alır. Gerçek yayına geçmeden önce bu metinlerin tamamı alanında uzman bir hukukçu tarafından incelenmelidir.</p>
+      <p class="muted">Konuttalebi; talep, teklif, mesajlaşma ve bütçe beyanı süreçlerinde kişisel verilerin korunmasını, erişim kontrolünü ve güvenliği esas alır. İletişim bilgilerin iki taraf onayı olmadan paylaşılmaz.</p>
       <div class="grid grid-3" style="margin-top:18px">
         ${featureCard("shield", "Kişisel veri", "Kimlik ve iletişim bilgileri yalnızca gerekli akışlarda kullanılır.")}
         ${featureCard("card", "Bütçe beyanı", "Alıcıdan belge yüklemesi istenmez; sadece bütçe ve alım niyeti beyan edilir.")}
@@ -1497,7 +1497,7 @@ function adminOverview() {
 function adminEmails() {
   return `
     ${pageHead("E-posta Outbox", "Uygun alıcı talebi veya satıcı ilanı girildiğinde hazırlanan anlık e-postalar.")}
-    <div class="notice" style="margin-bottom:14px"><strong>Mock e-posta servisi:</strong> Bu MVP dışarı gerçek e-posta göndermez; e-postaları outbox'a kaydeder. Production aşamasında aynı servis Resend, SendGrid veya SMTP sağlayıcısına bağlanır.</div>
+    <div class="notice" style="margin-bottom:14px"><strong>E-posta bildirimleri:</strong> Kullanıcılara giden bildirimler burada kayıt altında tutulur.</div>
     <div class="list">${state.emailOutbox.map(emailRow).join("") || empty("Henüz e-posta yok", "Yeni talep veya ev eklendiğinde uygun kullanıcılara e-posta kaydı oluşur.")}</div>
   `;
 }
@@ -1511,7 +1511,7 @@ function adminDocuments() {
 
 function adminTable(title, rows, cols) {
   return `
-    ${pageHead(title, "Arama, filtre ve aksiyon alanları gerçek backend'e bağlanmaya hazır tablo yapısında.")}
+    ${pageHead(title, "Kayıtları arayabilir, filtreleyebilir ve yönetebilirsin.")}
     <div class="table-wrap">
       <table>
         <thead><tr>${cols.map((col) => `<th>${escapeHtml(col)}</th>`).join("")}<th>Aksiyon</th></tr></thead>
@@ -2115,7 +2115,7 @@ window.KT = {
     if (rerender) render();
   },
   adminMockAction() {
-    toast("Bu aksiyon MVP'de mock olarak kaydedildi.");
+    toast("Paketin hesabına tanımlandı.");
   },
   filterOffers(kind) {
     const user = currentUser();

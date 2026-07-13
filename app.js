@@ -1052,6 +1052,9 @@ function publicPage(kind) {
   if (kind === "uye-ol" || kind.startsWith("uye-ol/")) {
     return authRegisterPage(kind.split("/")[1] || "buyer");
   }
+  if (kind === "hosgeldin") {
+    return packageOfferPage();
+  }
   if (kind === "nasil-calisir") {
     return publicShell("Nasıl Çalışır", "Talep ve ilan eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
       ${howSteps()}
@@ -1126,6 +1129,37 @@ function pricingCards(roleTypes = null) {
     if (!gp.length) return "";
     return `<div style="margin-bottom:26px"><div class="kicker" style="font-size:15px;color:var(--gold,#c8a24b);margin:6px 0 2px">${g}</div><p class="muted" style="margin:0 0 12px">${sub}</p><div class="grid grid-4">${gp.map(card).join("")}</div></div>`;
   }).join("");
+}
+
+function packageOfferPage() {
+  const user = currentUser();
+  if (!user) return authLoginPage();
+  const role = user.role === "BUYER" ? "buyer" : user.role === "AGENT" ? "agent" : "seller";
+  const rent = uiTxMode === "RENT";
+  let planIds = [];
+  if (role === "agent") planIds = ["plan-pro"];
+  else if (role === "seller") planIds = rent ? ["plan-landlord-contact", "plan-landlord-boost"] : ["plan-seller-contact", "plan-seller-boost"];
+  else planIds = rent ? [] : ["plan-buyer-contact", "plan-buyer-boost"]; // kiracı ücretsiz; upsell yok
+  const plans = planIds.map((id) => planById(id)).filter(Boolean);
+  const first = user.name ? escapeHtml(user.name.split(" ")[0]) : "";
+  const cards = plans.length
+    ? `<div class="grid grid-3" style="margin-top:6px">${plans.map((plan) => `
+        <article class="card">
+          <div class="sample-top"><span class="badge badge-gold">${escapeHtml((PLAN_META[plan.id] || {}).role || "")}</span><span class="pill">${escapeHtml(plan.category || "")}</span></div>
+          <h3 style="margin-top:12px">${escapeHtml(plan.name)}</h3>
+          <p><strong style="font-size:26px;color:var(--navy)">${plan.price} TL</strong> <span class="muted">/ ${plan.interval}</span></p>
+          <div class="pill-row" style="margin-top:12px">${plan.features.map((f) => `<span class="pill">${escapeHtml(f)}</span>`).join("")}</div>
+          <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>
+        </article>`).join("")}</div>`
+    : `<div class="notice" style="margin-top:6px"><strong>Kiracı olarak tamamen ücretsizsin.</strong> Kiralık talebini oluştur; sana uygun ev sahipleri seninle iletişime geçsin. Ödeme yapman gerekmez.</div>`;
+  return publicShell(`Hoş geldin${first ? ", " + first : ""}!`,
+    "Üyeliğin hazır. İstersen bir paketle başla, istersen hiçbir paket almadan ücretsiz devam et — dilediğin an panelden yükseltebilirsin.", `
+    ${cards}
+    <div style="margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-outline" onclick="KT.skipPackages()">${icon("key", 16)} Paketsiz ücretsiz devam et</button>
+      <span class="muted">Paket almadan da talep/ilan oluşturabilir ve eşleşebilirsin.</span>
+    </div>
+  `);
 }
 
 function faq() {
@@ -2043,8 +2077,12 @@ window.KT = {
     if (!r.ok) return showFormError("r-error", r.data.error || "Üyelik oluşturulamadı.");
     await refreshState();
     toast("Üyelik oluşturuldu ve giriş yapıldı.");
-    const role = r.data.role;
-    setRoute(role === "BUYER" ? "dashboard/alici/butce-beyani" : role === "AGENT" ? "dashboard/satici/evlerim" : "dashboard/satici/ev-ekle");
+    setRoute("hosgeldin"); // önce paket öneri ekranı; oradan panele geçilir
+  },
+  skipPackages() {
+    const user = currentUser();
+    const role = user ? user.role : "BUYER";
+    setRoute(role === "BUYER" ? "dashboard/alici/talep-olustur" : role === "AGENT" ? "dashboard/satici/evlerim" : "dashboard/satici/ev-ekle");
   },
   async login(event) {
     event.preventDefault();

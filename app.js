@@ -1004,10 +1004,10 @@ function authRegisterPage(roleKey = "buyer") {
           ${field("Şifre", "r-password", "password", "En az 6 karakter")}
           ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
           <div class="field full">
-            <label class="check"><input id="r-terms" type="checkbox"> <a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></label>
+            <label class="check"><input id="r-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></span></label>
           </div>
           <div class="field full">
-            <label class="check"><input id="r-marketing" type="checkbox"> Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted">(İsteğe bağlı)</span></label>
+            <label class="check"><input id="r-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
           </div>
         </div>
         <div id="r-error" class="error"></div>

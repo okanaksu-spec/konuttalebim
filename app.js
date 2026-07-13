@@ -175,6 +175,7 @@ let uiTxMode = "SALE"; // Satilik/Kiralik UI secimi (state disinda; refreshState
 try { if (new URLSearchParams(location.search).get("tx") === "RENT") uiTxMode = "RENT"; } catch {}
 let PAYMENTS_LIVE = false; // Test icin ?pay=1 ile acilir; canli-moda gecince kosulsuz true yapilacak.
 try { if (new URLSearchParams(location.search).get("pay") === "1") PAYMENTS_LIVE = true; } catch {}
+let _pendingPay = null; // odeme onay modalinda bekleyen islem
 
 function loadState() {
   try {
@@ -263,6 +264,9 @@ async function refreshState() {
       s.emailOutbox = s.emailOutbox || [];
       s.payments = s.payments || [];
       state = s;
+      // Canli-mod bayragi sunucudan gelir: PayTR yapilandirilmis + PAYTR_TEST_MODE=0 ise
+      // odeme butonlari herkese acilir. (?pay=1 testte manuel acmayi surdurur.)
+      if (s.config && s.config.paymentsLive) PAYMENTS_LIVE = true;
     }
   } catch (e) {
     console.error("Durum alinamadi:", e);
@@ -2278,26 +2282,58 @@ window.KT = {
     toast(`Belge ${status === "APPROVED" ? "onaylandı" : "reddedildi"}.`);
     render();
   },
-  async mockPromote(itemType, itemId) {
+  mockPromote(itemType, itemId) {
     if (!PAYMENTS_LIVE) return toast("Ödeme altyapısı çok yakında aktifleşecek. Öne çıkarma kısa süre sonra kullanılabilir olacak.");
     const planId = itemType === "demand" ? "plan-buyer-boost" : "plan-seller-boost";
-    const plan = planById(planId);
-    const r = await api("/payments/checkout", "POST", { planId, itemType, itemId });
-    if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
-    if (r.data.provider === "paytr" && r.data.iframeUrl) return KT.openPaymentFrame(r.data.iframeUrl);
-    await refreshState();
-    toast(`${plan ? plan.name : "Öne çıkarma"} aktif edildi.`);
-    render();
+    KT.showPayConsent(planId, () => KT.runCheckout({ planId, itemType, itemId }, planById(planId), true));
   },
-  async mockUpgrade(planId, rerender = false) {
+  mockUpgrade(planId, rerender = false) {
     if (!PAYMENTS_LIVE) return toast("Ödeme altyapısı çok yakında aktifleşecek. Paketler kısa süre sonra satın alınabilir olacak.");
-    const plan = planById(planId);
-    const r = await api("/payments/checkout", "POST", { planId });
+    KT.showPayConsent(planId, () => KT.runCheckout({ planId }, planById(planId), rerender));
+  },
+  async runCheckout(body, plan, rerender = false) {
+    const r = await api("/payments/checkout", "POST", body);
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
     if (r.data.provider === "paytr" && r.data.iframeUrl) return KT.openPaymentFrame(r.data.iframeUrl);
     await refreshState();
-    toast(`${plan ? plan.name : "Paket"} satın alındı.`);
+    toast(`${plan ? plan.name : "Paket"} işlemi tamamlandı.`);
     if (rerender) render();
+  },
+  showPayConsent(planId, action) {
+    const plan = planById(planId);
+    _pendingPay = action;
+    const old = document.getElementById("kt-consent-overlay");
+    if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-consent-overlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:470px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(8,18,30,.35)">
+        <h3 style="margin:0 0 4px;font-size:18px;color:#10243a">${escapeHtml(plan ? plan.name : "Paket")}${plan && plan.price ? ` · ${plan.price} TL` : ""}</h3>
+        <p style="margin:0 0 16px;color:#5b6b7d;font-size:14px">Güvenli ödemeye geçmeden önce lütfen onaylayın:</p>
+        <label style="display:flex;gap:11px;align-items:flex-start;font-size:13.5px;line-height:1.55;color:#26333f;cursor:pointer">
+          <input id="kt-consent-cb" type="checkbox" style="margin-top:3px;flex:none;width:18px;height:18px;cursor:pointer">
+          <span><a href="#/on-bilgilendirme" target="_blank" style="color:#1f6feb;text-decoration:underline">Ön Bilgilendirme Formu</a>'nu, <a href="#/mesafeli-satis" target="_blank" style="color:#1f6feb;text-decoration:underline">Mesafeli Satış Sözleşmesi</a>'ni ve <a href="#/iade-iptal" target="_blank" style="color:#1f6feb;text-decoration:underline">İade &amp; İptal koşulları</a>nı okudum, onaylıyorum. Hizmetin onay sonrası hemen başlayacağını ve dijital içerik/hizmet niteliği gereği <b>cayma hakkımın sona ereceğini</b> kabul ediyorum.</span>
+        </label>
+        <div style="display:flex;gap:10px;margin-top:22px">
+          <button class="btn btn-outline" style="flex:1" onclick="KT.closePayConsent()">Vazgeç</button>
+          <button class="btn btn-primary" style="flex:1" onclick="KT.confirmPayConsent()">Onayla ve öde</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  closePayConsent() {
+    const ov = document.getElementById("kt-consent-overlay");
+    if (ov) ov.remove();
+    _pendingPay = null;
+  },
+  confirmPayConsent() {
+    const cb = document.getElementById("kt-consent-cb");
+    if (!cb || !cb.checked) return toast("Devam etmek için koşulları onaylamanız gerekiyor.");
+    const action = _pendingPay;
+    _pendingPay = null;
+    const ov = document.getElementById("kt-consent-overlay");
+    if (ov) ov.remove();
+    if (typeof action === "function") action();
   },
   openPaymentFrame(url) {
     const old = document.getElementById("kt-pay-overlay");

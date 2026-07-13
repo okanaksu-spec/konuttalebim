@@ -105,9 +105,38 @@ for (const alter of [
   "ALTER TABLE demands ADD COLUMN furnished INTEGER DEFAULT 0",
   "ALTER TABLE properties ADD COLUMN transactionType TEXT DEFAULT 'SALE'",
   "ALTER TABLE properties ADD COLUMN depositAmount INTEGER DEFAULT 0",
-  "ALTER TABLE properties ADD COLUMN furnished INTEGER DEFAULT 0"
+  "ALTER TABLE properties ADD COLUMN furnished INTEGER DEFAULT 0",
+  "ALTER TABLE payments ADD COLUMN boostItemType TEXT",
+  "ALTER TABLE payments ADD COLUMN boostItemId TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
+}
+
+// ---------- Demo/test verilerini temizle (PURGE_DEMO=1 ile calisir) ----------
+// Yalnizca tohum (seed) demo hesaplarina ait kayitlari siler; gercek kullanici
+// verisine dokunmaz. Admin (u-admin-1) korunur. Idempotent.
+export function purgeDemoData() {
+  const users = ["u-buyer-1", "u-buyer-2", "u-buyer-3", "u-seller-1", "u-seller-2", "u-agent-1"];
+  const inU = "(" + users.map((u) => `'${u}'`).join(",") + ")";
+  const run = (sql) => { try { db.exec(sql); } catch { /* tablo/sutun yoksa yoksay */ } };
+  const matchIds = (() => { try { return db.prepare(`SELECT id FROM matches WHERE buyerId IN ${inU} OR sellerId IN ${inU}`).all().map((r) => `'${r.id}'`); } catch { return []; } })();
+  const inM = matchIds.length ? "(" + matchIds.join(",") + ")" : "('')";
+  run(`DELETE FROM messages WHERE matchId IN ${inM}`);
+  run(`DELETE FROM matches WHERE buyerId IN ${inU} OR sellerId IN ${inU}`);
+  run(`DELETE FROM offers WHERE buyerId IN ${inU} OR sellerId IN ${inU}`);
+  run(`DELETE FROM demands WHERE buyerId IN ${inU}`);
+  run(`DELETE FROM properties WHERE sellerId IN ${inU}`);
+  run(`DELETE FROM buyer_profiles WHERE userId IN ${inU}`);
+  run(`DELETE FROM verification_documents WHERE userId IN ${inU}`);
+  run(`DELETE FROM entitlements WHERE userId IN ${inU}`);
+  run(`DELETE FROM payments WHERE userId IN ${inU}`);
+  run(`DELETE FROM notifications WHERE userId IN ${inU}`);
+  run(`DELETE FROM complaints WHERE reporterId IN ${inU} OR reportedUserId IN ${inU}`);
+  run(`DELETE FROM abuse_signals WHERE userId IN ${inU}`);
+  run(`DELETE FROM audit_logs WHERE actorId IN ${inU}`);
+  run(`DELETE FROM auth_accounts WHERE userId IN ${inU}`);
+  run(`DELETE FROM sessions WHERE userId IN ${inU}`);
+  run(`DELETE FROM users WHERE id IN ${inU}`);
 }
 
 // ---------- Yardimcilar ----------

@@ -6,12 +6,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv
+  db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData
 } from "./db.mjs";
+import { paymentProvider } from "./payment.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
 const PORT = process.env.PORT || 3000;
+const BASE_URL = (process.env.PUBLIC_BASE_URL || "https://konuttalebi.com").replace(/\/+$/, "");
 const MAX_IMAGE_CHARS = 2_600_000;            // ~1.9MB base64 gorsel siniri
 
 // Yuklenen gorseli dogrula: sadece kucuk data URL resimlerine izin ver.
@@ -24,6 +26,7 @@ function cleanImage(value) {
 
 seedIfEmpty();
 ensureAdminFromEnv();
+if (process.env.PURGE_DEMO === "1") { purgeDemoData(); console.log("[konuttalebim] PURGE_DEMO=1 -> demo/test verileri temizlendi."); }
 
 // ---------- Yardimcilar ----------
 const B = (v) => v === 1 || v === true;        // int -> boolean
@@ -64,7 +67,13 @@ function readBody(req) {
   return new Promise((resolve) => {
     let data = "";
     req.on("data", (c) => (data += c));
-    req.on("end", () => { try { resolve(data ? JSON.parse(data) : {}); } catch { resolve({}); } });
+    req.on("end", () => {
+      const ct = (req.headers["content-type"] || "").toLowerCase();
+      if (ct.includes("application/x-www-form-urlencoded")) {
+        const o = {}; try { for (const [k, v] of new URLSearchParams(data)) o[k] = v; } catch {} return resolve(o);
+      }
+      try { resolve(data ? JSON.parse(data) : {}); } catch { resolve({}); }
+    });
   });
 }
 
@@ -133,6 +142,30 @@ function hasContactMembership(userId, role) {
     "SELECT COUNT(*) AS c FROM entitlements WHERE userId = ? AND (planId = ? OR planId = 'plan-pro')"
   ).get(userId, planId);
   return row.c > 0;
+}
+
+// Odeme onaylandiginda uyeligi ac, boost uygula, bildir. Idempotent (callback tekrar gelebilir).
+function fulfillPayment(pid) {
+  const pay = db.prepare("SELECT * FROM payments WHERE id = ?").get(pid);
+  if (!pay) return false;
+  if (pay.status === "SUCCESS") return true;
+  db.prepare("UPDATE payments SET status='SUCCESS' WHERE id=?").run(pid);
+  db.prepare("INSERT INTO entitlements (id,userId,planId,activeFrom,activeTo) VALUES (?,?,?,?,?)")
+    .run(uid("ent"), pay.userId, pay.planId, today(), null);
+  if ((pay.planId === "plan-buyer-boost" || pay.planId === "plan-seller-boost") && pay.boostItemType && pay.boostItemId) {
+    const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (pay.boostItemType === "demand") {
+      const d = db.prepare("SELECT id FROM demands WHERE id = ? AND buyerId = ?").get(pay.boostItemId, pay.userId);
+      if (d) db.prepare("UPDATE demands SET boostedUntil = ? WHERE id = ?").run(until, d.id);
+    } else if (pay.boostItemType === "property") {
+      const p = db.prepare("SELECT id FROM properties WHERE id = ? AND sellerId = ?").get(pay.boostItemId, pay.userId);
+      if (p) db.prepare("UPDATE properties SET boostedUntil = ? WHERE id = ?").run(until, p.id);
+    }
+  }
+  const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(pay.planId);
+  queueEmail(pay.userId, "Paket satın alındı", `${plan ? plan.name : "Üyelik"} paketiniz aktif.`, "", "Ödeme bildirimi");
+  addAudit(pay.userId, "PAYMENT_SUCCESS", "Payment", pid, plan ? plan.name : pay.planId);
+  return true;
 }
 
 // ---------- Durum anlik goruntusu (frontend'in bekledigi sekil) ----------
@@ -290,6 +323,18 @@ async function handleApi(req, res, url) {
     const token = parseCookies(req.headers.cookie).kt_session;
     if (token) db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
     return ok(res, {}, { "Set-Cookie": "kt_session=; HttpOnly; Path=/; Max-Age=0" });
+  }
+
+  // --- PayTR bildirim/callback (sunucu-sunucu; oturum yok, imza dogrulanir) ---
+  if (seg[0] === "payments" && seg[1] === "paytr" && seg[2] === "callback" && method === "POST") {
+    let parsed;
+    try { parsed = paymentProvider().parseCallback(body); }
+    catch { res.writeHead(200, { "Content-Type": "text/plain" }); return res.end("OK"); }
+    if (!parsed.hashValid) { res.writeHead(400, { "Content-Type": "text/plain" }); return res.end("PAYTR hash gecersiz"); }
+    if (parsed.approved) fulfillPayment(parsed.orderId);
+    else if (parsed.orderId) db.prepare("UPDATE payments SET status='FAILED' WHERE id=?").run(parsed.orderId);
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    return res.end("OK");
   }
 
   if (!user) return err(res, 401, "Giriş gerekli.");
@@ -481,29 +526,36 @@ async function handleApi(req, res, url) {
     return ok(res);
   }
 
-  // --- mock odeme / uyelik satin alma ---
+  // --- odeme / uyelik satin alma (PayTR iFrame API ya da mock) ---
   if (seg[0] === "payments" && seg[1] === "checkout" && method === "POST") {
     const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(body.planId);
     if (!plan) return err(res, 404, "Paket bulunamadı.");
-    const pid = uid("pay");
-    db.prepare("INSERT INTO payments (id,userId,planId,provider,amount,currency,status,createdAt) VALUES (?,?,?,?,?,?,?,?)")
-      .run(pid, user.id, plan.id, "MockPaymentProvider", plan.price, "TRY", "SUCCESS", today());
-    db.prepare("INSERT INTO entitlements (id,userId,planId,activeFrom,activeTo) VALUES (?,?,?,?,?)")
-      .run(uid("ent"), user.id, plan.id, today(), null);
-    // "Uste tasi" paketi: ilgili talep/ilana 7 gunluk boost uygula (yalniz sahibine)
-    if ((plan.id === "plan-buyer-boost" || plan.id === "plan-seller-boost") && body.itemType && body.itemId) {
-      const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      if (body.itemType === "demand") {
-        const d = db.prepare("SELECT id FROM demands WHERE id = ? AND buyerId = ?").get(body.itemId, user.id);
-        if (d) db.prepare("UPDATE demands SET boostedUntil = ? WHERE id = ?").run(until, d.id);
-      } else if (body.itemType === "property") {
-        const p = db.prepare("SELECT id FROM properties WHERE id = ? AND sellerId = ?").get(body.itemId, user.id);
-        if (p) db.prepare("UPDATE properties SET boostedUntil = ? WHERE id = ?").run(until, p.id);
-      }
+    if (!plan.price || plan.price <= 0) return err(res, 400, "Bu paket ücretsiz; ödeme gerekmez.");
+    const pid = uid("pay").replace(/[^a-zA-Z0-9]/g, "");
+    const boostType = (plan.id === "plan-buyer-boost" || plan.id === "plan-seller-boost") ? (body.itemType || null) : null;
+    const boostId = boostType ? (body.itemId || null) : null;
+    const provider = paymentProvider();
+    db.prepare("INSERT INTO payments (id,userId,planId,provider,amount,currency,status,createdAt,boostItemType,boostItemId) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(pid, user.id, plan.id, provider.name, plan.price, "TRY", "PENDING", today(), boostType, boostId);
+    if (provider.name === "mock") {
+      fulfillPayment(pid);
+      return ok(res, { provider: "mock", paymentId: pid, done: true });
     }
-    queueEmail(user.id, "Paket satın alındı", `${plan.name} paketiniz aktif.`, "", "Ödeme bildirimi");
-    addAudit(user.id, "PAYMENT_SUCCESS", "Payment", pid, plan.name);
-    return ok(res, { paymentId: pid });
+    try {
+      const u = db.prepare("SELECT name,email,phone FROM users WHERE id=?").get(user.id) || {};
+      const xff = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+      const userIp = xff || req.socket?.remoteAddress || "127.0.0.1";
+      const started = await provider.start({
+        orderId: pid, amount: Math.round(plan.price * 100), currency: "TL", planName: plan.name,
+        email: u.email || "musteri@konuttalebi.com", userName: u.name, userPhone: u.phone,
+        userIp, okUrl: `${BASE_URL}/?odeme=ok`, failUrl: `${BASE_URL}/?odeme=fail`,
+      });
+      addAudit(user.id, "PAYMENT_STARTED", "Payment", pid, plan.name);
+      return ok(res, { provider: provider.name, paymentId: pid, iframeUrl: started.iframeUrl, token: started.token });
+    } catch (e) {
+      db.prepare("UPDATE payments SET status='FAILED' WHERE id=?").run(pid);
+      return err(res, 502, "Ödeme başlatılamadı: " + (e.message || "bilinmeyen hata"));
+    }
   }
 
   // --- satici/danisman dogrulama belgesi yukle ---

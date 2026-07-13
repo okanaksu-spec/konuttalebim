@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import {
   db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData, purgeUsersByIds, syncPlans
 } from "./db.mjs";
-import { paymentProvider } from "./payment.mjs";
+import { paymentProvider, paymentsAreLive } from "./payment.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
@@ -236,6 +236,7 @@ function buildState(user) {
 
   return {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
+    config: { paymentsLive: paymentsAreLive() },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
     users,

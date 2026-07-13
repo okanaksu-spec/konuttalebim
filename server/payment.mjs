@@ -155,3 +155,11 @@ export function paymentProvider() {
 }
 export const PAYMENT_PROVIDER = PROVIDER;
 export const IS_MOCK = PROVIDER === "mock";
+
+// Odemeler gercekten CANLI mi? Yalnizca PayTR yapilandirilmis VE canli modda
+// (PAYTR_TEST_MODE=0) ise true doner. Istemci bu bayraga gore odeme butonlarini
+// acar; boylece canli-moda gecis TEK bir ortam degiskeni ile yapilir.
+export function paymentsAreLive() {
+  if (PROVIDER === "paytr") return paytrAdapter.configured() && PAYTR.testMode === "0";
+  return false;
+}

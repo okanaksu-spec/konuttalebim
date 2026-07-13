@@ -1004,7 +1004,10 @@ function authRegisterPage(roleKey = "buyer") {
           ${field("Şifre", "r-password", "password", "En az 6 karakter")}
           ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
           <div class="field full">
-            <label class="check"><input id="r-terms" type="checkbox"> KVKK, gizlilik ve kullanım şartlarını kabul ediyorum; eşleştiğim ve bilgileri görme üyeliği olan tarafın iletişim bilgimi görebileceğini onaylıyorum.</label>
+            <label class="check"><input id="r-terms" type="checkbox"> <a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></label>
+          </div>
+          <div class="field full">
+            <label class="check"><input id="r-marketing" type="checkbox"> Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted">(İsteğe bağlı)</span></label>
           </div>
         </div>
         <div id="r-error" class="error"></div>
@@ -2141,13 +2144,15 @@ window.KT = {
     const password = document.getElementById("r-password").value;
     const password2 = document.getElementById("r-password2").value;
     const accepted = document.getElementById("r-terms").checked;
+    const marketingEl = document.getElementById("r-marketing");
+    const marketingConsent = marketingEl ? marketingEl.checked : false;
     if (!name || name.length < 3 || !email.includes("@") || phone.length < 10)
       return showFormError("r-error", "Ad, geçerli e-posta ve telefon bilgisi gerekli.");
     if (password.length < 6 || password !== password2)
       return showFormError("r-error", "Şifre en az 6 karakter olmalı ve tekrar alanıyla eşleşmeli.");
     if (!accepted)
-      return showFormError("r-error", "Üyelik için kullanım şartlarını kabul etmelisin.");
-    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password });
+      return showFormError("r-error", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
+    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent });
     if (!r.ok) return showFormError("r-error", r.data.error || "Üyelik oluşturulamadı.");
     await refreshState();
     toast("Üyelik oluşturuldu ve giriş yapıldı.");

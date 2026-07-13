@@ -1256,18 +1256,42 @@ h3 {
 .check {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  border: 1px solid rgba(219, 228, 236, 0.95);
-  border-radius: 8px;
-  padding: 10px;
-  background: linear-gradient(180deg, #ffffff, #fbfdfe);
+  gap: 12px;
+  border: 1px solid #e3e9f0;
+  border-radius: 10px;
+  padding: 13px 15px;
+  background: #fff;
   color: var(--ink);
-  font-weight: 800;
+  font-weight: 500;
+  line-height: 1.55;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
 
-.check input {
-  margin-top: 4px;
+.check:hover {
+  border-color: var(--gold);
+  background: #fbfaf5;
+}
+
+/* Checkbox'i sabit boyutta tut; global input{width:100%} kuralindan etkilenip
+   gerilmesini onle (aksi halde metin saga kayip kutular hizasiz gorunuyordu). */
+.check input[type="checkbox"] {
+  margin: 2px 0 0;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex: 0 0 18px;
   accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.copyright-bar {
+  text-align: center;
+  padding: 16px 18px;
+  font-size: 13px;
+  color: #8296a8;
+  border-top: 1px solid #eef2f6;
+  background: #fff;
 }
 
 .helper {

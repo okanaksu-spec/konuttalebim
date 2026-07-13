@@ -657,8 +657,17 @@ function footer() {
           <a href="/evine-kiraci-bul">Evine kiracı bul</a>
         </div>
       </div>
+      <div style="border-top:1px solid rgba(255,255,255,.12);margin-top:22px;padding-top:16px;text-align:center;color:#8ba3b8;font-size:13px">${copyrightText()}</div>
     </footer>
   `;
+}
+
+// Her sayfada gorunecek tescil/telif satiri (sirket unvaniyla).
+function copyrightText() {
+  return `© ${new Date().getFullYear()} Konuttalebi — ${COMPANY.unvan}. Tüm hakları saklıdır.`;
+}
+function copyrightBar() {
+  return `<div class="copyright-bar">${copyrightText()}</div>`;
 }
 
 function homePage() {
@@ -2095,7 +2104,7 @@ function render() {
       : path.startsWith("dashboard/admin")
         ? renderAdmin(path)
         : publicPage(path);
-  document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? "" : footer()}</div>`;
+  document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? copyrightBar() : footer()}</div>`;
 }
 
 window.KT = {

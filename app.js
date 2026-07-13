@@ -106,12 +106,15 @@ function seedState() {
       "u-buyer-3": { verificationLevel: "Bütçe Beyanı: 4-5 mn TL", badge: "neutral", budgetTrustScore: 45, profileCompletion: 42, declaredBudgetMin: 4000000, declaredBudgetMax: 5000000, declaredDownPayment: 1200000, declaredCashReady: false, declaredUsesCredit: true }
     },
     plans: [
-      { id: "plan-buyer-free", name: "Alıcı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Temel", features: ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"] },
-      { id: "plan-buyer-boost", name: "Talebimi Üste Taşı", roleType: "BUYER", price: 99, interval: "7 gün", category: "Reklam", features: ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"] },
-      { id: "plan-buyer-contact", name: "İlan Sahibinin Bilgilerini Gör", roleType: "BUYER", price: 199, interval: "ay", category: "İletişim üyeliği", features: ["Eşleştiğin ilan sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"] },
-      { id: "plan-seller-boost", name: "İlanımı Üste Taşı", roleType: "SELLER", price: 149, interval: "7 gün", category: "Reklam", features: ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"] },
-      { id: "plan-seller-contact", name: "Talep Sahibinin Bilgilerini Gör", roleType: "SELLER", price: 299, interval: "ay", category: "İletişim üyeliği", features: ["Eşleştiğin talep sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"] },
-      { id: "plan-pro", name: "Profesyonel Reklam Paketi", roleType: "AGENT", price: 799, interval: "ay", category: "Reklam + üyelik", features: ["Çoklu portföy", "Aylık öne çıkarma hakları", "Bilgileri görme üyeliği dahil"] }
+      { id: "plan-buyer-free", name: "Alıcı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Satılık · Temel", features: ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"] },
+      { id: "plan-buyer-boost", name: "Talebimi Üste Taşı", roleType: "BUYER", price: 99, interval: "7 gün", category: "Satılık · Reklam", features: ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"] },
+      { id: "plan-buyer-contact", name: "Satıcı Bilgilerini Gör", roleType: "BUYER", price: 199, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin satıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"] },
+      { id: "plan-seller-boost", name: "İlanımı Üste Taşı", roleType: "SELLER", price: 149, interval: "7 gün", category: "Satılık · Reklam", features: ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"] },
+      { id: "plan-seller-contact", name: "Alıcı Bilgilerini Gör", roleType: "SELLER", price: 299, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin alıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"] },
+      { id: "plan-tenant-free", name: "Kiracı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Kiralık · Temel", features: ["Sınırsız kiralık talebi", "Ev sahipleri sana ulaşır", "Tamamen ücretsiz"] },
+      { id: "plan-landlord-contact", name: "Kiracı Bilgilerini Gör", roleType: "SELLER", price: 199, interval: "ay", category: "Kiralık · İletişim", features: ["Eşleştiğin kiracının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız kiracı talebi görüntüleme"] },
+      { id: "plan-landlord-boost", name: "Kiralık İlanımı Üste Taşı", roleType: "SELLER", price: 99, interval: "7 gün", category: "Kiralık · Reklam", features: ["Kiralık ilanın üst sıralarda", "Kiracı havuzunda renkli vurgu", "Uygun kiracılara ek bildirim"] },
+      { id: "plan-pro", name: "Profesyonel Paket", roleType: "AGENT", price: 799, interval: "ay", category: "Danışman · Reklam + üyelik", features: ["Satılık + kiralık çoklu portföy", "Tüm iletişim bilgilerini görme", "Aylık öne çıkarma hakları"] }
     ],
     demands: [
       { id: "d-1", buyerId: "u-buyer-1", title: "Kadıköy'de aile için 3+1", city: "İstanbul", district: "Kadıköy", neighborhood: "Göztepe / Feneryolu", propertyType: "Daire", roomCount: "3+1", minSqm: 110, maxSqm: 155, minBudget: 6000000, maxBudget: 8000000, downPayment: 2500000, usesCredit: true, cashReady: false, exchangePossible: false, purchaseTimeline: "3 ay içinde", description: "Metroya ve okula yakın, krediye uygun, bakımlı bir aile evi arıyorum.", privacyLevel: "Rozet ve bütçe aralığı görünsün", status: "ACTIVE", viewCount: 46, offerCount: 2, createdAt: "2026-07-01" },
@@ -395,8 +398,22 @@ function contactPlanForRole(roleName) {
 
 function hasContactMembership(userId, roleName) {
   if (hasPlan(userId, "plan-pro")) return true;
-  return hasPlan(userId, contactPlanForRole(roleName));
+  if (roleName === "buyer") return hasPlan(userId, "plan-buyer-contact");
+  return hasPlan(userId, "plan-seller-contact") || hasPlan(userId, "plan-landlord-contact");
 }
+
+// Paket kartlarında Türkçe rol rozeti + Satılık/Kiralık gruplaması.
+const PLAN_META = {
+  "plan-buyer-free": { role: "ALICI", group: "Satılık", free: ["buyer", "SALE"] },
+  "plan-buyer-boost": { role: "ALICI", group: "Satılık" },
+  "plan-buyer-contact": { role: "ALICI", group: "Satılık" },
+  "plan-seller-boost": { role: "SATICI", group: "Satılık" },
+  "plan-seller-contact": { role: "SATICI", group: "Satılık" },
+  "plan-tenant-free": { role: "KİRACI", group: "Kiralık", free: ["buyer", "RENT"] },
+  "plan-landlord-contact": { role: "EV SAHİBİ", group: "Kiralık" },
+  "plan-landlord-boost": { role: "EV SAHİBİ", group: "Kiralık" },
+  "plan-pro": { role: "DANIŞMAN", group: "Profesyonel" },
+};
 
 function planById(planId) {
   return state.plans.find((plan) => plan.id === planId);
@@ -1082,18 +1099,33 @@ function publicShell(title, subtitle, body) {
 
 function pricingCards(roleTypes = null) {
   const plans = roleTypes ? state.plans.filter((plan) => roleTypes.includes(plan.roleType)) : state.plans;
-  return `<div class="grid grid-4">${plans.map((plan) => `
-    <article class="card">
+  const meta = (id) => PLAN_META[id] || { role: "", group: "Diğer" };
+  const card = (plan) => {
+    const m = meta(plan.id);
+    const btn = m.free
+      ? `<button class="btn btn-outline" style="margin-top:16px;width:100%" onclick="KT.startRegistration('${m.free[0]}','${m.free[1]}')">Ücretsiz başla</button>`
+      : `<button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>`;
+    return `<article class="card">
       <div class="sample-top">
-        <span class="badge ${plan.price ? "badge-gold" : "badge-neutral"}">${plan.roleType}</span>
+        <span class="badge ${plan.price ? "badge-gold" : "badge-neutral"}">${escapeHtml(m.role || plan.roleType)}</span>
         <span class="pill">${escapeHtml(plan.category || "Paket")}</span>
       </div>
       <h3 style="margin-top:12px">${escapeHtml(plan.name)}</h3>
       <p><strong style="font-size:28px;color:var(--navy)">${plan.price ? `${plan.price} TL` : "Ücretsiz"}</strong> ${plan.price ? `/ ${plan.interval}` : ""}</p>
       <div class="pill-row" style="margin-top:14px">${plan.features.map((f) => `<span class="pill">${escapeHtml(f)}</span>`).join("")}</div>
-      <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>
-    </article>
-  `).join("")}</div>`;
+      ${btn}
+    </article>`;
+  };
+  const groups = [
+    ["Satılık", "Ev al & sat — alıcı ve satıcı paketleri"],
+    ["Kiralık", "Ev kirala & kiraya ver — kiracı ücretsiz, ev sahibi öder"],
+    ["Profesyonel", "Emlak danışmanları için"],
+  ];
+  return groups.map(([g, sub]) => {
+    const gp = plans.filter((p) => meta(p.id).group === g);
+    if (!gp.length) return "";
+    return `<div style="margin-bottom:26px"><div class="kicker" style="font-size:15px;color:var(--gold,#c8a24b);margin:6px 0 2px">${g}</div><p class="muted" style="margin:0 0 12px">${sub}</p><div class="grid grid-4">${gp.map(card).join("")}</div></div>`;
+  }).join("");
 }
 
 function faq() {

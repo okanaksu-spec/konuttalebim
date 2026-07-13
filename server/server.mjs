@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData
+  db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData, purgeUsersByIds, syncPlans
 } from "./db.mjs";
 import { paymentProvider } from "./payment.mjs";
 
@@ -26,7 +26,9 @@ function cleanImage(value) {
 
 seedIfEmpty();
 ensureAdminFromEnv();
+syncPlans(); // paket adlari/icerikleri son modele gore guncellenir
 if (process.env.PURGE_DEMO === "1") { purgeDemoData(); console.log("[konuttalebim] PURGE_DEMO=1 -> demo/test verileri temizlendi."); }
+if (process.env.PURGE_USERS) { purgeUsersByIds(process.env.PURGE_USERS); console.log("[konuttalebim] PURGE_USERS -> belirtilen hesaplar temizlendi."); }
 
 // ---------- Yardimcilar ----------
 const B = (v) => v === 1 || v === true;        // int -> boolean

@@ -112,12 +112,12 @@ for (const alter of [
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }
 
-// ---------- Demo/test verilerini temizle (PURGE_DEMO=1 ile calisir) ----------
-// Yalnizca tohum (seed) demo hesaplarina ait kayitlari siler; gercek kullanici
-// verisine dokunmaz. Admin (u-admin-1) korunur. Idempotent.
-export function purgeDemoData() {
-  const users = ["u-buyer-1", "u-buyer-2", "u-buyer-3", "u-seller-1", "u-seller-2", "u-agent-1"];
-  const inU = "(" + users.map((u) => `'${u}'`).join(",") + ")";
+// ---------- Kullanici verisi temizligi ----------
+// Verilen kullanicilara ait TUM kayitlari siler. Ortak yardimci.
+function deleteUsersData(users) {
+  const clean = users.map((u) => String(u).replace(/[^a-zA-Z0-9-]/g, "")).filter(Boolean);
+  if (!clean.length) return;
+  const inU = "(" + clean.map((u) => `'${u}'`).join(",") + ")";
   const run = (sql) => { try { db.exec(sql); } catch { /* tablo/sutun yoksa yoksay */ } };
   const matchIds = (() => { try { return db.prepare(`SELECT id FROM matches WHERE buyerId IN ${inU} OR sellerId IN ${inU}`).all().map((r) => `'${r.id}'`); } catch { return []; } })();
   const inM = matchIds.length ? "(" + matchIds.join(",") + ")" : "('')";
@@ -137,6 +137,29 @@ export function purgeDemoData() {
   run(`DELETE FROM auth_accounts WHERE userId IN ${inU}`);
   run(`DELETE FROM sessions WHERE userId IN ${inU}`);
   run(`DELETE FROM users WHERE id IN ${inU}`);
+}
+
+// Tohum (seed) demo hesaplarini temizler (PURGE_DEMO=1). Admin korunur. Idempotent.
+export function purgeDemoData() {
+  deleteUsersData(["u-buyer-1", "u-buyer-2", "u-buyer-3", "u-seller-1", "u-seller-2", "u-agent-1"]);
+}
+// Belirtilen kullanici id'lerini temizler (PURGE_USERS="id1,id2").
+export function purgeUsersByIds(csv) {
+  deleteUsersData(String(csv || "").split(",").map((s) => s.trim()).filter(Boolean));
+}
+
+// Paket adlarini/iceriklerini son modele gore GUNCELLER (mevcut satirlar dahil). Her acilista calisir, idempotent.
+export function syncPlans() {
+  const plans = [
+    ["plan-buyer-free", "Alıcı Ücretsiz", ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"]],
+    ["plan-buyer-boost", "Talebimi Üste Taşı", ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"]],
+    ["plan-buyer-contact", "İlan Sahibinin Bilgilerini Gör", ["Eşleştiğin ilan sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"]],
+    ["plan-seller-boost", "İlanımı Üste Taşı", ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"]],
+    ["plan-seller-contact", "Talep Sahibinin Bilgilerini Gör", ["Eşleştiğin talep sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"]],
+    ["plan-pro", "Profesyonel Reklam Paketi", ["Çoklu portföy", "Aylık öne çıkarma hakları", "Bilgileri görme üyeliği dahil"]],
+  ];
+  const upd = db.prepare("UPDATE plans SET name = ?, features = ? WHERE id = ?");
+  for (const [id, name, features] of plans) { try { upd.run(name, JSON.stringify(features), id); } catch { /* yoksay */ } }
 }
 
 // ---------- Yardimcilar ----------

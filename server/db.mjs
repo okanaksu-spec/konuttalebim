@@ -150,16 +150,23 @@ export function purgeUsersByIds(csv) {
 
 // Paket adlarini/iceriklerini son modele gore GUNCELLER (mevcut satirlar dahil). Her acilista calisir, idempotent.
 export function syncPlans() {
+  // Kanonik paket listesi. Satılık + Kiralık + Danışman. Kiralıkta KİRACI ücretsiz; EV SAHİBİ öder.
   const plans = [
-    ["plan-buyer-free", "Alıcı Ücretsiz", ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"]],
-    ["plan-buyer-boost", "Talebimi Üste Taşı", ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"]],
-    ["plan-buyer-contact", "İlan Sahibinin Bilgilerini Gör", ["Eşleştiğin ilan sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"]],
-    ["plan-seller-boost", "İlanımı Üste Taşı", ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"]],
-    ["plan-seller-contact", "Talep Sahibinin Bilgilerini Gör", ["Eşleştiğin talep sahibinin telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"]],
-    ["plan-pro", "Profesyonel Reklam Paketi", ["Çoklu portföy", "Aylık öne çıkarma hakları", "Bilgileri görme üyeliği dahil"]],
+    ["plan-buyer-free", "Alıcı Ücretsiz", "BUYER", 0, "ay", "Satılık · Temel", ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"]],
+    ["plan-buyer-boost", "Talebimi Üste Taşı", "BUYER", 99, "7 gün", "Satılık · Reklam", ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"]],
+    ["plan-buyer-contact", "Satıcı Bilgilerini Gör", "BUYER", 199, "ay", "Satılık · İletişim", ["Eşleştiğin satıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"]],
+    ["plan-seller-boost", "İlanımı Üste Taşı", "SELLER", 149, "7 gün", "Satılık · Reklam", ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"]],
+    ["plan-seller-contact", "Alıcı Bilgilerini Gör", "SELLER", 299, "ay", "Satılık · İletişim", ["Eşleştiğin alıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"]],
+    ["plan-tenant-free", "Kiracı Ücretsiz", "BUYER", 0, "ay", "Kiralık · Temel", ["Sınırsız kiralık talebi", "Ev sahipleri sana ulaşır", "Tamamen ücretsiz"]],
+    ["plan-landlord-contact", "Kiracı Bilgilerini Gör", "SELLER", 199, "ay", "Kiralık · İletişim", ["Eşleştiğin kiracının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız kiracı talebi görüntüleme"]],
+    ["plan-landlord-boost", "Kiralık İlanımı Üste Taşı", "SELLER", 99, "7 gün", "Kiralık · Reklam", ["Kiralık ilanın üst sıralarda", "Kiracı havuzunda renkli vurgu", "Uygun kiracılara ek bildirim"]],
+    ["plan-pro", "Profesyonel Paket", "AGENT", 799, "ay", "Danışman · Reklam + üyelik", ["Satılık + kiralık çoklu portföy", "Tüm iletişim bilgilerini görme", "Aylık öne çıkarma hakları"]],
   ];
-  const upd = db.prepare("UPDATE plans SET name = ?, features = ? WHERE id = ?");
-  for (const [id, name, features] of plans) { try { upd.run(name, JSON.stringify(features), id); } catch { /* yoksay */ } }
+  try {
+    db.exec("DELETE FROM plans");
+    const ins = db.prepare("INSERT INTO plans (id,name,roleType,price,interval,category,features) VALUES (?,?,?,?,?,?,?)");
+    for (const p of plans) ins.run(p[0], p[1], p[2], p[3], p[4], p[5], JSON.stringify(p[6]));
+  } catch { /* yoksay */ }
 }
 
 // ---------- Yardimcilar ----------

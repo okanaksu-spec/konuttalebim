@@ -139,10 +139,12 @@ function maskSensitiveInfo(text) {
 }
 
 function hasContactMembership(userId, role) {
-  const planId = role === "BUYER" ? "plan-buyer-contact" : "plan-seller-contact";
+  // Satıcı/ev sahibi hem satılık (plan-seller-contact) hem kiralık (plan-landlord-contact) üyeliğiyle iletişim görebilir.
+  const ids = role === "BUYER" ? ["plan-buyer-contact"] : ["plan-seller-contact", "plan-landlord-contact"];
+  const ph = ids.map(() => "?").join(",");
   const row = db.prepare(
-    "SELECT COUNT(*) AS c FROM entitlements WHERE userId = ? AND (planId = ? OR planId = 'plan-pro')"
-  ).get(userId, planId);
+    `SELECT COUNT(*) AS c FROM entitlements WHERE userId = ? AND (planId IN (${ph}) OR planId = 'plan-pro')`
+  ).get(userId, ...ids);
   return row.c > 0;
 }
 

@@ -1254,42 +1254,109 @@ function legalPage(kind) {
       <p>Ödeme 3D Secure ile onaylandığı anda hizmet (üyelik / öne çıkarma) hesabınızda <strong>anında</strong> aktifleşir; ayrıca bir teslimat süresi yoktur. Üyelik, ilgili paketin açıklamasında belirtilen süre boyunca geçerlidir.</p>
       <h3>Kargo / Teslimat Ücreti</h3>
       <p>Dijital hizmet olduğundan herhangi bir kargo veya teslimat ücreti alınmaz.</p>` },
-    "kvkk": { t: "KVKK Aydınlatma Metni ve Gizlilik Politikası", s: "Kişisel verilerinizin işlenmesi hakkında.", h: `
+    "kvkk": { t: "KVKK Aydınlatma Metni ve Gizlilik Politikası", s: "Kişisel verilerinizin 6698 sayılı Kanun kapsamında işlenmesi hakkında.", h: `
+      <p>${C.unvan} olarak kişisel verilerinizin güvenliğine azami önem veriyoruz. Verileriniz 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında aşağıda açıklandığı şekilde işlenir.</p>
       <h3>1. Veri Sorumlusu</h3>${firmaList}
-      <h3>2. İşlenen Kişisel Veriler</h3>
-      <p>Ad-soyad, e-posta, telefon, şehir; hesap ve profil bilgileri; talep/ilan içerikleri ve beyanları (bütçe/kira aralığı, peşinat, kredi/nakit tercihi vb.); ödeme kayıtları (tutar, tarih, işlem no — <strong>kart numarası hariç</strong>); site kullanım/işlem kayıtları (IP, oturum, log) ve çerez verileri.</p>
+      <p>Veri sorumlusu sıfatıyla ${C.unvan}. KVKK başvuruları için: <strong>${C.email}</strong>.</p>
+      <h3>2. İşlenen Kişisel Veri Kategorileri</h3>
+      <ul class="legal-list">
+        <li><strong>Kimlik:</strong> ad-soyad; yasal zorunluluk hâlinde T.C. kimlik no.</li>
+        <li><strong>İletişim:</strong> e-posta, telefon, şehir/adres.</li>
+        <li><strong>İşlem güvenliği:</strong> IP, oturum ve log kayıtları, şifre (şifrelenmiş olarak), cihaz bilgisi.</li>
+        <li><strong>Hizmet kullanımı:</strong> oluşturduğunuz talep/ilanlar ve beyanlar (bütçe/kira aralığı, peşinat, kredi/nakit tercihi), gönderdiğiniz teklifler, eşleşmeler, favoriler.</li>
+        <li><strong>İşlem/ödeme:</strong> tutar, tarih, işlem numarası (<strong>kart numarası hariç</strong> — kart bilgisi yalnızca ödeme kuruluşu tarafında işlenir, bize aktarılmaz).</li>
+        <li><strong>Pazarlama:</strong> çerez ve tercih kayıtları (onayınız dâhilinde).</li>
+      </ul>
       <h3>3. İşleme Amaçları</h3>
-      <p>Üyeliğin ve hizmetin sunulması; alıcı/kiracı taleplerinin satıcı/ev sahibi ilanlarıyla eşleştirilmesi; <strong>bilgileri görme üyeliği</strong> kapsamında iletişim bilgisinin açılması; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi ve destek sağlanması.</p>
-      <h3>4. Hukuki Sebepler (KVKK m.5)</h3>
-      <p>Sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
-      <h3>5. Aktarım</h3>
-      <p>Veriler; ödeme kuruluşu (${C.odeme}), barındırma/altyapı sağlayıcıları, e-posta servisleri, mali müşavir ve yetkili kamu kurumlarıyla amaçla sınırlı ve mevzuata uygun paylaşılabilir. Eşleşme sağlandığında, <strong>bilgileri görme üyeliği olan tarafa</strong> yalnızca ilgili iletişim bilgisi açılır.</p>
+      <p>Üyeliğin ve hizmetin sunulması; alıcı/kiracı taleplerinin satıcı/ev sahibi ilanlarıyla eşleştirilmesi; <strong>Bilgileri Görme Üyeliği</strong> kapsamında iletişim bilgisinin açılması; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi; talep/şikâyet yönetimi ve hizmet kalitesinin artırılması.</p>
+      <h3>4. Toplama Yöntemi ve Hukuki Sebepler (KVKK m.5)</h3>
+      <p>Veriler; web sitesi, mobil uygulama ve e-posta yoluyla elektronik ortamda toplanır. Hukuki sebepler: sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; ve gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
+      <h3>5. Aktarım (KVKK m.8-9)</h3>
+      <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Eşleşmede yalnızca ilgili iletişim bilgisi, üyeliği olan tarafa açılır.</p>
       <h3>6. Saklama Süresi</h3>
-      <p>Veriler, işleme amacının gerektirdiği ve ilgili mevzuatın öngördüğü süre boyunca saklanır; süre sonunda silinir veya anonimleştirilir.</p>
+      <p>Veriler, işleme amacının gerektirdiği ve mevzuatın öngördüğü süre boyunca saklanır; süre sonunda resen veya talebiniz üzerine silinir, yok edilir ya da anonimleştirilir.</p>
       <h3>7. Haklarınız (KVKK m.11)</h3>
-      <p>Verilerinizin işlenip işlenmediğini öğrenme, bilgi ve düzeltme/silme talep etme, işlemeye itiraz ve zararın giderilmesini isteme haklarına sahipsiniz. Başvurularınızı ${C.email} üzerinden iletebilirsiniz.</p>` },
-    "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler hakkında.", h: `
-      <p>Konuttalebi, hizmetin çalışması ve deneyimin iyileştirilmesi için çerezler kullanır.</p>
+      <p>Kişisel veri sahibi olarak; verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını ve amaca uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini, şartlar oluştuğunda silinmesini/yok edilmesini isteme, otomatik analiz sonucu aleyhinize çıkan bir sonuca itiraz etme ve kanuna aykırı işleme nedeniyle zararınızın giderilmesini talep etme haklarına sahipsiniz. Başvurularınız ${C.email} üzerinden en geç <strong>30 gün</strong> içinde ücretsiz sonuçlandırılır.</p>` },
+    "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler ve yönetimi hakkında.", h: `
+      <p>Konuttalebi, hizmetin çalışması ve kullanıcı deneyiminin iyileştirilmesi için çerez (cookie) kullanır. Aşağıda çerez türleri ve yönetimi açıklanmıştır.</p>
       <h3>Çerez Türleri</h3>
-      <ul class="legal-list"><li><strong>Zorunlu çerezler:</strong> Oturum açma, güvenlik ve temel işlevler için gereklidir (örn. oturum çerezi <code>kt_session</code>). Bunlar olmadan site çalışmaz.</li><li><strong>İşlevsel çerezler:</strong> Tercihlerin hatırlanması için kullanılabilir.</li></ul>
-      <h3>Yönetim</h3>
-      <p>Tarayıcı ayarlarından çerezleri silebilir veya engelleyebilirsiniz; ancak zorunlu çerezler engellenirse site düzgün çalışmayabilir. Kişisel veri işleme için KVKK Aydınlatma Metni'ne bakınız.</p>` },
-    "kullanim-sartlari": { t: "Kullanım Koşulları (Üyelik Sözleşmesi)", s: "Platformu kullanırken geçerli kurallar.", h: `
-      <h3>1. Platformun Rolü</h3>
-      <p>Konuttalebi, alıcı/kiracı taleplerini satıcı/ev sahibi ilanlarıyla buluşturan bir platformdur. Taraflar arasındaki nihai alım-satım/kiralama ilişkisine taraf değildir; ilan/talep içeriklerinin doğruluğundan kullanıcılar sorumludur.</p>
-      <h3>2. Üyelik</h3>
-      <p>Üye, verdiği bilgilerin doğru olduğunu ve hesabının güvenliğinden kendisinin sorumlu olduğunu kabul eder. 18 yaşından küçükler üye olamaz.</p>
-      <h3>3. İletişim Bilgisi ve Gizlilik</h3>
-      <p>Telefon, e-posta ve adres gibi iletişim bilgileri herkese açık değildir; yalnızca <strong>bilgileri görme üyeliği</strong> alan ve eşleştiğiniz tarafa, kayıt sırasında verdiğiniz açık rıza kapsamında açılır. Platform içi mesajlaşma yoktur; taraflar iletişim bilgisiyle doğrudan görüşür.</p>
-      <h3>4. Yasak Davranışlar</h3>
-      <p>Yanıltıcı içerik, başkasının bilgilerini izinsiz kullanma, sistemin güvenliğini tehdit etme ve hukuka aykırı içerik paylaşma yasaktır. Platform bu tür hesapları askıya alabilir.</p>
-      <h3>5. Ücretli Hizmetler</h3>
-      <p>Üyelik ve öne çıkarma paketlerinin ücretleri satın alma ekranında belirtilir; ödeme ve iade koşulları Mesafeli Satış Sözleşmesi ve İade/İptal Politikası'na tabidir.</p>
-      <h3>6. Sorumluluğun Sınırı ve Uyuşmazlık</h3>
-      <p>Platform, kullanıcılar arasındaki anlaşmazlıklardan veya üçüncü kişilerin içeriklerinden sorumlu değildir; kesintisiz/hatasız hizmet garantisi vermez. Uyuşmazlıklarda Türkiye Cumhuriyeti hukuku uygulanır.</p>` },
-    "guvenli-islem-rehberi": { t: "Güvenli İşlem Rehberi", s: "Doğrudan anlaşırken dikkat edilmesi gerekenler.", h: `
-      <p>Konuttalebi tarafları buluşturur; ödeme, kapora ve tapu işlemlerine taraf olmaz. Kendi güvenliğiniz için:</p>
-      <ul class="legal-list"><li>Kapora, ödeme ve tapu devri işlemlerini yalnızca <strong>resmi kanallar ve bankalar</strong> üzerinden yapın.</li><li>Taşınmazı görmeden veya belgeleri (tapu, kimlik) teyit etmeden ödeme yapmayın.</li><li>Aciliyet dayatan veya "önce kapora gönder" diyen isteklere karşı dikkatli olun; şüpheli durumları ${C.email} adresine bildirin.</li><li>Kart bilgilerinizi kimseyle paylaşmayın; üyelik ödemeleri yalnızca 3D Secure ile sanal POS üzerinden alınır.</li></ul>` },
+      <ul class="legal-list">
+        <li><strong>Zorunlu çerezler:</strong> Oturum açma, güvenlik ve temel işlevler için gereklidir (örn. oturum çerezi <code>kt_session</code>). Bunlar olmadan site çalışmaz; rıza gerektirmez.</li>
+        <li><strong>İşlevsel çerezler:</strong> Dil, şehir veya görünüm gibi tercihlerinizi hatırlar.</li>
+        <li><strong>Analitik / performans çerezleri:</strong> Ziyaret sayısı ve sayfa kullanımını <strong>anonim</strong> olarak ölçerek hizmeti iyileştirmemize yardımcı olur.</li>
+        <li><strong>Hedefleme / reklam çerezleri:</strong> İlgi alanınıza uygun içerik ve reklam sunmak amacıyla, yalnızca onayınızla kullanılabilir.</li>
+      </ul>
+      <h3>Çerezlerin Yönetimi</h3>
+      <p>Tarayıcı ayarlarınızdan çerezleri silebilir, engelleyebilir veya her girişte uyarı almayı seçebilirsiniz. Zorunlu çerezleri engellerseniz oturumun açık kalması gibi bazı özellikler çalışmayabilir. Kişisel veri işleme için KVKK Aydınlatma Metni'ne bakınız.</p>` },
+    "kullanim-sartlari": { t: "Kullanım Koşulları (Üyelik Sözleşmesi)", s: "Platformu kullanırken geçerli kurallar ve tarafların hak/yükümlülükleri.", h: `
+      <p>Lütfen Site'yi kullanmadan önce bu koşulları dikkatlice okuyunuz. Site'ye üye olan veya Site'yi kullanan herkes bu koşulları kabul etmiş sayılır.</p>
+      <h3>1. Taraflar ve Kapsam</h3>
+      <p>Bu sözleşme, ${C.unvan} ("PLATFORM" / "Konuttalebi"; ${C.adres}) ile https://konuttalebi.com ve mobil uygulamalarına ("Site") üye olan ya da Site'yi kullanan gerçek/tüzel kişi ("ÜYE" / "KULLANICI") arasında elektronik ortamda akdedilmiştir.</p>
+      <h3>2. Tanımlar</h3>
+      <ul class="legal-list">
+        <li><strong>Site:</strong> Konuttalebi web sitesi ve mobil uygulamaları.</li>
+        <li><strong>Üye:</strong> Site'ye kayıt olan ve hizmetlerden yararlanan gerçek veya tüzel kişi.</li>
+        <li><strong>Talep:</strong> Alıcı veya kiracının aradığı konutu tarif eden kayıt.</li>
+        <li><strong>İlan:</strong> Satıcı veya ev sahibinin sunduğu konut kaydı.</li>
+        <li><strong>Alıcı / Kiracı:</strong> Konut almak veya kiralamak için talep oluşturan Üye.</li>
+        <li><strong>Satıcı / Ev Sahibi:</strong> Konut satan veya kiraya veren, ilan oluşturan Üye.</li>
+        <li><strong>Bilgileri Görme Üyeliği:</strong> Eşleşilen karşı tarafın iletişim bilgisini görüntüleme hakkı veren ücretli üyelik.</li>
+      </ul>
+      <h3>3. Platformun Hukuki Statüsü</h3>
+      <p>Konuttalebi, 6563 sayılı Elektronik Ticaretin Düzenlenmesi Hakkında Kanun kapsamında bir <strong>aracı hizmet sağlayıcı / yer sağlayıcı</strong> konumundadır. Taraflar arasındaki alım-satım veya kiralama ilişkisine taraf değildir; talep/ilan içeriğini bizzat oluşturmaz, doğruluğunu garanti etmez ve içerikten kullanıcılar sorumludur.</p>
+      <h3>4. Üyelik ve Hesap</h3>
+      <ul class="legal-list">
+        <li>Üyelik, gerekli bilgilerin doğru ve eksiksiz girilmesi ve bu koşulların kabulüyle tamamlanır.</li>
+        <li>18 yaşından küçükler üye olamaz; tüzel kişiler adına yalnızca yetkili temsilci işlem yapabilir.</li>
+        <li>Üye tek bir hesap açabilir; hesabının ve şifresinin güvenliğinden bizzat sorumludur.</li>
+        <li>Yanlış/eksik bilgi veya şifrenin üçüncü kişilerce kullanımından doğan zararlardan Üye sorumludur.</li>
+      </ul>
+      <h3>5. Üyenin Yükümlülükleri</h3>
+      <ul class="legal-list">
+        <li>Yürürlükteki mevzuata (TCK, TBK, TTK, FSEK vb.) uygun davranmak.</li>
+        <li>Gerçek, doğru ve güncel talep/ilan oluşturmak; yanıltıcı, sahte veya hukuka aykırı içerik paylaşmamak.</li>
+        <li>Başkasının kişisel/iletişim bilgilerini izinsiz kullanmamak ve paylaşmamak.</li>
+        <li>Edindiği iletişim bilgisini yalnızca ilgili talep/ilan amacıyla kullanmak; izinsiz toplu pazarlama (spam) yapmamak.</li>
+      </ul>
+      <h3>6. Platformun Hak ve Yükümlülükleri</h3>
+      <ul class="legal-list">
+        <li>Hizmetin sürekliliği için azami özen gösterir; teknik arıza ve mücbir sebep kaynaklı kesintilerden sorumlu değildir.</li>
+        <li>Mevzuata aykırı, yanıltıcı veya şüpheli gördüğü talep/ilanı yayınlamama ya da kaldırma hakkına sahiptir.</li>
+        <li>Koşullara aykırı davranan hesapları geçici veya kalıcı olarak askıya alabilir.</li>
+        <li>Yetkili mercilerin talebi hâlinde üye bilgilerini mevzuata uygun paylaşabilir.</li>
+      </ul>
+      <h3>7. İletişim Bilgisi, Teklif ve Mesajlaşma</h3>
+      <p>Telefon, e-posta ve adres gibi iletişim bilgileri herkese açık değildir; yalnızca eşleşme sonrası <strong>Bilgileri Görme Üyeliği</strong> alan tarafa açılır. Site'de platform içi mesajlaşma yoktur; taraflar iletişim bilgisiyle doğrudan görüşür ve kendi aralarında anlaşır. Teklif iletmek ücretsizdir.</p>
+      <h3>8. İkili İlişkiler ve Mali Sorumluluk Muafiyeti (ÖNEMLİ)</h3>
+      <p>Konuttalebi bir <strong>ödeme veya emanet (escrow) hizmeti değildir</strong> ve taraflar arasındaki hiçbir alım-satım, kiralama, kapora, ödeme veya tapu işlemine taraf değildir. Kullanıcıların birbirleriyle kurdukları her ilişki, anlaşma ve ödeme tamamen kendi sorumluluklarındadır. Taşınmazın ayıplı olması, teslim/tescil edilmemesi, ödemenin yapılmaması gibi durumlarda Platform'un hiçbir hukuki, idari veya cezai sorumluluğu yoktur. Kullanıcılar, taşınmazı görmeden ve resmî belgeleri teyit etmeden <strong>kapora/ön ödeme yapmamaları</strong> konusunda uyarılır.</p>
+      <h3>9. Ücretli Hizmetler</h3>
+      <p>Bilgileri Görme Üyeliği ve öne çıkarma (üste taşıma) paketlerinin kapsam, süre ve KDV dâhil ücretleri satın alma ekranında belirtilir. Ödeme ve iade koşulları Ön Bilgilendirme Formu, Mesafeli Satış Sözleşmesi ve İade/İptal Politikası'na tabidir. Kiralık ev arayan (kiracı) için kayıt ve kullanım ücretsizdir.</p>
+      <h3>10. Fikri Mülkiyet</h3>
+      <p>Site'nin tasarımı, yazılımı, markası, logosu, veritabanı ve özgün içerikleri üzerindeki haklar ${C.unvan}'ne aittir; izinsiz kopyalanamaz, çoğaltılamaz veya tersine mühendislik yapılamaz. Üyelerin yüklediği içeriklerin hakları kendilerine ait olup, yayınlanmalarıyla Platform'a bunları hizmet kapsamında gösterme lisansı verilmiş sayılır.</p>
+      <h3>11. Mücbir Sebep</h3>
+      <p>Doğal afet, yangın, salgın, siber saldırı, altyapı/iletişim kesintisi gibi mücbir sebep hâllerinde Platform, yükümlülüklerini geç/eksik ifa etmesinden ya da ifa edememesinden sorumlu tutulamaz.</p>
+      <h3>12. Değişiklikler, Uyuşmazlık ve Yürürlük</h3>
+      <p>Platform, bu koşulları ve ücretlendirme politikasını tek taraflı değiştirme hakkını saklı tutar; değişiklikler Site'de yayımlandığında yürürlüğe girer. Uyuşmazlıklarda Türkiye Cumhuriyeti hukuku uygulanır ve <strong>Eskişehir Mahkemeleri ile İcra Daireleri</strong> yetkilidir. Üye, kaydını tamamlamakla bu koşulları okuduğunu ve kabul ettiğini beyan eder.</p>` },
+    "guvenli-islem-rehberi": { t: "Güvenli İşlem Rehberi", s: "Hesap güvenliği, dolandırıcılığa karşı korunma ve emlak işlemlerinde dikkat edilecekler.", h: `
+      <p>Konuttalebi tarafları buluşturur; ödeme, kapora ve tapu işlemlerine taraf olmaz. Güvenliğiniz için aşağıdaki başlıklara dikkat edin.</p>
+      <h3>Hesap Güvenliği</h3>
+      <ul class="legal-list">
+        <li>Şifrenizi kimseyle paylaşmayın; harf, rakam ve sembol içeren güçlü bir şifre kullanın.</li>
+        <li>Konuttalebi çalışanları sizden <strong>asla şifrenizi istemez</strong>; kendini yetkili gibi tanıtan kişilere itibar etmeyin.</li>
+        <li>Hesabınızda şüpheli bir hareket görürseniz hemen ${C.email} adresine bildirin.</li>
+      </ul>
+      <h3>Dolandırıcılığa Karşı</h3>
+      <ul class="legal-list">
+        <li>Taşınmazı görmeden ve tapu/kimlik belgelerini teyit etmeden <strong>kapora veya ön ödeme yapmayın</strong>.</li>
+        <li>Platform ödemelere aracılık etmez; para transferleri tamamen sizin sorumluluğunuzdadır.</li>
+        <li>Gerçek olamayacak kadar düşük fiyatlı veya "acele karar ver" baskısı yapan tekliflere şüpheyle yaklaşın.</li>
+      </ul>
+      <h3>Emlak İşlemlerinde</h3>
+      <ul class="legal-list">
+        <li>Kapora, ödeme ve tapu devrini yalnızca <strong>resmî kanallar ve bankalar</strong> üzerinden yapın; tapu işlemini Tapu Müdürlüğü'nde gerçekleştirin.</li>
+        <li>Karşı tarafın kimliğini ve taşınmazın tapu/aidat/ipotek durumunu doğrulayın.</li>
+        <li>Üyelik ödemeleri yalnızca 3D Secure ile sanal POS üzerinden alınır; kart bilgilerinizi kimseyle paylaşmayın.</li>
+      </ul>` },
   };
   docs["gizlilik"] = docs["kvkk"];
   const d = docs[kind] || docs["iletisim"];

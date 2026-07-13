@@ -285,14 +285,16 @@ async function handleApi(req, res, url) {
     const city = (body.city || "").trim() || "İstanbul";
     const role = ["BUYER", "SELLER", "AGENT"].includes(body.role) ? body.role : "BUYER";
     const password = body.password || "";
+    const marketingConsent = body.marketingConsent ? 1 : 0;
     if (name.length < 3 || !email.includes("@") || phone.length < 10)
       return err(res, 400, "Ad, geçerli e-posta ve telefon gerekli.");
     if (password.length < 6) return err(res, 400, "Şifre en az 6 karakter olmalı.");
     if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
       return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var.");
     const id = uid("u");
-    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt) VALUES (?,?,?,?,?,?,?,?,?)")
-      .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today());
+    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
+    addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
       .run(id, email, hashPassword(password), 0, today(), today());
     if (role === "BUYER")

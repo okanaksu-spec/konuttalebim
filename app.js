@@ -408,15 +408,18 @@ function hasContactMembership(userId, roleName) {
 
 // Paket kartlarında Türkçe rol rozeti + Satılık/Kiralık gruplaması.
 const PLAN_META = {
-  "plan-buyer-free": { role: "ALICI", group: "Satılık", free: ["buyer", "SALE"] },
-  "plan-buyer-boost": { role: "ALICI", group: "Satılık" },
-  "plan-buyer-contact": { role: "ALICI", group: "Satılık" },
-  "plan-seller-boost": { role: "SATICI", group: "Satılık" },
-  "plan-seller-contact": { role: "SATICI", group: "Satılık" },
-  "plan-tenant-free": { role: "KİRACI", group: "Kiralık", free: ["buyer", "RENT"] },
-  "plan-landlord-contact": { role: "EV SAHİBİ", group: "Kiralık" },
-  "plan-landlord-boost": { role: "EV SAHİBİ", group: "Kiralık" },
-  "plan-pro": { role: "DANIŞMAN", group: "Profesyonel" },
+  // Uyelik (iletisim erisimi): kim para oder. Kiraci ucretsiz; alici/satici/ev sahibi/danisman oder.
+  "plan-tenant-free": { role: "KİRACI", kind: "membership", order: 1, free: ["buyer", "RENT"] },
+  "plan-landlord-contact": { role: "EV SAHİBİ", kind: "membership", order: 2 },
+  "plan-buyer-contact": { role: "ALICI", kind: "membership", order: 3 },
+  "plan-seller-contact": { role: "SATICI", kind: "membership", order: 4 },
+  "plan-pro": { role: "DANIŞMAN", kind: "membership", order: 5 },
+  // Uste tasima & reklam (opsiyonel) — ayri bolum.
+  "plan-buyer-boost": { role: "ALICI", kind: "boost", order: 1 },
+  "plan-seller-boost": { role: "SATICI", kind: "boost", order: 2 },
+  "plan-landlord-boost": { role: "EV SAHİBİ", kind: "boost", order: 3 },
+  // Kayit herkese ucretsiz; alici icin ayri "ucretsiz" karti gostermeyiz (kafa karistirmasin).
+  "plan-buyer-free": { role: "ALICI", kind: "hidden", free: ["buyer", "SALE"] },
 };
 
 function planById(planId) {
@@ -1089,7 +1092,7 @@ function publicPage(kind) {
     `);
   }
   if (kind === "fiyatlandirma") {
-    return publicShell("Fiyatlandırma", "Gelir modeli: ilan/talep üste taşıma reklamları ve eşleşme sonrası bilgileri görme üyelikleri.", pricingCards());
+    return publicShell("Fiyatlandırma", "Kayıt ücretsiz. Kiralık ev arayan (kiracı) tamamen ücretsizdir. Alıcı, satıcı, ev sahibi ve emlak danışmanı yalnızca eşleştikten sonra karşı tarafın iletişim bilgisini görmek için öder. Üste taşıma & reklam ise ayrı, isteğe bağlı bir hizmettir.", pricingCards());
   }
   if (kind === "yardim") {
     return publicShell("Yardım ve SSS", "Konuttalebi'nin temel kurallarını sade biçimde incele.", faq());
@@ -1123,15 +1126,15 @@ function pricingCards(roleTypes = null) {
       ${btn}
     </article>`;
   };
-  const groups = [
-    ["Satılık", "Ev al & sat — alıcı ve satıcı paketleri"],
-    ["Kiralık", "Ev kirala & kiraya ver — kiracı ücretsiz, ev sahibi öder"],
-    ["Profesyonel", "Emlak danışmanları için"],
+  const sections = [
+    ["membership", "Üyelik — İletişim Erişimi", "Kayıt herkes için ücretsiz. Ödeme yalnızca eşleştikten sonra karşı tarafın iletişim bilgisini görmek içindir. <strong>Kiralık ev arayan (kiracı) tamamen ücretsizdir.</strong>"],
+    ["boost", "Üste Taşıma & Reklam · opsiyonel", "İsteğe bağlı. Talebini veya ilanını listelerin üstüne taşıyıp daha çok görünürlük al — zorunlu değildir, üyelikten ayrıdır."],
   ];
-  return groups.map(([g, sub]) => {
-    const gp = plans.filter((p) => meta(p.id).group === g);
+  return sections.map(([kind, title, sub]) => {
+    const gp = plans.filter((p) => meta(p.id).kind === kind)
+      .sort((a, b) => (meta(a.id).order || 99) - (meta(b.id).order || 99));
     if (!gp.length) return "";
-    return `<div style="margin-bottom:26px"><div class="kicker" style="font-size:15px;color:var(--gold,#c8a24b);margin:6px 0 2px">${g}</div><p class="muted" style="margin:0 0 12px">${sub}</p><div class="grid grid-4">${gp.map(card).join("")}</div></div>`;
+    return `<div style="margin-bottom:30px"><div class="kicker" style="font-size:15px;color:var(--gold,#c8a24b);margin:6px 0 2px">${title}</div><p class="muted" style="margin:0 0 12px">${sub}</p><div class="grid grid-4">${gp.map(card).join("")}</div></div>`;
   }).join("");
 }
 

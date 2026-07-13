@@ -619,13 +619,17 @@ function footer() {
           <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
         </div>
         <div class="footer-links">
+          <a href="#/iletisim">İletişim / Firma</a>
+          <a href="#/mesafeli-satis">Mesafeli Satış Sözleşmesi</a>
+          <a href="#/on-bilgilendirme">Ön Bilgilendirme</a>
+          <a href="#/iade-iptal">İade ve İptal</a>
+          <a href="#/teslimat">Teslimat</a>
+          <a href="#/kvkk">KVKK / Gizlilik</a>
+          <a href="#/cerez-politikasi">Çerez Politikası</a>
+          <a href="#/kullanim-sartlari">Kullanım Koşulları</a>
+          <a href="#/guvenli-islem-rehberi">Güvenli İşlem</a>
           <a href="/kiralik-ev-arayan">Kiralık ev arayan</a>
           <a href="/evine-kiraci-bul">Evine kiracı bul</a>
-          <a href="#/kvkk">KVKK</a>
-          <a href="#/gizlilik">Gizlilik</a>
-          <a href="#/kullanim-sartlari">Kullanım Şartları</a>
-          <a href="#/cerez-politikasi">Çerez Politikası</a>
-          <a href="#/guvenli-islem-rehberi">Güvenli İşlem</a>
         </div>
       </div>
     </footer>
@@ -1065,7 +1069,7 @@ function publicPage(kind) {
   if (kind === "yardim") {
     return publicShell("Yardım ve SSS", "Konuttalebi'nin temel kurallarını sade biçimde incele.", faq());
   }
-  if (["kvkk", "gizlilik", "kullanim-sartlari", "cerez-politikasi", "guvenli-islem-rehberi", "blog"].includes(kind)) {
+  if (["iletisim", "kvkk", "gizlilik", "kullanim-sartlari", "cerez-politikasi", "mesafeli-satis", "on-bilgilendirme", "iade-iptal", "teslimat", "guvenli-islem-rehberi"].includes(kind)) {
     return legalPage(kind);
   }
   return homePage();
@@ -1103,26 +1107,120 @@ function faq() {
   return `<div class="grid grid-2">${rows.map(([q, a]) => `<article class="card"><h3>${q}</h3><p>${a}</p></article>`).join("")}</div>`;
 }
 
+const COMPANY = {
+  unvan: "TLP Danışmanlık Sanayi ve Ticaret Limited Şirketi",
+  adres: "Zincirlikuyu Mah. 8048 Sk. No: 3B İç Kapı No: 2 Tepebaşı / Eskişehir",
+  mersis: "0845077119400001",
+  vergi: "Eskişehir Defterdarlığı / 8450771194",
+  sicil: "Eskişehir Ticaret Sicili Müdürlüğü - 58820",
+  email: "konuttalebi@gmail.com",
+  tel: "0544 339 20 23",
+  odeme: "PayTR Ödeme ve Elektronik Para Hizmetleri A.Ş. (PayTR)",
+};
+
 function legalPage(kind) {
-  const titles = {
-    kvkk: "KVKK Aydınlatma Metni",
-    gizlilik: "Gizlilik Politikası",
-    "kullanim-sartlari": "Kullanım Şartları",
-    "cerez-politikasi": "Çerez Politikası",
-    "guvenli-islem-rehberi": "Güvenli İşlem Rehberi",
-    blog: "Blog"
+  const C = COMPANY;
+  const firmaList = `<ul class="legal-list">
+      <li><strong>Ünvan:</strong> ${C.unvan}</li>
+      <li><strong>Adres:</strong> ${C.adres}</li>
+      <li><strong>MERSİS No:</strong> ${C.mersis}</li>
+      <li><strong>Vergi Dairesi / No:</strong> ${C.vergi}</li>
+      <li><strong>Ticaret Sicil:</strong> ${C.sicil}</li>
+      <li><strong>E-posta:</strong> ${C.email}</li>
+      <li><strong>Telefon:</strong> ${C.tel}</li>
+      <li><strong>Web:</strong> https://konuttalebi.com</li>
+    </ul>`;
+  const docs = {
+    "iletisim": { t: "İletişim ve Firma Bilgileri", s: "Konuttalebi'yi işleten şirket ve iletişim bilgileri.", h: `
+      <h3>Firma Bilgileri</h3>${firmaList}
+      <h3>İletişim</h3>
+      <p>Her türlü soru, öneri, talep ve şikâyetiniz için <strong>${C.email}</strong> adresine e-posta gönderebilir veya <strong>${C.tel}</strong> numaralı telefondan bize ulaşabilirsiniz. Başvurularınız en kısa sürede yanıtlanır.</p>
+      <p class="muted">Konuttalebi bir çevrim içi emlak platformudur; gayrimenkul alım-satım veya kiralama işlemine taraf olmaz, fiyata ve pazarlığa karışmaz. Tapu, kapora ve ödeme işlemlerinizi resmi kurumlar ve bankalar üzerinden yürütünüz.</p>` },
+    "on-bilgilendirme": { t: "Ön Bilgilendirme Formu", s: "Sipariş öncesi yasal bilgilendirme (6502 sayılı Kanun).", h: `
+      <p>Bu form, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği uyarınca, siparişinizi onaylamadan önce sizi bilgilendirmek için sunulur.</p>
+      <h3>1. Hizmet Sağlayıcı</h3>${firmaList}
+      <h3>2. Hizmetin Konusu</h3>
+      <p>Konuttalebi'de sunulan dijital hizmet paketleri: (a) <strong>Bilgileri Görme Üyeliği</strong> — eşleştiğiniz karşı tarafın iletişim bilgisini (telefon/e-posta) görüntüleme hakkı; (b) <strong>Öne Çıkarma (Üste Taşı) Paketleri</strong> — talep veya ilanın listelerde belirli süre üstte gösterilmesi. Paketin adı, kapsamı, süresi ve KDV dâhil fiyatı satın alma ekranında açıkça belirtilir.</p>
+      <h3>3. Fiyat ve Ödeme</h3>
+      <p>Satın alma anında ekranda gösterilen, tüm vergiler dâhil tutar geçerlidir. Ödemeler ${C.odeme} sanal POS altyapısı ve 3D Secure ile alınır; kart bilgileriniz Konuttalebi tarafından görülmez ve saklanmaz.</p>
+      <h3>4. İfa / Teslim</h3>
+      <p>Hizmet elektronik ortamda, ödeme onayının ardından anında sağlanır.</p>
+      <h3>5. Cayma Hakkı</h3>
+      <p>Elektronik ortamda anında ifa edilen hizmetlerde, ifaya başlanmasına açık onay vermeniz hâlinde cayma hakkı kullanılamaz (Mesafeli Sözleşmeler Yönetmeliği m.15). Satın alma sırasında hizmetin hemen başlamasını ve cayma hakkının sona ereceğini onaylarsınız.</p>
+      <h3>6. Şikâyet ve Uyuşmazlık</h3>
+      <p>Başvurularınızı ${C.email} adresine iletebilirsiniz. Uyuşmazlıklarda, Ticaret Bakanlığı'nca belirlenen parasal sınırlar dâhilinde Tüketici Hakem Heyetleri ve Tüketici Mahkemeleri yetkilidir.</p>` },
+    "mesafeli-satis": { t: "Mesafeli Satış Sözleşmesi", s: "Dijital hizmet paketi satın alımına ilişkin sözleşme.", h: `
+      <h3>Madde 1 — Taraflar</h3>
+      <p>Bir tarafta HİZMET SAĞLAYICI ${C.unvan} (${C.adres}; e-posta: ${C.email}; tel: ${C.tel}) ile diğer tarafta https://konuttalebi.com üzerinden paket satın alan ÜYE arasında elektronik ortamda kurulmuştur.</p>
+      <h3>Madde 2 — Konu</h3>
+      <p>ÜYE'nin platformdan elektronik ortamda satın aldığı dijital hizmet paketinin (bilgileri görme üyeliği ve/veya öne çıkarma) sunulmasına ilişkin tarafların hak ve yükümlülüklerinin belirlenmesidir.</p>
+      <h3>Madde 3 — Hizmetin Niteliği ve Fiyatı</h3>
+      <p>Paketin adı, kapsamı, süresi ve KDV dâhil toplam bedeli sipariş özetinde yer alır. Konuttalebi bir platform hizmeti sunar; gayrimenkulün kendisini satmaz, kiralamaz ve alım-satıma taraf olmaz. Satılan şey, platform üzerindeki erişim/görünürlük hizmetidir.</p>
+      <h3>Madde 4 — Ödeme</h3>
+      <p>Ödeme, ${C.odeme} sanal POS ve 3D Secure ile kredi/banka kartından tahsil edilir. Kart bilgileri Konuttalebi sunucularında saklanmaz. Ödeme onaylanmadan hizmet aktifleşmez.</p>
+      <h3>Madde 5 — İfa</h3>
+      <p>Hizmet, ödeme onayının hemen ardından elektronik ortamda anında sağlanır. Üyelik süresi paket açıklamasındaki süre kadardır; aksi belirtilmedikçe otomatik yenileme yoktur.</p>
+      <h3>Madde 6 — Cayma Hakkı ve İstisnası</h3>
+      <p>Hizmet anında ifa edildiğinden, ÜYE'nin ifaya başlanmasına açık onay vermesiyle cayma hakkı sona erer (Yönetmelik m.15/ğ). ÜYE bu durumu satın alma ekranında onaylayarak siparişi tamamlar.</p>
+      <h3>Madde 7 — Genel Hükümler ve Uyuşmazlık</h3>
+      <p>Platform kullanımı Kullanım Koşulları ve KVKK Aydınlatma Metni'ne tabidir. Uyuşmazlıklarda Türkiye Cumhuriyeti hukuku uygulanır; Tüketici Hakem Heyetleri ve Tüketici Mahkemeleri yetkilidir. ÜYE siparişi elektronik ortamda onayladığında sözleşmenin tüm koşullarını kabul etmiş sayılır.</p>` },
+    "iade-iptal": { t: "İade ve İptal (Cayma) Politikası", s: "Dijital hizmet paketlerinde iade koşulları.", h: `
+      <h3>1. Hizmetin Niteliği</h3>
+      <p>Satılan paketler dijital hizmetlerdir ve ödeme onayının ardından anında sunulur.</p>
+      <h3>2. Cayma Hakkı İstisnası</h3>
+      <p>Elektronik ortamda anında ifa edilen hizmetlerde, ÜYE'nin ifaya başlanmasına açık onay vermesiyle cayma hakkı kullanılamaz (Mesafeli Sözleşmeler Yönetmeliği m.15). Bu nedenle kullanılmaya başlanan paketlerde kural olarak iade yapılmaz.</p>
+      <h3>3. İstisnai İade Hâlleri</h3>
+      <p>Aşağıdaki durumlarda ${C.email} adresine başvurabilirsiniz; uygun görülen hâllerde bedel aynı ödeme yöntemiyle iade edilir:</p>
+      <ul class="legal-list"><li>Teknik arıza nedeniyle hizmetin hiç sunulamamış olması,</li><li>Aynı paketin mükerrer (çift) tahsil edilmesi,</li><li>Yasal olarak iade gereken diğer hâller.</li></ul>
+      <h3>4. İade Süresi ve Başvuru</h3>
+      <p>Onaylanan iadeler, ilgili banka/ödeme kuruluşu süreçlerine bağlı olarak genellikle birkaç iş günü içinde kart hesabınıza yansır. Talepleriniz için işlem no ve tarih ile ${C.email} adresine yazınız.</p>` },
+    "teslimat": { t: "Teslimat ve İfa Koşulları", s: "Dijital hizmet; fiziksel teslimat/kargo yoktur.", h: `
+      <p>Konuttalebi'de satılan tüm paketler <strong>dijital hizmettir</strong>; fiziksel ürün gönderimi, kargo veya teslimat söz konusu değildir.</p>
+      <h3>İfa Şekli ve Süresi</h3>
+      <p>Ödeme 3D Secure ile onaylandığı anda hizmet (üyelik / öne çıkarma) hesabınızda <strong>anında</strong> aktifleşir; ayrıca bir teslimat süresi yoktur. Üyelik, ilgili paketin açıklamasında belirtilen süre boyunca geçerlidir.</p>
+      <h3>Kargo / Teslimat Ücreti</h3>
+      <p>Dijital hizmet olduğundan herhangi bir kargo veya teslimat ücreti alınmaz.</p>` },
+    "kvkk": { t: "KVKK Aydınlatma Metni ve Gizlilik Politikası", s: "Kişisel verilerinizin işlenmesi hakkında.", h: `
+      <h3>1. Veri Sorumlusu</h3>${firmaList}
+      <h3>2. İşlenen Kişisel Veriler</h3>
+      <p>Ad-soyad, e-posta, telefon, şehir; hesap ve profil bilgileri; talep/ilan içerikleri ve beyanları (bütçe/kira aralığı, peşinat, kredi/nakit tercihi vb.); ödeme kayıtları (tutar, tarih, işlem no — <strong>kart numarası hariç</strong>); site kullanım/işlem kayıtları (IP, oturum, log) ve çerez verileri.</p>
+      <h3>3. İşleme Amaçları</h3>
+      <p>Üyeliğin ve hizmetin sunulması; alıcı/kiracı taleplerinin satıcı/ev sahibi ilanlarıyla eşleştirilmesi; <strong>bilgileri görme üyeliği</strong> kapsamında iletişim bilgisinin açılması; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi ve destek sağlanması.</p>
+      <h3>4. Hukuki Sebepler (KVKK m.5)</h3>
+      <p>Sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
+      <h3>5. Aktarım</h3>
+      <p>Veriler; ödeme kuruluşu (${C.odeme}), barındırma/altyapı sağlayıcıları, e-posta servisleri, mali müşavir ve yetkili kamu kurumlarıyla amaçla sınırlı ve mevzuata uygun paylaşılabilir. Eşleşme sağlandığında, <strong>bilgileri görme üyeliği olan tarafa</strong> yalnızca ilgili iletişim bilgisi açılır.</p>
+      <h3>6. Saklama Süresi</h3>
+      <p>Veriler, işleme amacının gerektirdiği ve ilgili mevzuatın öngördüğü süre boyunca saklanır; süre sonunda silinir veya anonimleştirilir.</p>
+      <h3>7. Haklarınız (KVKK m.11)</h3>
+      <p>Verilerinizin işlenip işlenmediğini öğrenme, bilgi ve düzeltme/silme talep etme, işlemeye itiraz ve zararın giderilmesini isteme haklarına sahipsiniz. Başvurularınızı ${C.email} üzerinden iletebilirsiniz.</p>` },
+    "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler hakkında.", h: `
+      <p>Konuttalebi, hizmetin çalışması ve deneyimin iyileştirilmesi için çerezler kullanır.</p>
+      <h3>Çerez Türleri</h3>
+      <ul class="legal-list"><li><strong>Zorunlu çerezler:</strong> Oturum açma, güvenlik ve temel işlevler için gereklidir (örn. oturum çerezi <code>kt_session</code>). Bunlar olmadan site çalışmaz.</li><li><strong>İşlevsel çerezler:</strong> Tercihlerin hatırlanması için kullanılabilir.</li></ul>
+      <h3>Yönetim</h3>
+      <p>Tarayıcı ayarlarından çerezleri silebilir veya engelleyebilirsiniz; ancak zorunlu çerezler engellenirse site düzgün çalışmayabilir. Kişisel veri işleme için KVKK Aydınlatma Metni'ne bakınız.</p>` },
+    "kullanim-sartlari": { t: "Kullanım Koşulları (Üyelik Sözleşmesi)", s: "Platformu kullanırken geçerli kurallar.", h: `
+      <h3>1. Platformun Rolü</h3>
+      <p>Konuttalebi, alıcı/kiracı taleplerini satıcı/ev sahibi ilanlarıyla buluşturan bir platformdur. Taraflar arasındaki nihai alım-satım/kiralama ilişkisine taraf değildir; ilan/talep içeriklerinin doğruluğundan kullanıcılar sorumludur.</p>
+      <h3>2. Üyelik</h3>
+      <p>Üye, verdiği bilgilerin doğru olduğunu ve hesabının güvenliğinden kendisinin sorumlu olduğunu kabul eder. 18 yaşından küçükler üye olamaz.</p>
+      <h3>3. İletişim Bilgisi ve Gizlilik</h3>
+      <p>Telefon, e-posta ve adres gibi iletişim bilgileri herkese açık değildir; yalnızca <strong>bilgileri görme üyeliği</strong> alan ve eşleştiğiniz tarafa, kayıt sırasında verdiğiniz açık rıza kapsamında açılır. Platform içi mesajlaşma yoktur; taraflar iletişim bilgisiyle doğrudan görüşür.</p>
+      <h3>4. Yasak Davranışlar</h3>
+      <p>Yanıltıcı içerik, başkasının bilgilerini izinsiz kullanma, sistemin güvenliğini tehdit etme ve hukuka aykırı içerik paylaşma yasaktır. Platform bu tür hesapları askıya alabilir.</p>
+      <h3>5. Ücretli Hizmetler</h3>
+      <p>Üyelik ve öne çıkarma paketlerinin ücretleri satın alma ekranında belirtilir; ödeme ve iade koşulları Mesafeli Satış Sözleşmesi ve İade/İptal Politikası'na tabidir.</p>
+      <h3>6. Sorumluluğun Sınırı ve Uyuşmazlık</h3>
+      <p>Platform, kullanıcılar arasındaki anlaşmazlıklardan veya üçüncü kişilerin içeriklerinden sorumlu değildir; kesintisiz/hatasız hizmet garantisi vermez. Uyuşmazlıklarda Türkiye Cumhuriyeti hukuku uygulanır.</p>` },
+    "guvenli-islem-rehberi": { t: "Güvenli İşlem Rehberi", s: "Doğrudan anlaşırken dikkat edilmesi gerekenler.", h: `
+      <p>Konuttalebi tarafları buluşturur; ödeme, kapora ve tapu işlemlerine taraf olmaz. Kendi güvenliğiniz için:</p>
+      <ul class="legal-list"><li>Kapora, ödeme ve tapu devri işlemlerini yalnızca <strong>resmi kanallar ve bankalar</strong> üzerinden yapın.</li><li>Taşınmazı görmeden veya belgeleri (tapu, kimlik) teyit etmeden ödeme yapmayın.</li><li>Aciliyet dayatan veya "önce kapora gönder" diyen isteklere karşı dikkatli olun; şüpheli durumları ${C.email} adresine bildirin.</li><li>Kart bilgilerinizi kimseyle paylaşmayın; üyelik ödemeleri yalnızca 3D Secure ile sanal POS üzerinden alınır.</li></ul>` },
   };
-  const title = titles[kind] || "Bilgilendirme";
-  return publicShell(title, "Konuttalebi'yi güvenle kullanman için bilgilendirme.", `
-    <article class="panel">
-      <p class="muted">Konuttalebi; talep, ilan, eşleşme ve iletişim bilgisi paylaşımı süreçlerinde kişisel verilerin korunmasını, erişim kontrolünü ve güvenliği esas alır. İletişim bilgilerin yalnızca bilgileri görme üyeliği kapsamında ve açık rızanla paylaşılır.</p>
-      <div class="grid grid-3" style="margin-top:18px">
-        ${featureCard("shield", "Kişisel veri", "Kimlik ve iletişim bilgileri yalnızca gerekli akışlarda kullanılır.")}
-        ${featureCard("card", "Bütçe beyanı", "Alıcıdan belge yüklemesi istenmez; sadece bütçe ve alım niyeti beyan edilir.")}
-        ${featureCard("alert", "Güvenli işlem", "Kapora ve tapu işlemleri platform dışında resmi kanallardan yürütülmelidir.")}
-      </div>
-    </article>
-  `);
+  docs["gizlilik"] = docs["kvkk"];
+  const d = docs[kind] || docs["iletisim"];
+  const style = `<style>.legal-doc h3{margin:20px 0 6px;font-size:17px;color:var(--navy,#10243a)}.legal-doc ul.legal-list{margin:8px 0;padding-left:20px}.legal-doc li{margin:5px 0}.legal-doc p{margin:8px 0}.legal-doc code{background:#eef3f8;padding:1px 5px;border-radius:4px}</style>`;
+  return publicShell(d.t, d.s, `${style}<article class="panel legal-doc" style="line-height:1.75">${d.h}<p class="muted" style="margin-top:24px;font-size:13px;border-top:1px solid #e5eaf0;padding-top:14px">Bu metin bilgilendirme amaçlıdır ve yürürlükteki mevzuat esas alınır. Konuttalebi, ${C.unvan} tarafından işletilir. Sorularınız için ${C.email}.</p></article>`);
 }
 
 function dashboardLayout(role, content, activePath) {

@@ -633,9 +633,21 @@ function footer() {
 }
 
 function homePage() {
-  const sampleDemand = state.demands[0];
-  const sampleProperty = state.properties[0];
-  const profile = buyerProfile(sampleDemand.buyerId);
+  // Ana sayfa vitrini: temsili (sabit) ornek. Gercek kayitlara baglanmaz; veritabani bos olsa da calisir.
+  const sampleDemand = {
+    id: "ornek-talep", buyerId: "ornek", title: "Kadıköy'de aile için 3+1",
+    city: "İstanbul", district: "Kadıköy", propertyType: "Daire", roomCount: "3+1",
+    minSqm: 110, maxSqm: 155, minBudget: 6000000, maxBudget: 8000000, downPayment: 2500000,
+    usesCredit: true, cashReady: false, purchaseTimeline: "3 ay içinde", transactionType: "SALE",
+    description: "Metroya ve okula yakın, krediye uygun, bakımlı bir aile evi arıyorum.", offerCount: 0,
+  };
+  const sampleProperty = {
+    id: "ornek-ilan", sellerId: "ornek", title: "Kadıköy Göztepe'de yenilenmiş 3+1",
+    city: "İstanbul", district: "Kadıköy", roomCount: "3+1", netSqm: 122, price: 7350000,
+    photoClass: "apartment", creditEligible: true, negotiable: true, transactionType: "SALE",
+    description: "Bağdat Caddesi'ne yakın, bakımlı, krediye uygun daire.",
+  };
+  const profile = { verificationLevel: "Bütçe beyanı: 6–8 milyon TL", badge: "blue", budgetTrustScore: 88 };
   return `
     <section class="hero">
       <div class="hero-inner">
@@ -647,10 +659,10 @@ function homePage() {
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
           </div>
-          <div class="hero-metrics">
-            <div class="metric-tile"><b>${(state.stats || {}).demands ?? state.demands.length}</b><span>aktif talep</span></div>
-            <div class="metric-tile"><b>${(state.stats || {}).properties ?? state.properties.length}</b><span>aktif ilan</span></div>
-            <div class="metric-tile"><b>${(state.stats || {}).matches ?? state.matches.length}</b><span>eşleşme</span></div>
+          <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:#cdd9e6;font-weight:600;font-size:14px">
+            <span>${icon("card", 15)} Belge istenmez</span>
+            <span>${icon("lock", 15)} İletişim açık rızayla</span>
+            <span>${icon("shield", 15)} Komisyon yok</span>
           </div>
         </div>
         <div class="hero-preview" aria-hidden="true">
@@ -666,7 +678,7 @@ function homePage() {
           <div class="hero-card hero-card-photo">
             <div class="photo ${sampleProperty.photoClass || ""}"></div>
             <div>
-              <span class="badge badge-blue">${calculateMatchScore(sampleDemand, sampleProperty).score}/100 uyum</span>
+              <span class="badge badge-blue">92/100 uyum</span>
               <h3>${escapeHtml(sampleProperty.title)}</h3>
               <p>${escapeHtml(sampleProperty.roomCount)} · ${sampleProperty.netSqm} m2 · ${money(sampleProperty.price)}</p>
             </div>
@@ -722,7 +734,7 @@ function homePage() {
           <div class="section-title">
             <div class="kicker">Ürün akışı</div>
             <h2>Talebini oluştur, eşleş, ilan sahibiyle doğrudan iletişime geç.</h2>
-            <p class="lead">Karşı taraf senin kimliğini veya özel bilgini değil, talep/ilan özetini ve güven rozetlerini görür. İletişim bilgisi üyelikle açılır; ödemeye, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız.</p>
+            <p class="lead">Karşı taraf senin kimliğini veya özel bilgini değil, talep/ilan özetini ve güven rozetlerini görür. İletişim bilgisi üyelikle açılır; ödemeye, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız. <em style="opacity:.75">(Aşağıdaki kartlar temsili örnektir.)</em></p>
           </div>
         </div>
         <div class="product-strip">
@@ -2103,6 +2115,7 @@ window.KT = {
     const plan = planById(planId);
     const r = await api("/payments/checkout", "POST", { planId, itemType, itemId });
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
+    if (r.data.provider === "paytr" && r.data.iframeUrl) return KT.openPaymentFrame(r.data.iframeUrl);
     await refreshState();
     toast(`${plan ? plan.name : "Öne çıkarma"} aktif edildi.`);
     render();
@@ -2112,9 +2125,33 @@ window.KT = {
     const plan = planById(planId);
     const r = await api("/payments/checkout", "POST", { planId });
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
+    if (r.data.provider === "paytr" && r.data.iframeUrl) return KT.openPaymentFrame(r.data.iframeUrl);
     await refreshState();
     toast(`${plan ? plan.name : "Paket"} satın alındı.`);
     if (rerender) render();
+  },
+  openPaymentFrame(url) {
+    const old = document.getElementById("kt-pay-overlay");
+    if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-pay-overlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e5eaf0">
+          <strong>Güvenli Ödeme — PayTR</strong>
+          <button onclick="KT.closePaymentFrame()" style="border:0;background:#eef3f8;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700">Kapat</button>
+        </div>
+        <iframe src="${url}" style="border:0;width:100%;height:70vh" allow="payment"></iframe>
+        <div style="padding:10px 16px;border-top:1px solid #e5eaf0;font-size:13px;color:#5b6b7d">Ödeme tamamlanınca bu pencereyi kapatın; üyeliğiniz birkaç saniye içinde etkinleşir.</div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  async closePaymentFrame() {
+    const ov = document.getElementById("kt-pay-overlay");
+    if (ov) ov.remove();
+    await refreshState();
+    render();
+    toast("Ödeme sonucu kontrol edildi. Üyeliğin aktifse iletişim bilgisi artık açık.");
   },
   adminMockAction() {
     toast("Paketin hesabına tanımlandı.");

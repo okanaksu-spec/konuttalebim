@@ -155,7 +155,10 @@ function locationMatchLevel(demand, property) {
   if (!demand.city || !property.city || demand.city !== property.city) return null;
   const hoods = demandHoods(demand);
   if (hoods.length) {
-    return (property.neighborhood && hoods.includes(String(property.neighborhood).trim())) ? "mahalle" : null;
+    // Once tam mahalle uyumu; degilse ayni ilcede olmasi da uyum sayilir.
+    if (property.neighborhood && hoods.includes(String(property.neighborhood).trim())) return "mahalle";
+    if (demand.district && property.district && String(property.district).trim() === String(demand.district).trim()) return "ilce";
+    return null;
   }
   if (demand.district) {
     return (property.district && String(property.district).trim() === String(demand.district).trim()) ? "ilce" : null;

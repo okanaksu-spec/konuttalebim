@@ -177,6 +177,14 @@ let PAYMENTS_LIVE = false; // Test icin ?pay=1 ile acilir; canli-moda gecince ko
 try { if (new URLSearchParams(location.search).get("pay") === "1") PAYMENTS_LIVE = true; } catch {}
 let _pendingPay = null; // odeme onay modalinda bekleyen islem
 
+// Kiralik talep formu — opsiyonel ozellik listeleri (kiraci modulu)
+const IC_OZELLIKLER = ["Ebeveyn Banyosu", "Giyinme Odası", "Gömme Dolap", "Kiler", "Ankastre Mutfak", "Amerikan Mutfak", "Balkon", "Teras", "Çelik Kapı", "Klima", "Şömine", "Laminat/Parke"];
+const DIS_OZELLIKLER = ["Otopark", "Asansör", "Site İçerisinde", "7/24 Güvenlik", "Kapıcı", "Bahçe", "Yüzme Havuzu", "Spor Salonu", "Çocuk Oyun Alanı", "Jeneratör"];
+const ISITMA_TIPLERI = ["Farketmez", "Kombi (Doğalgaz)", "Merkezi", "Yerden Isıtma", "Klima", "Soba"];
+const BINA_YASLARI = ["Farketmez", "Sıfır (0)", "1-5", "6-10", "11-20", "20+"];
+const KAT_TERCIHLERI = ["Farketmez", "Giriş / Bahçe katı", "Ara kat", "Yüksek kat", "En üst kat"];
+const MESLEK_DURUMLARI = ["Belirtmek istemiyorum", "Kamu çalışanı", "Özel sektör (maaşlı)", "Serbest meslek / Esnaf", "Öğrenci", "Emekli", "Diğer"];
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -923,6 +931,7 @@ function demandCard(demand, options = {}) {
           <span class="pill">${escapeHtml(demand.purchaseTimeline)}</span>
         </div>
         <p class="row-note">${escapeHtml(demand.description)}</p>
+        ${options.sample ? "" : demandExtraPills(demand)}
       </div>
       ${options.sample ? "" : `<div class="row-side"><span class="badge badge-blue">${demand.offerCount} teklif</span><button class="btn btn-small btn-primary" onclick="KT.goSellerOffer('${demand.id}')">Teklif ver</button></div>`}
     </article>
@@ -1508,17 +1517,23 @@ function buyerDemandForm() {
         ${field(rent ? "Maksimum aylık kira" : "Maksimum bütçe", "d-maxbudget", "number", rent ? "30000" : "6500000")}
         ${rent ? field("Öngörülen depozito", "d-deposit", "number", "30000") : field("Peşinat", "d-down", "number", "1500000")}
         ${field(rent ? "Taşınma zamanı" : "Alım zamanı", "d-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
+        ${rent ? field("Isıtma tipi", "d-heating", "select", "", ISITMA_TIPLERI) : ""}
+        ${rent ? field("Bina yaşı", "d-buildingage", "select", "", BINA_YASLARI) : ""}
+        ${rent ? field("Tercih edilen kat", "d-floor", "select", "", KAT_TERCIHLERI) : ""}
+        ${rent ? field("Meslek / çalışma durumu (opsiyonel)", "d-occupation", "select", "", MESLEK_DURUMLARI) : ""}
         <div class="field full">
           <label>Tercihler</label>
           <div class="check-grid">
             ${rent
               ? `<label class="check"><input id="d-furnished" type="checkbox"> Eşyalı olsun</label>`
               : `<label class="check"><input id="d-credit" type="checkbox" checked> Kredi kullanacağım</label>
-            <label class="check"><input id="d-cash" type="checkbox"> Nakit alım olabilir</label>`}
-            <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>
-            <label class="check"><input id="d-private" type="checkbox" checked> Telefonum gizli kalsın</label>
+            <label class="check"><input id="d-cash" type="checkbox"> Nakit alım olabilir</label>
+            <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>`}
           </div>
         </div>
+        ${rent ? `<div class="field full"><label>Olmasını istediğin <strong>iç özellikler</strong> <span class="muted">(opsiyonel, birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="d-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>` : ""}
+        ${rent ? `<div class="field full"><label>Olmasını istediğin <strong>dış / site özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="d-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>` : ""}
+        <div class="field full"><p class="muted" style="margin:6px 0 0;font-size:13px">${icon("shield", 13)} İletişim bilgin (telefon/e-posta) herkese kapalıdır; yalnızca eşleştiğin ve üyelik satın alan tarafa açılır.</p></div>
         <div class="field full"><label>Açıklama</label><textarea id="d-desc" placeholder="Aradığın evi, çevre beklentini ve olmazsa olmazlarını yaz."></textarea><span class="helper">En az 20 karakter önerilir.</span></div>
         <div class="field full">
           <label>Görsel (opsiyonel)</label>
@@ -1979,6 +1994,21 @@ function empty(title, body) {
   return `<div class="empty"><b>${title}</b><span class="muted">${body}</span></div>`;
 }
 
+function parseFeatures(v) { try { return Array.isArray(v) ? v : JSON.parse(v || "[]"); } catch { return []; } }
+function demandExtraPills(demand) {
+  const skip = (x) => !x || x === "Farketmez" || x === "Belirtmek istemiyorum";
+  const pills = [];
+  if (demand.furnished) pills.push("Eşyalı");
+  if (!skip(demand.heatingType)) pills.push(escapeHtml(demand.heatingType));
+  if (!skip(demand.buildingAge)) pills.push("Bina " + escapeHtml(demand.buildingAge));
+  if (!skip(demand.floorPref)) pills.push(escapeHtml(demand.floorPref));
+  if (demand.depositAmount) pills.push("Depozito ~" + shortMoney(demand.depositAmount));
+  if (!skip(demand.occupation)) pills.push("Meslek: " + escapeHtml(demand.occupation));
+  const feats = [...parseFeatures(demand.interiorFeatures), ...parseFeatures(demand.exteriorFeatures)].map(escapeHtml);
+  const all = [...pills, ...feats];
+  if (!all.length) return "";
+  return `<div class="pill-row" style="margin-top:8px">${all.map((t) => `<span class="pill">${t}</span>`).join("")}</div>`;
+}
 function demandRow(demand, sellerView, score = null) {
   const profile = buyerProfile(demand.buyerId);
   return `
@@ -1989,6 +2019,7 @@ function demandRow(demand, sellerView, score = null) {
         <div class="row-meta">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)} · ${rangeText(demand)}</div>
         <div class="pill-row" style="margin-top:8px">${txPill(demand)}<span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(demand.description)}</p>
+        ${demandExtraPills(demand)}
       </div>
       <div class="row-side">
         <span class="badge ${demand.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${statusLabel(demand.status)}</span>
@@ -2210,6 +2241,8 @@ window.KT = {
     const rent = uiTxMode === "RENT";
     const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
     const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
+    const multi = (cls) => [...document.querySelectorAll("." + cls + ":checked")].map((x) => x.value);
+    const selVal = (id) => { const v = val(id); return /^(Farketmez|Belirtmek istemiyorum)$/.test(v) ? "" : v; };
     const payload = {
       title: val("d-title").trim(),
       city: val("d-city"),
@@ -2227,10 +2260,16 @@ window.KT = {
       exchangePossible: chk("d-exchange"),
       purchaseTimeline: val("d-timeline"),
       description: val("d-desc").trim(),
-      privacyLevel: chk("d-private") ? "Telefon gizli kalsın" : "Platform varsayılanı",
+      privacyLevel: "Platform varsayılanı",
       transactionType: rent ? "RENT" : "SALE",
       depositAmount: Number(val("d-deposit") || 0),
-      furnished: chk("d-furnished")
+      furnished: chk("d-furnished"),
+      interiorFeatures: multi("d-ic"),
+      exteriorFeatures: multi("d-dis"),
+      heatingType: selVal("d-heating"),
+      buildingAge: selVal("d-buildingage"),
+      floorPref: selVal("d-floor"),
+      occupation: selVal("d-occupation")
     };
     if (!payload.title || !payload.minBudget || !payload.maxBudget || payload.maxBudget < payload.minBudget || payload.description.length < 20)
       return showFormError("d-error", rent ? "Başlık, geçerli kira aralığı ve en az 20 karakter açıklama gerekli." : "Başlık, geçerli bütçe aralığı ve en az 20 karakter açıklama gerekli.");

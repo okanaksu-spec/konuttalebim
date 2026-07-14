@@ -159,7 +159,17 @@ export const IS_MOCK = PROVIDER === "mock";
 // Odemeler gercekten CANLI mi? Yalnizca PayTR yapilandirilmis VE canli modda
 // (PAYTR_TEST_MODE=0) ise true doner. Istemci bu bayraga gore odeme butonlarini
 // acar; boylece canli-moda gecis TEK bir ortam degiskeni ile yapilir.
+// PayTR canli-mod INCELEMESI icin gecici erisim bayragi.
+// true iken, TEST modunda bile odeme butonlari acilir; token yine test_mode=1
+// ile alinir, yani GERCEK PARA CEKILMEZ. Amac: PayTR denetci hesabi odeme
+// adimini (test ekranini) gorebilsin. PayTR onayindan sonra bu bayrak false
+// yapilip Render'da PAYTR_TEST_MODE=0 edilecek (gercek canli mod).
+const PAYMENTS_REVIEW = true;
+
 export function paymentsAreLive() {
-  if (PROVIDER === "paytr") return paytrAdapter.configured() && PAYTR.testMode === "0";
+  if (PROVIDER === "paytr") {
+    if (!paytrAdapter.configured()) return false;
+    return PAYTR.testMode === "0" || PAYMENTS_REVIEW;
+  }
   return false;
 }

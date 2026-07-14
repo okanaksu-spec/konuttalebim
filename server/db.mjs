@@ -108,7 +108,13 @@ for (const alter of [
   "ALTER TABLE properties ADD COLUMN furnished INTEGER DEFAULT 0",
   "ALTER TABLE payments ADD COLUMN boostItemType TEXT",
   "ALTER TABLE payments ADD COLUMN boostItemId TEXT",
-  "ALTER TABLE users ADD COLUMN marketingConsent INTEGER DEFAULT 0"
+  "ALTER TABLE users ADD COLUMN marketingConsent INTEGER DEFAULT 0",
+  "ALTER TABLE demands ADD COLUMN interiorFeatures TEXT",
+  "ALTER TABLE demands ADD COLUMN exteriorFeatures TEXT",
+  "ALTER TABLE demands ADD COLUMN heatingType TEXT",
+  "ALTER TABLE demands ADD COLUMN buildingAge TEXT",
+  "ALTER TABLE demands ADD COLUMN floorPref TEXT",
+  "ALTER TABLE demands ADD COLUMN occupation TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

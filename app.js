@@ -957,6 +957,7 @@ function propertyOfferSample(property, demand, profile) {
         <span class="pill">${property.negotiable ? "Pazarlığa açık" : "Net fiyat"}</span>
       </div>
       <p class="row-note">${escapeHtml(property.description)}</p>
+      ${propertyExtraPills(property)}
     </article>
   `;
 }
@@ -1663,22 +1664,24 @@ function propertyForm() {
         ${field("Net m2", "p-net", "number", rent ? "80" : "115")}
         ${field("Bina yaşı", "p-age", "select", "", ["0-5", "6-10", "11-15", "16-20", "20+"])}
         ${field("Kat", "p-floor", "text", "4/8")}
+        ${field("Banyo sayısı", "p-bathroom", "select", "", ["1", "2", "3", "4+"])}
+        ${field("Isıtma tipi", "p-heating", "select", "", ["Kombi (Doğalgaz)", "Merkezi", "Yerden Isıtma", "Klima", "Soba", "Yok"])}
+        ${field("Kullanım durumu", "p-occupancy", "select", "", ["Boş", "Kiracılı", "Sahibi oturuyor"])}
         ${field("Aidat", "p-dues", "number", "950")}
         ${field(rent ? "Aylık kira" : "Fiyat beklentisi", "p-price", "number", rent ? "32000" : "6500000")}
         ${rent ? field("Depozito", "p-deposit", "number", "32000") : ""}
+        <div class="field full"><label>Evde <strong>bulunan iç özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="p-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full"><label>Evde/sitede <strong>bulunan dış özellikler</strong></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="p-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
         <div class="field full">
-          <label>Özellikler</label>
+          <label>Diğer</label>
           <div class="check-grid">
-            <label class="check"><input id="p-balcony" type="checkbox" checked> Balkon</label>
-            <label class="check"><input id="p-parking" type="checkbox" checked> Otopark</label>
-            <label class="check"><input id="p-elevator" type="checkbox" checked> Asansör</label>
-            <label class="check"><input id="p-complex" type="checkbox"> Site içinde</label>
             ${rent
               ? `<label class="check"><input id="p-furnished" type="checkbox"> Eşyalı</label>`
               : `<label class="check"><input id="p-credit" type="checkbox" checked> Krediye uygun</label>`}
             <label class="check"><input id="p-negotiable" type="checkbox" checked> Pazarlığa açık</label>
           </div>
         </div>
+        <div class="field full"><p class="muted" style="margin:6px 0 0;font-size:13px">${icon("shield", 13)} İletişim bilgin (telefon/e-posta) herkese kapalıdır; yalnızca eşleştiğin ve üyelik satın alan tarafa açılır. Tam adres hiçbir zaman gösterilmez.</p></div>
         <div class="field full"><label>Açıklama</label><textarea id="p-desc" placeholder="Evin güçlü yönlerini ve tapu/kullanım durumunu yaz."></textarea></div>
         <div class="field full">
           <label>İlan görseli (opsiyonel)</label>
@@ -2029,6 +2032,19 @@ function demandRow(demand, sellerView, score = null) {
   `;
 }
 
+function propertyExtraPills(property) {
+  const skip = (x) => !x || x === "Belirtilmedi" || x === "Yok";
+  const pills = [];
+  if (property.furnished) pills.push("Eşyalı");
+  if (!skip(property.heatingType)) pills.push(escapeHtml(property.heatingType));
+  if (property.bathroomCount) pills.push(property.bathroomCount + " banyo");
+  if (property.dues) pills.push("Aidat ~" + shortMoney(property.dues));
+  if (!skip(property.occupancyStatus)) pills.push(escapeHtml(property.occupancyStatus));
+  const feats = [...parseFeatures(property.interiorFeatures), ...parseFeatures(property.exteriorFeatures)].map(escapeHtml);
+  const all = [...pills, ...feats];
+  if (!all.length) return "";
+  return `<div class="pill-row" style="margin-top:8px">${all.map((t) => `<span class="pill">${t}</span>`).join("")}</div>`;
+}
 function propertyRow(property) {
   const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType && (d.transactionType || "SALE") === (property.transactionType || "SALE")).length;
   return `
@@ -2039,6 +2055,7 @@ function propertyRow(property) {
         <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${priceText(property)}</div>
         <div class="pill-row" style="margin-top:8px">${txPill(property)}${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(property.description)}</p>
+        ${propertyExtraPills(property)}
       </div>
       <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı · yakında</button></div>
     </article>
@@ -2286,6 +2303,8 @@ window.KT = {
     const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
     const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
     const type = val("p-type");
+    const multi = (cls) => [...document.querySelectorAll("." + cls + ":checked")].map((x) => x.value);
+    const ic = multi("p-ic"), dis = multi("p-dis");
     const payload = {
       title: val("p-title").trim(),
       city: val("p-city"),
@@ -2297,11 +2316,16 @@ window.KT = {
       netSqm: Number(val("p-net")),
       buildingAge: val("p-age"),
       floor: val("p-floor").trim(),
+      bathroomCount: Number(String(val("p-bathroom") || "1").replace("+", "")) || 1,
+      heatingType: val("p-heating"),
+      occupancyStatus: val("p-occupancy") || "Boş",
       dues: Number(val("p-dues")),
-      hasBalcony: chk("p-balcony"),
-      hasParking: chk("p-parking"),
-      hasElevator: chk("p-elevator"),
-      inComplex: chk("p-complex"),
+      interiorFeatures: ic,
+      exteriorFeatures: dis,
+      hasBalcony: ic.includes("Balkon"),
+      hasParking: dis.includes("Otopark"),
+      hasElevator: dis.includes("Asansör"),
+      inComplex: dis.includes("Site İçerisinde"),
       creditEligible: chk("p-credit"),
       negotiable: chk("p-negotiable"),
       price: Number(val("p-price")),

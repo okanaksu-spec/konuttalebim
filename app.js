@@ -17,7 +17,8 @@ const icons = {
   map: '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/>',
   card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
-  alert: '<path d="M12 8v5"/><path d="M12 17h.01"/><path d="M10.3 4.4 2.9 17.6A2 2 0 0 0 4.6 20h14.8a2 2 0 0 0 1.7-2.4L13.7 4.4a2 2 0 0 0-3.4 0z"/>'
+  alert: '<path d="M12 8v5"/><path d="M12 17h.01"/><path d="M10.3 4.4 2.9 17.6A2 2 0 0 0 4.6 20h14.8a2 2 0 0 0 1.7-2.4L13.7 4.4a2 2 0 0 0-3.4 0z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'
 };
 
 function icon(name, size = 18) {
@@ -185,6 +186,20 @@ const BINA_YASLARI = ["Farketmez", "Sıfır (0)", "1-5", "6-10", "11-20", "20+"]
 const KAT_TERCIHLERI = ["Farketmez", "Giriş / Bahçe katı", "Ara kat", "Yüksek kat", "En üst kat"];
 const MESLEK_DURUMLARI = ["Belirtmek istemiyorum", "Kamu çalışanı", "Özel sektör (maaşlı)", "Serbest meslek / Esnaf", "Öğrenci", "Emekli", "Diğer"];
 let TR_ILLER = []; // [{code,name}] — kademeli konum icin acilista yuklenir
+
+// --- Kategori taksonomisi: ana kategori -> alt tipler ---
+const CATEGORY_TREE = {
+  "Konut": ["Daire", "Müstakil Ev", "Villa", "Yazlık", "Rezidans", "Çiftlik Evi"],
+  "İş Yeri": ["Dükkan / Mağaza", "Ofis / Büro", "Depo / Antrepo", "Fabrika / Üretim", "Atölye", "Kafe / Restoran", "Plaza Katı"],
+  "Arsa": ["Konut İmarlı", "Ticari İmarlı", "Sanayi İmarlı", "Turizm İmarlı", "Tarla", "Bağ / Bahçe"]
+};
+const MAIN_CATEGORIES = Object.keys(CATEGORY_TREE);
+const CAT_KONUT = MAIN_CATEGORIES[0], CAT_ISYERI = MAIN_CATEGORIES[1], CAT_ARSA = MAIN_CATEGORIES[2];
+// İş Yeri'ne özgü özellik listesi (interior/exterior JSON kolonlarında saklanır)
+const ISYERI_OZELLIKLER = ["Cadde Cephesi", "Vitrinli", "Asansör", "Yük Asansörü", "Otopark", "Klima", "Jeneratör", "Güvenlik", "Yangın Merdiveni", "Bölünebilir Alan", "Depo Alanı", "Kamera Sistemi"];
+// Arsa'ya özgü özellik listesi
+const ARSA_OZELLIKLER = ["Müstakil Tapu", "Hisseli Tapu", "Köşe Parsel", "Yola Cephe", "İfrazlı", "Projeli", "Elektrik", "Su", "Doğalgaz", "Etrafı Çevrili"];
+const ISYERI_KULLANIM = ["Boş", "Kiracılı", "Sahibi kullanıyor"];
 
 function loadState() {
   try {
@@ -459,6 +474,7 @@ function calculateMatchScore(demand, property) {
   const warnings = [];
   if (!demand || !property) return { score: 0, reasons, warnings: ["Eksik talep veya ev verisi"] };
   if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return { score: 0, reasons, warnings: ["İşlem tipi farklı (satılık/kiralık)"] };
+  if ((demand.mainCategory || CAT_KONUT) !== (property.mainCategory || CAT_KONUT)) return { score: 0, reasons, warnings: ["Kategori farklı (konut/iş yeri/arsa)"] };
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) {
     score += 13;
@@ -1402,6 +1418,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/alici", "Genel Bakış", "chart"],
       ["dashboard/alici/taleplerim", "Taleplerim", "key"],
       ["dashboard/alici/talep-olustur", "Yeni Talep", "send"],
+      ["dashboard/ara", "İlan Ara", "search"],
       ["dashboard/alici/teklifler", "Gelen Teklifler", "home"],
       ["dashboard/alici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/alici/butce-beyani", "Bütçe Beyanı", "card"],
@@ -1413,6 +1430,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici", "Genel Bakış", "chart"],
       ["dashboard/satici/evlerim", "Evlerim", "home"],
       ["dashboard/satici/ev-ekle", "Yeni Ev", "send"],
+      ["dashboard/ara", "İlan Ara", "search"],
       ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/satici/tekliflerim", "Tekliflerim", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
@@ -1422,6 +1440,7 @@ function dashboardLayout(role, content, activePath) {
     agent: [
       ["dashboard/satici", "Genel Bakış", "chart"],
       ["dashboard/satici/evlerim", "Portföy", "home"],
+      ["dashboard/ara", "İlan Ara", "search"],
       ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/satici/tekliflerim", "Teklifler", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
@@ -1516,21 +1535,22 @@ function buyerDemandForm() {
     <form class="panel" onsubmit="KT.createDemand(event)">
       <div class="form-grid">
         <div class="field full"><label for="d-txtype">İşlem tipi</label><select id="d-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiralık ev arayan talebi (Ev Kirala)." : "Satılık ev arayan talebi (Ev Al)."}</span></div>
+        <div class="field"><label for="d-maincat">Ana kategori</label><select id="d-maincat" onchange="KT.onCategory('d')">${MAIN_CATEGORIES.map((c, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
+        <div class="field"><label for="d-type">Alt tip</label><select id="d-type">${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
         ${field("Başlık", "d-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de aile için 3+1")}
         ${locationFields("d", true)}
-        ${field("Konut tipi", "d-type", "select", "", ["Daire", "Villa", "Müstakil ev", "Rezidans", "Yazlık", "Arsa"])}
-        ${field("Oda sayısı", "d-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"])}
+        ${field("Oda sayısı", "d-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"], CAT_KONUT)}
         ${field("Minimum m2", "d-minsqm", "number", rent ? "60" : "90")}
         ${field("Maksimum m2", "d-maxsqm", "number", rent ? "110" : "140")}
         ${field(rent ? "Minimum aylık kira" : "Minimum bütçe", "d-minbudget", "number", rent ? "20000" : "4500000")}
         ${field(rent ? "Maksimum aylık kira" : "Maksimum bütçe", "d-maxbudget", "number", rent ? "30000" : "6500000")}
         ${rent ? field("Öngörülen depozito", "d-deposit", "number", "30000") : field("Peşinat", "d-down", "number", "1500000")}
         ${field(rent ? "Taşınma zamanı" : "Alım zamanı", "d-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
-        ${field("Isıtma tipi", "d-heating", "select", "", ISITMA_TIPLERI)}
-        ${field("Bina yaşı", "d-buildingage", "select", "", BINA_YASLARI)}
-        ${field("Tercih edilen kat", "d-floor", "select", "", KAT_TERCIHLERI)}
-        ${rent ? field("Meslek / çalışma durumu (opsiyonel)", "d-occupation", "select", "", MESLEK_DURUMLARI) : ""}
-        <div class="field full">
+        ${field("Isıtma tipi", "d-heating", "select", "", ISITMA_TIPLERI, CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Bina yaşı", "d-buildingage", "select", "", BINA_YASLARI, CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Tercih edilen kat", "d-floor", "select", "", KAT_TERCIHLERI, CAT_KONUT + "|" + CAT_ISYERI)}
+        ${rent ? field("Meslek / çalışma durumu (opsiyonel)", "d-occupation", "select", "", MESLEK_DURUMLARI, CAT_KONUT) : ""}
+        <div class="field full" data-cats="${CAT_KONUT}">
           <label>Tercihler</label>
           <div class="check-grid">
             ${rent
@@ -1540,8 +1560,10 @@ function buyerDemandForm() {
             <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>`}
           </div>
         </div>
-        <div class="field full"><label>Olmasını istediğin <strong>iç özellikler</strong> <span class="muted">(opsiyonel, birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="d-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full"><label>Olmasını istediğin <strong>dış / site özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="d-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_KONUT}"><label>Olmasını istediğin <strong>iç özellikler</strong> <span class="muted">(opsiyonel, birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="d-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_KONUT}"><label>Olmasını istediğin <strong>dış / site özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="d-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_ISYERI}" style="display:none"><label>Aradığın <strong>iş yeri özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${ISYERI_OZELLIKLER.map((f) => `<label class="check"><input class="d-isyeri" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_ARSA}" style="display:none"><label>Aradığın <strong>arsa özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${ARSA_OZELLIKLER.map((f) => `<label class="check"><input class="d-arsa" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
         <div class="field full"><p class="muted" style="margin:6px 0 0;font-size:13px">${icon("shield", 13)} İletişim bilgin (telefon/e-posta) herkese kapalıdır; yalnızca eşleştiğin ve üyelik satın alan tarafa açılır.</p></div>
         <div class="field full"><label>Açıklama</label><textarea id="d-desc" placeholder="Aradığın evi, çevre beklentini ve olmazsa olmazlarını yaz."></textarea><span class="helper">En az 20 karakter önerilir.</span></div>
         <div class="field full">
@@ -1661,23 +1683,26 @@ function propertyForm() {
     ${pageHead(rent ? "Yeni Kiralık İlan" : "Yeni Ev Ekle", "İlanını portföye ekle; tam adres karşı tarafa gösterilmez.")}
     <form class="panel" onsubmit="KT.createProperty(event)">
       <div class="form-grid">
-        <div class="field full"><label for="p-txtype">İşlem tipi</label><select id="p-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiraya vereceğin ev ilanı (Evini Kirala)." : "Satılık ev ilanı (Evini Sat)."}</span></div>
+        <div class="field full"><label for="p-txtype">İşlem tipi</label><select id="p-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiraya vereceğin ilan (Kirala)." : "Satılık ilan (Sat)."}</span></div>
+        <div class="field"><label for="p-maincat">Ana kategori</label><select id="p-maincat" onchange="KT.onCategory('p')">${MAIN_CATEGORIES.map((c, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
+        <div class="field"><label for="p-type">Alt tip</label><select id="p-type">${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
         ${field("Başlık", "p-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de yenilenmiş 3+1")}
         ${locationFields("p", false)}
-        ${field("Konut tipi", "p-type", "select", "", ["Daire", "Villa", "Müstakil ev", "Rezidans", "Yazlık", "Arsa"])}
-        ${field("Oda sayısı", "p-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"])}
+        ${field("Oda sayısı", "p-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"], CAT_KONUT)}
         ${field("Brüt m2", "p-gross", "number", rent ? "95" : "130")}
         ${field("Net m2", "p-net", "number", rent ? "80" : "115")}
-        ${field("Bina yaşı", "p-age", "select", "", ["0-5", "6-10", "11-15", "16-20", "20+"])}
-        ${field("Kat", "p-floor", "text", "4/8")}
-        ${field("Banyo sayısı", "p-bathroom", "select", "", ["1", "2", "3", "4+"])}
-        ${field("Isıtma tipi", "p-heating", "select", "", ["Kombi (Doğalgaz)", "Merkezi", "Yerden Isıtma", "Klima", "Soba", "Yok"])}
-        ${field("Kullanım durumu", "p-occupancy", "select", "", ["Boş", "Kiracılı", "Sahibi oturuyor"])}
-        ${field("Aidat", "p-dues", "number", "950")}
+        ${field("Bina yaşı", "p-age", "select", "", ["0-5", "6-10", "11-15", "16-20", "20+"], CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Kat", "p-floor", "text", "4/8", [], CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Banyo sayısı", "p-bathroom", "select", "", ["1", "2", "3", "4+"], CAT_KONUT)}
+        ${field("Isıtma tipi", "p-heating", "select", "", ["Kombi (Doğalgaz)", "Merkezi", "Yerden Isıtma", "Klima", "Soba", "Yok"], CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Kullanım durumu", "p-occupancy", "select", "", ["Boş", "Kiracılı", "Sahibi kullanıyor"], CAT_KONUT + "|" + CAT_ISYERI)}
+        ${field("Aidat", "p-dues", "number", "950", [], CAT_KONUT + "|" + CAT_ISYERI)}
         ${field(rent ? "Aylık kira" : "Fiyat beklentisi", "p-price", "number", rent ? "32000" : "6500000")}
         ${rent ? field("Depozito", "p-deposit", "number", "32000") : ""}
-        <div class="field full"><label>Evde <strong>bulunan iç özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="p-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full"><label>Evde/sitede <strong>bulunan dış özellikler</strong></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="p-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_KONUT}"><label>Evde <strong>bulunan iç özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="p-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_KONUT}"><label>Evde/sitede <strong>bulunan dış özellikler</strong></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="p-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_ISYERI}" style="display:none"><label>İş yerinde <strong>bulunan özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${ISYERI_OZELLIKLER.map((f) => `<label class="check"><input class="p-isyeri" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full" data-cats="${CAT_ARSA}" style="display:none"><label>Arsa <strong>özellikleri</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${ARSA_OZELLIKLER.map((f) => `<label class="check"><input class="p-arsa" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
         <div class="field full">
           <label>Diğer</label>
           <div class="check-grid">
@@ -1995,6 +2020,55 @@ function stat(label, value) {
 }
 
 // Kademeli konum alanlari (İl→İlçe→Mahalle). multiMahalle=true → talepte çoklu seçim.
+function searchPage() {
+  const rent = uiTxMode === "RENT";
+  return `
+    ${pageHead("İlan Ara", "İl, ilçe, mahalle ve kategoriye göre yayındaki tüm ilanları keşfet. Kayıt şehrin fark etmez; her yeri arayabilirsin. İletişim bilgisi yalnızca eşleşme + üyelikle açılır.")}
+    <form class="panel" onsubmit="KT.runSearch(event)">
+      <div class="form-grid">
+        <div class="field"><label for="s-txtype">İşlem tipi</label><select id="s-txtype"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select></div>
+        <div class="field"><label for="s-maincat">Ana kategori</label><select id="s-maincat" onchange="KT.searchCategory()"><option>Farketmez</option>${MAIN_CATEGORIES.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select></div>
+        <div class="field"><label for="s-type">Alt tip</label><select id="s-type"><option>Farketmez</option></select></div>
+        ${locationFields("s", false)}
+        <div class="field" data-cats="${CAT_KONUT}" style="display:none"><label for="s-rooms">Oda sayısı</label><select id="s-rooms"><option>Farketmez</option><option>1+1</option><option>2+1</option><option>3+1</option><option>4+1</option><option>5+1</option></select></div>
+        ${field(rent ? "Min. aylık kira" : "Min. fiyat", "s-minprice", "number", "")}
+        ${field(rent ? "Max. aylık kira" : "Max. fiyat", "s-maxprice", "number", "")}
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("search", 16)} Ara</button></div>
+    </form>
+    <div id="search-results" class="list" style="margin-top:18px">${empty("Aramaya başla", "Filtreleri seçip Ara'ya bas; yayındaki uygun ilanlar burada listelenir.")}</div>
+  `;
+}
+
+function searchResultCard(p) {
+  const u = currentUser();
+  const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(" / ");
+  const rent = p.transactionType === "RENT";
+  const metaBits = [p.mainCategory, p.propertyType].filter(Boolean);
+  if (p.roomCount) metaBits.push(p.roomCount);
+  if (p.netSqm) metaBits.push(p.netSqm + " m²");
+  const feats = [...parseFeatures(p.interiorFeatures), ...parseFeatures(p.exteriorFeatures)].slice(0, 5).map(escapeHtml);
+  const cta = (u && u.role === "BUYER")
+    ? `<a class="btn btn-small btn-primary" href="#/dashboard/alici/talep-olustur">Uygun talep oluştur</a>`
+    : `<a class="btn btn-small btn-outline" href="#/dashboard/satici/paketler">Paketleri gör</a>`;
+  return `
+    <article class="row-card ${isBoosted(p) ? "promoted-card" : ""}">
+      <div class="thumb">${icon(p.mainCategory === CAT_ARSA ? "map" : "home", 26)}</div>
+      <div>
+        <div class="row-title">${escapeHtml(p.title)}</div>
+        <div class="row-meta">${escapeHtml(loc)} · ${metaBits.map(escapeHtml).join(" · ")}</div>
+        <div class="pill-row" style="margin-top:8px"><span class="pill">${money(p.price)}${rent ? " / ay" : ""}</span><span class="badge ${rent ? "badge-blue" : "badge-green"}">${rent ? "Kiralık" : "Satılık"}</span>${isBoosted(p) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        ${feats.length ? `<div class="pill-row" style="margin-top:8px">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
+        <p class="row-note">${escapeHtml((p.description || "").slice(0, 140))}</p>
+      </div>
+      <div class="row-side">
+        <span class="badge badge-neutral">${icon("lock", 13)} İletişim gizli</span>
+        ${cta}
+      </div>
+    </article>
+  `;
+}
+
 function locationFields(prefix, multiMahalle) {
   const ilOpts = `<option value="">İl seçiniz</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("");
   const mahalle = multiMahalle
@@ -2006,11 +2080,12 @@ function locationFields(prefix, multiMahalle) {
     ${mahalle}`;
 }
 
-function field(label, id, type, placeholder, options = []) {
+function field(label, id, type, placeholder, options = [], cats = "") {
+  const dc = cats ? ` data-cats="${escapeHtml(cats)}"` : "";
   if (type === "select") {
-    return `<div class="field"><label for="${id}">${label}</label><select id="${id}">${options.map((option, index) => `<option ${index === 0 ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`;
+    return `<div class="field"${dc}><label for="${id}">${label}</label><select id="${id}">${options.map((option, index) => `<option ${index === 0 ? "selected" : ""}>${escapeHtml(option)}</option>`).join("")}</select></div>`;
   }
-  return `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" placeholder="${escapeHtml(placeholder)}" value="${type === "number" ? placeholder : ""}" /></div>`;
+  return `<div class="field"${dc}><label for="${id}">${label}</label><input id="${id}" type="${type}" placeholder="${escapeHtml(placeholder)}" value="${type === "number" ? placeholder : ""}" /></div>`;
 }
 
 function empty(title, body) {
@@ -2166,7 +2241,10 @@ function render() {
     if (!isSignedIn()) { location.hash = "/giris"; return; }
     if (path.startsWith("dashboard/admin") && currentUser().role !== "ADMIN") { location.hash = "/home"; return; }
   }
-  const content = path.startsWith("dashboard/alici")
+  const roleKey = (() => { const r = ((currentUser() || {}).role || "").toUpperCase(); return r === "ADMIN" ? "admin" : r === "SELLER" ? "seller" : r === "AGENT" ? "agent" : "buyer"; })();
+  const content = path.startsWith("dashboard/ara")
+    ? dashboardLayout(roleKey, searchPage(), path)
+    : path.startsWith("dashboard/alici")
     ? renderBuyer(path)
     : path.startsWith("dashboard/satici")
       ? renderSeller(path)
@@ -2294,8 +2372,8 @@ window.KT = {
     box.innerHTML = `<span class="muted">Yükleniyor…</span>`;
     const r = await api("/locations/mahalleler?il=" + encodeURIComponent(code) + "&ilce=" + encodeURIComponent(ilce));
     const list = (r.ok && r.data.mahalleler) ? r.data.mahalleler : [];
-    if (prefix === "p") {
-      box.innerHTML = `<select id="p-neighborhood"><option value="">Mahalle seçiniz (opsiyonel)</option>${list.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")}</select>`;
+    if (prefix === "p" || prefix === "s") {
+      box.innerHTML = `<select id="${prefix}-neighborhood"><option value="">Mahalle seçiniz (opsiyonel)</option>${list.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")}</select>`;
     } else {
       box.innerHTML = list.length
         ? `<div class="check-grid">${list.map((m) => `<label class="check"><input class="${prefix}-mah" type="checkbox" value="${escapeHtml(m)}"> ${escapeHtml(m)}</label>`).join("")}</div>`
@@ -2305,9 +2383,60 @@ window.KT = {
   resetMahalle(prefix) {
     const box = document.getElementById(prefix + "-mahalle");
     if (!box) return;
-    box.innerHTML = prefix === "p"
-      ? `<select id="p-neighborhood"><option value="">Önce ilçe seçin</option></select>`
+    box.innerHTML = (prefix === "p" || prefix === "s")
+      ? `<select id="${prefix}-neighborhood"><option value="">Önce ilçe seçin</option></select>`
       : `<span class="muted">Önce ilçe seçin.</span>`;
+  },
+  // Ana kategori degisince: alt tip listesini yenile + kategoriye ozel alanlari goster/gizle.
+  onCategory(prefix) {
+    const cat = (document.getElementById(prefix + "-maincat") || {}).value || CAT_KONUT;
+    const typeSel = document.getElementById(prefix + "-type");
+    if (typeSel) {
+      const subs = CATEGORY_TREE[cat] || [];
+      typeSel.innerHTML = subs.map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("");
+    }
+    const scope = (typeSel && typeSel.closest("form")) || document;
+    scope.querySelectorAll("[data-cats]").forEach((el) => {
+      const cats = (el.getAttribute("data-cats") || "").split("|");
+      el.style.display = cats.includes(cat) ? "" : "none";
+    });
+  },
+  // Arama ekraninda ana kategori degisince alt tip listesi + oda alani.
+  searchCategory() {
+    const cat = (document.getElementById("s-maincat") || {}).value || "Farketmez";
+    const typeSel = document.getElementById("s-type");
+    if (typeSel) {
+      const subs = CATEGORY_TREE[cat] || [];
+      typeSel.innerHTML = `<option>Farketmez</option>` + subs.map((s) => `<option>${escapeHtml(s)}</option>`).join("");
+    }
+    const scope = (typeSel && typeSel.closest("form")) || document;
+    scope.querySelectorAll("[data-cats]").forEach((el) => {
+      const cats = (el.getAttribute("data-cats") || "").split("|");
+      el.style.display = cats.includes(cat) ? "" : "none";
+    });
+  },
+  async runSearch(event) {
+    event.preventDefault();
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+    const cityName = (id) => { const s = document.getElementById(id); return s && s.value ? s.selectedOptions[0].text : ""; };
+    const box = document.getElementById("search-results");
+    const params = new URLSearchParams();
+    params.set("tx", val("s-txtype") === "Kiralık" ? "RENT" : "SALE");
+    const cat = val("s-maincat"); if (cat && cat !== "Farketmez") params.set("mainCategory", cat);
+    const sub = val("s-type"); if (sub && sub !== "Farketmez") params.set("subCategory", sub);
+    const city = cityName("s-city"); if (city) params.set("city", city);
+    const ilce = val("s-district"); if (ilce) params.set("district", ilce);
+    const mah = val("s-neighborhood"); if (mah) params.set("neighborhood", mah);
+    const rooms = val("s-rooms"); if (rooms && rooms !== "Farketmez") params.set("rooms", rooms);
+    const minp = val("s-minprice"); if (minp) params.set("minPrice", minp);
+    const maxp = val("s-maxprice"); if (maxp) params.set("maxPrice", maxp);
+    if (box) box.innerHTML = `<div class="empty"><b>Aranıyor…</b><span class="muted">Uygun ilanlar getiriliyor.</span></div>`;
+    const r = await api("/properties/search?" + params.toString());
+    const items = (r.ok && r.data && r.data.items) ? r.data.items : [];
+    if (!box) return;
+    box.innerHTML = items.length
+      ? `<div class="toolbar"><span class="pill">${items.length} ilan bulundu</span></div>` + items.map(searchResultCard).join("")
+      : `<div class="empty"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: mahalle/ilçe kaldır ya da fiyat aralığını aç.</span></div>`;
   },
   async createDemand(event) {
     event.preventDefault();
@@ -2319,14 +2448,19 @@ window.KT = {
     const selVal = (id) => { const v = val(id); return /^(Farketmez|Belirtmek istemiyorum)$/.test(v) ? "" : v; };
     const cityName = (id) => { const s = document.getElementById(id); return s && s.value ? s.selectedOptions[0].text : ""; };
     const mahalleler = multi("d-mah");
+    const cat = val("d-maincat") || CAT_KONUT;
+    const feats = cat === CAT_ISYERI ? { interior: [], exterior: multi("d-isyeri") }
+      : cat === CAT_ARSA ? { interior: [], exterior: multi("d-arsa") }
+      : { interior: multi("d-ic"), exterior: multi("d-dis") };
     const payload = {
       title: val("d-title").trim(),
       city: cityName("d-city"),
       district: val("d-district").trim(),
       neighborhood: mahalleler[0] || "",
       neighborhoods: mahalleler,
+      mainCategory: cat,
       propertyType: val("d-type"),
-      roomCount: val("d-rooms"),
+      roomCount: cat === CAT_KONUT ? val("d-rooms") : "",
       minSqm: Number(val("d-minsqm")),
       maxSqm: Number(val("d-maxsqm")),
       minBudget: Number(val("d-minbudget")),
@@ -2341,11 +2475,11 @@ window.KT = {
       transactionType: rent ? "RENT" : "SALE",
       depositAmount: Number(val("d-deposit") || 0),
       furnished: chk("d-furnished"),
-      interiorFeatures: multi("d-ic"),
-      exteriorFeatures: multi("d-dis"),
-      heatingType: selVal("d-heating"),
-      buildingAge: selVal("d-buildingage"),
-      floorPref: selVal("d-floor"),
+      interiorFeatures: feats.interior,
+      exteriorFeatures: feats.exterior,
+      heatingType: cat === CAT_ARSA ? "" : selVal("d-heating"),
+      buildingAge: cat === CAT_ARSA ? "" : selVal("d-buildingage"),
+      floorPref: cat === CAT_ARSA ? "" : selVal("d-floor"),
       occupation: selVal("d-occupation")
     };
     if (!payload.title || !payload.city || !payload.minBudget || !payload.maxBudget || payload.maxBudget < payload.minBudget || payload.description.length < 20)
@@ -2365,22 +2499,25 @@ window.KT = {
     const type = val("p-type");
     const multi = (cls) => [...document.querySelectorAll("." + cls + ":checked")].map((x) => x.value);
     const cityName = (id) => { const s = document.getElementById(id); return s && s.value ? s.selectedOptions[0].text : ""; };
-    const ic = multi("p-ic"), dis = multi("p-dis");
+    const cat = val("p-maincat") || CAT_KONUT;
+    const ic = cat === CAT_KONUT ? multi("p-ic") : [];
+    const dis = cat === CAT_ISYERI ? multi("p-isyeri") : cat === CAT_ARSA ? multi("p-arsa") : multi("p-dis");
     const payload = {
       title: val("p-title").trim(),
       city: cityName("p-city"),
       district: val("p-district").trim(),
       neighborhood: val("p-neighborhood"),
+      mainCategory: cat,
       propertyType: type,
-      roomCount: val("p-rooms"),
+      roomCount: cat === CAT_KONUT ? val("p-rooms") : "",
       grossSqm: Number(val("p-gross")),
       netSqm: Number(val("p-net")),
-      buildingAge: val("p-age"),
-      floor: val("p-floor").trim(),
-      bathroomCount: Number(String(val("p-bathroom") || "1").replace("+", "")) || 1,
-      heatingType: val("p-heating"),
-      occupancyStatus: val("p-occupancy") || "Boş",
-      dues: Number(val("p-dues")),
+      buildingAge: cat === CAT_ARSA ? "" : val("p-age"),
+      floor: cat === CAT_ARSA ? "" : val("p-floor").trim(),
+      bathroomCount: cat === CAT_KONUT ? (Number(String(val("p-bathroom") || "1").replace("+", "")) || 1) : 0,
+      heatingType: cat === CAT_ARSA ? "" : val("p-heating"),
+      occupancyStatus: cat === CAT_ARSA ? "" : (val("p-occupancy") || "Boş"),
+      dues: cat === CAT_ARSA ? 0 : Number(val("p-dues")),
       interiorFeatures: ic,
       exteriorFeatures: dis,
       hasBalcony: ic.includes("Balkon"),
@@ -2391,7 +2528,7 @@ window.KT = {
       negotiable: chk("p-negotiable"),
       price: Number(val("p-price")),
       description: val("p-desc").trim(),
-      photoClass: type === "Villa" ? "villa" : type === "Rezidans" ? "residence" : "apartment",
+      photoClass: cat === CAT_ARSA ? "land" : cat === CAT_ISYERI ? "commercial" : (type === "Villa" ? "villa" : type === "Rezidans" ? "residence" : "apartment"),
       transactionType: rent ? "RENT" : "SALE",
       depositAmount: Number(val("p-deposit") || 0),
       furnished: chk("p-furnished")

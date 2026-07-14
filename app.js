@@ -1518,9 +1518,9 @@ function buyerDemandForm() {
         ${field(rent ? "Maksimum aylık kira" : "Maksimum bütçe", "d-maxbudget", "number", rent ? "30000" : "6500000")}
         ${rent ? field("Öngörülen depozito", "d-deposit", "number", "30000") : field("Peşinat", "d-down", "number", "1500000")}
         ${field(rent ? "Taşınma zamanı" : "Alım zamanı", "d-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
-        ${rent ? field("Isıtma tipi", "d-heating", "select", "", ISITMA_TIPLERI) : ""}
-        ${rent ? field("Bina yaşı", "d-buildingage", "select", "", BINA_YASLARI) : ""}
-        ${rent ? field("Tercih edilen kat", "d-floor", "select", "", KAT_TERCIHLERI) : ""}
+        ${field("Isıtma tipi", "d-heating", "select", "", ISITMA_TIPLERI)}
+        ${field("Bina yaşı", "d-buildingage", "select", "", BINA_YASLARI)}
+        ${field("Tercih edilen kat", "d-floor", "select", "", KAT_TERCIHLERI)}
         ${rent ? field("Meslek / çalışma durumu (opsiyonel)", "d-occupation", "select", "", MESLEK_DURUMLARI) : ""}
         <div class="field full">
           <label>Tercihler</label>
@@ -1532,8 +1532,8 @@ function buyerDemandForm() {
             <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>`}
           </div>
         </div>
-        ${rent ? `<div class="field full"><label>Olmasını istediğin <strong>iç özellikler</strong> <span class="muted">(opsiyonel, birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="d-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>` : ""}
-        ${rent ? `<div class="field full"><label>Olmasını istediğin <strong>dış / site özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="d-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>` : ""}
+        <div class="field full"><label>Olmasını istediğin <strong>iç özellikler</strong> <span class="muted">(opsiyonel, birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="d-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
+        <div class="field full"><label>Olmasını istediğin <strong>dış / site özellikleri</strong> <span class="muted">(opsiyonel)</span></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="d-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
         <div class="field full"><p class="muted" style="margin:6px 0 0;font-size:13px">${icon("shield", 13)} İletişim bilgin (telefon/e-posta) herkese kapalıdır; yalnızca eşleştiğin ve üyelik satın alan tarafa açılır.</p></div>
         <div class="field full"><label>Açıklama</label><textarea id="d-desc" placeholder="Aradığın evi, çevre beklentini ve olmazsa olmazlarını yaz."></textarea><span class="helper">En az 20 karakter önerilir.</span></div>
         <div class="field full">

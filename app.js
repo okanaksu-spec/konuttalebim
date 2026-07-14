@@ -69,6 +69,11 @@ function escapeHtml(value) {
   })[char]);
 }
 
+// Tek tirnakli JS string + cift tirnakli HTML attribute icinde guvenli (onclick="KT.x('...')").
+function escapeAttr(value) {
+  return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, "&quot;").replace(/'/g, "\\'");
+}
+
 function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -200,6 +205,9 @@ const ISYERI_OZELLIKLER = ["Cadde Cephesi", "Vitrinli", "Asansör", "Yük Asans�
 // Arsa'ya özgü özellik listesi
 const ARSA_OZELLIKLER = ["Müstakil Tapu", "Hisseli Tapu", "Köşe Parsel", "Yola Cephe", "İfrazlı", "Projeli", "Elektrik", "Su", "Doğalgaz", "Etrafı Çevrili"];
 const ISYERI_KULLANIM = ["Boş", "Kiracılı", "Sahibi kullanıyor"];
+// Arama/kesfet ekrani durumu (kategori tikla + kart izgarasi)
+let searchState = { tx: "SALE", mainCategory: "", subCategory: "", city: "", cityName: "", district: "", neighborhood: "", minPrice: "", maxPrice: "", sort: "new" };
+let _searchItems = [];
 
 function loadState() {
   try {
@@ -2021,49 +2029,76 @@ function stat(label, value) {
 
 // Kademeli konum alanlari (İl→İlçe→Mahalle). multiMahalle=true → talepte çoklu seçim.
 function searchPage() {
-  const rent = uiTxMode === "RENT";
+  searchState.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
+  const ilOpts = `<option value="">Tüm iller</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("");
   return `
-    ${pageHead("İlan Ara", "İl, ilçe, mahalle ve kategoriye göre yayındaki tüm ilanları keşfet. Kayıt şehrin fark etmez; her yeri arayabilirsin. İletişim bilgisi yalnızca eşleşme + üyelikle açılır.")}
-    <form class="panel" onsubmit="KT.runSearch(event)">
-      <div class="form-grid">
-        <div class="field"><label for="s-txtype">İşlem tipi</label><select id="s-txtype"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select></div>
-        <div class="field"><label for="s-maincat">Ana kategori</label><select id="s-maincat" onchange="KT.searchCategory()"><option>Farketmez</option>${MAIN_CATEGORIES.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select></div>
-        <div class="field"><label for="s-type">Alt tip</label><select id="s-type"><option>Farketmez</option></select></div>
-        ${locationFields("s", false)}
-        <div class="field" data-cats="${CAT_KONUT}" style="display:none"><label for="s-rooms">Oda sayısı</label><select id="s-rooms"><option>Farketmez</option><option>1+1</option><option>2+1</option><option>3+1</option><option>4+1</option><option>5+1</option></select></div>
-        ${field(rent ? "Min. aylık kira" : "Min. fiyat", "s-minprice", "number", "")}
-        ${field(rent ? "Max. aylık kira" : "Max. fiyat", "s-maxprice", "number", "")}
+    ${pageHead("İlan Ara", "Soldan kategoriye tıkla; yayındaki ilanları kutucuklar halinde gör. Kayıt şehrin fark etmez; her il/ilçe/mahalleyi arayabilirsin. İletişim bilgisi yalnızca üyelikle açılır.")}
+    <div class="search-layout">
+      <aside class="search-side" id="search-side">${renderSearchSidebar()}</aside>
+      <div class="search-main">
+        <div class="search-filterbar">
+          <select id="s-city" onchange="KT.loadIlce('s')">${ilOpts}</select>
+          <select id="s-district" onchange="KT.loadMahalle('s')"><option value="">Tüm ilçeler</option></select>
+          <div id="s-mahalle" class="s-mah-wrap"><select id="s-neighborhood"><option value="">Tüm mahalleler</option></select></div>
+          <input id="s-minprice" type="number" placeholder="Min ₺">
+          <input id="s-maxprice" type="number" placeholder="Max ₺">
+          <button type="button" class="btn btn-primary" onclick="KT.searchApplyFilters()">${icon("search", 15)} Uygula</button>
+        </div>
+        <div class="search-topbar">
+          <div class="search-count" id="search-count">İlanlar yükleniyor…</div>
+          <select class="search-sort" onchange="KT.searchSort(this.value)">
+            <option value="new">En Yeniler</option>
+            <option value="price-asc">Fiyat (artan)</option>
+            <option value="price-desc">Fiyat (azalan)</option>
+          </select>
+        </div>
+        <div id="search-results" class="card-grid"></div>
       </div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("search", 16)} Ara</button></div>
-    </form>
-    <div id="search-results" class="list" style="margin-top:18px">${empty("Aramaya başla", "Filtreleri seçip Ara'ya bas; yayındaki uygun ilanlar burada listelenir.")}</div>
+    </div>
   `;
 }
 
-function searchResultCard(p) {
-  const u = currentUser();
-  const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(" / ");
-  const rent = p.transactionType === "RENT";
-  const metaBits = [p.mainCategory, p.propertyType].filter(Boolean);
-  if (p.roomCount) metaBits.push(p.roomCount);
-  if (p.netSqm) metaBits.push(p.netSqm + " m²");
-  const feats = [...parseFeatures(p.interiorFeatures), ...parseFeatures(p.exteriorFeatures)].slice(0, 5).map(escapeHtml);
-  const cta = (u && u.role === "BUYER")
-    ? `<a class="btn btn-small btn-primary" href="#/dashboard/alici/talep-olustur">Uygun talep oluştur</a>`
-    : `<a class="btn btn-small btn-outline" href="#/dashboard/satici/paketler">Paketleri gör</a>`;
+function renderSearchSidebar() {
+  const s = searchState;
+  const catIcon = (c) => c === CAT_ARSA ? "map" : c === CAT_ISYERI ? "card" : "home";
+  const groups = MAIN_CATEGORIES.map((cat) => {
+    const open = s.mainCategory === cat;
+    const subs = open ? `<div class="sc-subs">${CATEGORY_TREE[cat].map((sub) => `<button type="button" class="sc-sub ${s.subCategory === sub ? "active" : ""}" onclick="KT.searchPick('${escapeAttr(cat)}','${escapeAttr(sub)}')">${escapeHtml(sub)}</button>`).join("")}</div>` : "";
+    return `<div class="sc-group">
+        <button type="button" class="sc-item ${open && !s.subCategory ? "active" : ""}" onclick="KT.searchPick('${escapeAttr(cat)}')"><span>${icon(catIcon(cat), 16)} ${escapeHtml(cat)}</span><span class="sc-caret">${open ? "▾" : "▸"}</span></button>
+        ${subs}
+      </div>`;
+  }).join("");
   return `
-    <article class="row-card ${isBoosted(p) ? "promoted-card" : ""}">
-      <div class="thumb">${icon(p.mainCategory === CAT_ARSA ? "map" : "home", 26)}</div>
-      <div>
-        <div class="row-title">${escapeHtml(p.title)}</div>
-        <div class="row-meta">${escapeHtml(loc)} · ${metaBits.map(escapeHtml).join(" · ")}</div>
-        <div class="pill-row" style="margin-top:8px"><span class="pill">${money(p.price)}${rent ? " / ay" : ""}</span><span class="badge ${rent ? "badge-blue" : "badge-green"}">${rent ? "Kiralık" : "Satılık"}</span>${isBoosted(p) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
-        ${feats.length ? `<div class="pill-row" style="margin-top:8px">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
-        <p class="row-note">${escapeHtml((p.description || "").slice(0, 140))}</p>
+    <div class="sc-tx">
+      <button type="button" class="${s.tx === "SALE" ? "active" : ""}" onclick="KT.searchTx('SALE')">Satılık</button>
+      <button type="button" class="${s.tx === "RENT" ? "active" : ""}" onclick="KT.searchTx('RENT')">Kiralık</button>
+    </div>
+    <div class="sc-head">Kategoriler</div>
+    <button type="button" class="sc-item sc-root ${!s.mainCategory ? "active" : ""}" onclick="KT.searchPick('')">Tüm Emlak</button>
+    ${groups}
+  `;
+}
+
+function listingCard(p) {
+  const rent = p.transactionType === "RENT";
+  const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(", ") || "Konum belirtilmedi";
+  const media = p.imageData
+    ? `<img src="${p.imageData}" alt="" loading="lazy">`
+    : `<div class="lc-ph ${escapeAttr(p.photoClass || "")}">${icon(p.mainCategory === CAT_ARSA ? "map" : p.mainCategory === CAT_ISYERI ? "card" : "home", 40)}</div>`;
+  return `
+    <article class="listing-card ${isBoosted(p) ? "promoted-card" : ""}" onclick="KT.searchDetail('${escapeAttr(p.id)}')">
+      <div class="lc-media">
+        ${media}
+        <span class="lc-badge">${escapeHtml(p.propertyType || p.mainCategory || "")}</span>
+        <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık" : "Satılık"}</span>
+        ${isBoosted(p) ? `<span class="lc-boost">Üste taşındı</span>` : ""}
       </div>
-      <div class="row-side">
-        <span class="badge badge-neutral">${icon("lock", 13)} İletişim gizli</span>
-        ${cta}
+      <div class="lc-body">
+        <div class="lc-title">${escapeHtml(p.title)}</div>
+        <div class="lc-loc">${icon("map", 13)} ${escapeHtml(loc)}</div>
+        <div class="lc-price">${money(p.price)}${rent ? " / ay" : ""}</div>
+        <div class="lc-foot"><span class="lc-lock">${icon("lock", 12)} İletişim gizli</span><span class="lc-date">${escapeHtml(p.createdAt || "")}</span></div>
       </div>
     </article>
   `;
@@ -2252,6 +2287,8 @@ function render() {
         ? renderAdmin(path)
         : publicPage(path);
   document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? copyrightBar() : footer()}</div>`;
+  // Arama sayfasi acilinca ilanlari otomatik yukle.
+  if (path.startsWith("dashboard/ara")) KT.searchRun();
 }
 
 window.KT = {
@@ -2401,42 +2438,99 @@ window.KT = {
       el.style.display = cats.includes(cat) ? "" : "none";
     });
   },
-  // Arama ekraninda ana kategori degisince alt tip listesi + oda alani.
-  searchCategory() {
-    const cat = (document.getElementById("s-maincat") || {}).value || "Farketmez";
-    const typeSel = document.getElementById("s-type");
-    if (typeSel) {
-      const subs = CATEGORY_TREE[cat] || [];
-      typeSel.innerHTML = `<option>Farketmez</option>` + subs.map((s) => `<option>${escapeHtml(s)}</option>`).join("");
-    }
-    const scope = (typeSel && typeSel.closest("form")) || document;
-    scope.querySelectorAll("[data-cats]").forEach((el) => {
-      const cats = (el.getAttribute("data-cats") || "").split("|");
-      el.style.display = cats.includes(cat) ? "" : "none";
-    });
+  // --- Arama/kesfet ekrani (kategori tikla + kart izgarasi) ---
+  searchTx(tx) {
+    searchState.tx = tx === "RENT" ? "RENT" : "SALE";
+    const side = document.getElementById("search-side");
+    if (side) side.innerHTML = renderSearchSidebar();
+    KT.searchRun();
   },
-  async runSearch(event) {
-    event.preventDefault();
-    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
-    const cityName = (id) => { const s = document.getElementById(id); return s && s.value ? s.selectedOptions[0].text : ""; };
+  searchPick(main, sub) {
+    searchState.mainCategory = main || "";
+    searchState.subCategory = sub || "";
+    const side = document.getElementById("search-side");
+    if (side) side.innerHTML = renderSearchSidebar();
+    KT.searchRun();
+  },
+  searchApplyFilters() {
+    const el = (id) => document.getElementById(id);
+    const citySel = el("s-city");
+    searchState.city = citySel ? citySel.value : "";
+    searchState.cityName = (citySel && citySel.value) ? citySel.selectedOptions[0].text : "";
+    searchState.district = el("s-district") ? el("s-district").value : "";
+    searchState.neighborhood = el("s-neighborhood") ? el("s-neighborhood").value : "";
+    searchState.minPrice = el("s-minprice") ? el("s-minprice").value : "";
+    searchState.maxPrice = el("s-maxprice") ? el("s-maxprice").value : "";
+    KT.searchRun();
+  },
+  searchSort(v) {
+    searchState.sort = v || "new";
+    KT.searchRun();
+  },
+  async searchRun() {
     const box = document.getElementById("search-results");
+    const cnt = document.getElementById("search-count");
+    const s = searchState;
     const params = new URLSearchParams();
-    params.set("tx", val("s-txtype") === "Kiralık" ? "RENT" : "SALE");
-    const cat = val("s-maincat"); if (cat && cat !== "Farketmez") params.set("mainCategory", cat);
-    const sub = val("s-type"); if (sub && sub !== "Farketmez") params.set("subCategory", sub);
-    const city = cityName("s-city"); if (city) params.set("city", city);
-    const ilce = val("s-district"); if (ilce) params.set("district", ilce);
-    const mah = val("s-neighborhood"); if (mah) params.set("neighborhood", mah);
-    const rooms = val("s-rooms"); if (rooms && rooms !== "Farketmez") params.set("rooms", rooms);
-    const minp = val("s-minprice"); if (minp) params.set("minPrice", minp);
-    const maxp = val("s-maxprice"); if (maxp) params.set("maxPrice", maxp);
-    if (box) box.innerHTML = `<div class="empty"><b>Aranıyor…</b><span class="muted">Uygun ilanlar getiriliyor.</span></div>`;
+    params.set("tx", s.tx);
+    if (s.mainCategory) params.set("mainCategory", s.mainCategory);
+    if (s.subCategory) params.set("subCategory", s.subCategory);
+    if (s.cityName) params.set("city", s.cityName);
+    if (s.district) params.set("district", s.district);
+    if (s.neighborhood) params.set("neighborhood", s.neighborhood);
+    if (s.minPrice) params.set("minPrice", s.minPrice);
+    if (s.maxPrice) params.set("maxPrice", s.maxPrice);
+    if (box) box.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Aranıyor…</b><span class="muted">Uygun ilanlar getiriliyor.</span></div>`;
     const r = await api("/properties/search?" + params.toString());
-    const items = (r.ok && r.data && r.data.items) ? r.data.items : [];
+    let items = (r.ok && r.data && r.data.items) ? r.data.items : [];
+    if (s.sort === "price-asc") items = items.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
+    else if (s.sort === "price-desc") items = items.slice().sort((a, b) => (b.price || 0) - (a.price || 0));
+    _searchItems = items;
+    if (cnt) cnt.textContent = items.length ? `${items.length} ilan listelendi` : "İlan bulunamadı";
     if (!box) return;
     box.innerHTML = items.length
-      ? `<div class="toolbar"><span class="pill">${items.length} ilan bulundu</span></div>` + items.map(searchResultCard).join("")
-      : `<div class="empty"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: mahalle/ilçe kaldır ya da fiyat aralığını aç.</span></div>`;
+      ? items.map(listingCard).join("")
+      : `<div class="empty" style="grid-column:1/-1"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: mahalle/ilçe kaldır ya da fiyat aralığını aç.</span></div>`;
+  },
+  searchDetail(id) {
+    const p = _searchItems.find((x) => x.id === id);
+    if (!p) return;
+    const u = currentUser();
+    const rent = p.transactionType === "RENT";
+    const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(", ") || "Konum belirtilmedi";
+    const meta = [p.mainCategory, p.propertyType].filter(Boolean);
+    if (p.roomCount) meta.push(p.roomCount);
+    if (p.netSqm) meta.push(p.netSqm + " m²");
+    if (p.buildingAge) meta.push("Bina " + p.buildingAge);
+    if (p.floor) meta.push("Kat " + p.floor);
+    const feats = [...parseFeatures(p.interiorFeatures), ...parseFeatures(p.exteriorFeatures)].map(escapeHtml);
+    const cta = (u && u.role === "BUYER")
+      ? `<a class="btn btn-primary" style="flex:1" href="#/dashboard/alici/talep-olustur" onclick="KT.closeSearchDetail()">Uygun talep oluştur</a>`
+      : `<a class="btn btn-primary" style="flex:1" href="#/dashboard/satici/paketler" onclick="KT.closeSearchDetail()">Paketleri gör</a>`;
+    const old = document.getElementById("kt-listing-overlay");
+    if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-listing-overlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.onclick = (e) => { if (e.target === ov) KT.closeSearchDetail(); };
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(8,18,30,.35)">
+        <div class="lc-media" style="height:200px;border-radius:14px 14px 0 0">${p.imageData ? `<img src="${p.imageData}" alt="">` : `<div class="lc-ph ${escapeAttr(p.photoClass || "")}">${icon(p.mainCategory === CAT_ARSA ? "map" : p.mainCategory === CAT_ISYERI ? "card" : "home", 46)}</div>`}<span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık" : "Satılık"}</span></div>
+        <div style="padding:20px">
+          <h3 style="margin:0 0 6px;font-size:20px;color:#10243a">${escapeHtml(p.title)}</h3>
+          <p style="margin:0 0 4px;color:#5b6b7d;font-size:14px">${icon("map", 13)} ${escapeHtml(loc)}</p>
+          <p style="margin:8px 0;font-size:22px;font-weight:700;color:#e07b39">${money(p.price)}${rent ? " / ay" : ""}</p>
+          <div class="pill-row" style="margin:10px 0">${meta.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
+          ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
+          <p style="margin:12px 0;color:#26333f;font-size:14px;line-height:1.6">${escapeHtml(p.description || "")}</p>
+          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} İletişim gizli.</strong> İlan sahibinin telefon/e-postası yalnızca eşleşme sonrası üyelikle açılır. Tam adres gösterilmez.</div>
+          <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="KT.closeSearchDetail()">Kapat</button>${cta}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  closeSearchDetail() {
+    const ov = document.getElementById("kt-listing-overlay");
+    if (ov) ov.remove();
   },
   async createDemand(event) {
     event.preventDefault();

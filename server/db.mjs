@@ -114,7 +114,9 @@ for (const alter of [
   "ALTER TABLE demands ADD COLUMN heatingType TEXT",
   "ALTER TABLE demands ADD COLUMN buildingAge TEXT",
   "ALTER TABLE demands ADD COLUMN floorPref TEXT",
-  "ALTER TABLE demands ADD COLUMN occupation TEXT"
+  "ALTER TABLE demands ADD COLUMN occupation TEXT",
+  "ALTER TABLE properties ADD COLUMN interiorFeatures TEXT",
+  "ALTER TABLE properties ADD COLUMN exteriorFeatures TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

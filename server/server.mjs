@@ -424,12 +424,14 @@ async function handleApi(req, res, url) {
       price: +body.price || 0, negotiable: body.negotiable ? 1 : 0, description: (body.description || "").trim(),
       photoClass: body.photoClass || "apartment",
       transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
-      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0
+      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0,
+      interiorFeatures: JSON.stringify(Array.isArray(body.interiorFeatures) ? body.interiorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
+      exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : [])
     };
     if (!p.title || !p.price || p.description.length < 15) return err(res, 400, "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
     const pImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, today());
+    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, p.interiorFeatures, p.exteriorFeatures, today());
     const demands = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
     const seen = new Set();
     let matchCount = 0;

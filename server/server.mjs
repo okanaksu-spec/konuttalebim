@@ -117,6 +117,13 @@ function calculateMatchScore(demand, property) {
   if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return 0;
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) score += 13;
+  // Mahalle uyumu: ilanin mahallesi, talebin sectigi mahalleler arasindaysa ekstra puan
+  if (property.neighborhood) {
+    let dHoods = [];
+    try { dHoods = JSON.parse(demand.neighborhoods || "[]"); } catch {}
+    if (demand.neighborhood) dHoods.push(demand.neighborhood);
+    if (dHoods.includes(property.neighborhood)) score += 10;
+  }
   if (property.price >= demand.minBudget && property.price <= demand.maxBudget) score += 25;
   else if (property.price <= demand.maxBudget * 1.1) score += 15;
   if (demand.roomCount === property.roomCount) score += 15;

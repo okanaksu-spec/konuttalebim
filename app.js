@@ -464,6 +464,11 @@ function calculateMatchScore(demand, property) {
     score += 13;
     reasons.push("Bölge uyumu yüksek");
   }
+  if (property.neighborhood) {
+    const dHoods = parseFeatures(demand.neighborhoods);
+    if (demand.neighborhood) dHoods.push(demand.neighborhood);
+    if (dHoods.includes(property.neighborhood)) { score += 10; reasons.push("Mahalle tam uyumu"); }
+  }
   if (property.price >= demand.minBudget && property.price <= demand.maxBudget) {
     score += 25;
     reasons.push("Bütçeye tam uyuyor");

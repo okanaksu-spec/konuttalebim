@@ -1706,12 +1706,14 @@ function sellerDemands() {
   const user = currentUser();
   const properties = state.properties.filter((p) => p.sellerId === user.id);
   const rows = state.demands
-    .slice()
-    .sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)))
-    .map((demand) => {
-    const best = properties.map((property) => calculateMatchScore(demand, property).score).sort((a, b) => b - a)[0] || 0;
-    return demandRow(demand, true, best);
-  }).join("");
+    .map((demand) => ({
+      demand,
+      best: properties.map((property) => calculateMatchScore(demand, property).score).sort((a, b) => b - a)[0] || 0
+    }))
+    // Once öne çıkarılanlar, sonra en yüksek konum/bütçe uyum puanı üstte.
+    .sort((a, b) => (Number(isBoosted(b.demand)) - Number(isBoosted(a.demand))) || (b.best - a.best))
+    .map(({ demand, best }) => demandRow(demand, true, best))
+    .join("");
   return `
     ${pageHead("Alıcı Talepleri", "Hazır alıcıları rozet, bütçe ve konuma göre incele.")}
     <div class="toolbar">

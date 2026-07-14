@@ -111,10 +111,12 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
 }
 
 // ---------- Is mantigi (sunucu tarafi) ----------
+const MAIN_CATS = ["Konut", "İş Yeri", "Arsa"];
 function calculateMatchScore(demand, property) {
   let score = 0;
   if (!demand || !property) return 0;
   if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return 0;
+  if ((demand.mainCategory || "Konut") !== (property.mainCategory || "Konut")) return 0;
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) score += 13;
   // Mahalle uyumu: ilanin mahallesi, talebin sectigi mahalleler arasindaysa ekstra puan
@@ -152,6 +154,7 @@ function demandHoods(demand) {
 function locationMatchLevel(demand, property) {
   if (!demand || !property) return null;
   if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return null;
+  if ((demand.mainCategory || "Konut") !== (property.mainCategory || "Konut")) return null;
   if (!demand.city || !property.city || demand.city !== property.city) return null;
   const hoods = demandHoods(demand);
   if (hoods.length) {
@@ -428,6 +431,45 @@ async function handleApi(req, res, url) {
 
   if (!user) return err(res, 401, "Giriş gerekli.");
 
+  // --- ilan arama (uye): il/ilce/mahalle + kategori + fiyat filtreli, iletisim gizli ---
+  if (seg[0] === "properties" && seg[1] === "search" && method === "GET") {
+    const q = url.searchParams;
+    const tx = q.get("tx") === "RENT" ? "RENT" : (q.get("tx") === "SALE" ? "SALE" : "");
+    const mainCategory = q.get("mainCategory") || "";
+    const subCategory = q.get("subCategory") || "";
+    const city = q.get("city") || "";
+    const district = q.get("district") || "";
+    const neighborhood = q.get("neighborhood") || "";
+    const rooms = q.get("rooms") || "";
+    const minPrice = +q.get("minPrice") || 0;
+    const maxPrice = +q.get("maxPrice") || 0;
+    let rows = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
+    rows = rows.filter((p) => {
+      if (tx && (p.transactionType || "SALE") !== tx) return false;
+      if (mainCategory && (p.mainCategory || "Konut") !== mainCategory) return false;
+      if (subCategory && p.propertyType !== subCategory) return false;
+      if (city && p.city !== city) return false;
+      if (district && (p.district || "") !== district) return false;
+      if (neighborhood && (p.neighborhood || "") !== neighborhood) return false;
+      if (rooms && (p.roomCount || "") !== rooms) return false;
+      if (minPrice && (+p.price || 0) < minPrice) return false;
+      if (maxPrice && (+p.price || 0) > maxPrice) return false;
+      return true;
+    });
+    const boosted = (p) => p.boostedUntil && p.boostedUntil >= today();
+    rows.sort((a, b) => (Number(boosted(b)) - Number(boosted(a))) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const items = rows.slice(0, 80).map((p) => ({
+      id: p.id, title: p.title, city: p.city, district: p.district, neighborhood: p.neighborhood,
+      mainCategory: p.mainCategory || "Konut", propertyType: p.propertyType, roomCount: p.roomCount,
+      netSqm: p.netSqm, grossSqm: p.grossSqm, price: p.price, transactionType: p.transactionType || "SALE",
+      heatingType: p.heatingType, buildingAge: p.buildingAge, floor: p.floor, dues: p.dues,
+      interiorFeatures: p.interiorFeatures, exteriorFeatures: p.exteriorFeatures,
+      photoClass: p.photoClass, boostedUntil: p.boostedUntil,
+      description: maskSensitiveInfo(p.description || "").maskedText, createdAt: p.createdAt
+    }));
+    return ok(res, { items });
+  }
+
   // --- profil ---
   if (seg[0] === "profile" && method === "PATCH") {
     const name = (body.name || "").trim(), email = norm(body.email), phone = (body.phone || "").trim(), city = (body.city || "").trim();
@@ -461,13 +503,14 @@ async function handleApi(req, res, url) {
       buildingAge: (body.buildingAge || "").toString().slice(0, 20),
       floorPref: (body.floorPref || "").toString().slice(0, 40),
       occupation: (body.occupation || "").toString().slice(0, 40),
-      neighborhoods: JSON.stringify(Array.isArray(body.neighborhoods) ? body.neighborhoods.slice(0, 60).map((x) => String(x).slice(0, 60)) : [])
+      neighborhoods: JSON.stringify(Array.isArray(body.neighborhoods) ? body.neighborhoods.slice(0, 60).map((x) => String(x).slice(0, 60)) : []),
+      mainCategory: MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "Konut"
     };
     if (!d.title || !d.minBudget || !d.maxBudget || d.maxBudget < d.minBudget || d.description.length < 20)
       return err(res, 400, "Başlık, geçerli bütçe ve en az 20 karakter açıklama gerekli.");
     const dImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,neighborhoods,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, d.neighborhoods, today());
+    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,neighborhoods,mainCategory,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, d.neighborhoods, d.mainCategory, today());
     // uygun saticilara bildirim + talep sahibine karsilikli eslesme bildirimi
     const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
     const seen = new Set();
@@ -514,12 +557,13 @@ async function handleApi(req, res, url) {
       transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
       depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0,
       interiorFeatures: JSON.stringify(Array.isArray(body.interiorFeatures) ? body.interiorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
-      exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : [])
+      exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
+      mainCategory: MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "Konut"
     };
     if (!p.title || !p.price || p.description.length < 15) return err(res, 400, "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
     const pImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, p.interiorFeatures, p.exteriorFeatures, today());
+    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,mainCategory,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, p.interiorFeatures, p.exteriorFeatures, p.mainCategory, today());
     const demands = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
     const seen = new Set();
     let matchCount = 0;

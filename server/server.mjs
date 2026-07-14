@@ -136,6 +136,53 @@ function calculateMatchScore(demand, property) {
   return Math.min(100, score);
 }
 
+// ---- Konum bazli eslesme (puandan bagimsiz bildirim tetikleyici) ----
+// Talebin sectigi mahalleleri diziye cevir (coklu mahalle + tekil neighborhood).
+function demandHoods(demand) {
+  let hoods = [];
+  try { hoods = JSON.parse(demand.neighborhoods || "[]"); } catch {}
+  if (!Array.isArray(hoods)) hoods = [];
+  if (demand.neighborhood) hoods.push(demand.neighborhood);
+  return hoods.map((h) => String(h || "").trim()).filter(Boolean);
+}
+// Talep hangi konum duzeyini belirttiyse ILAN o duzeyde ayni yerde mi?
+// Oncelik: mahalle > ilce > il. Donen: "mahalle" | "ilce" | "il" | null.
+// Kural: talep dar bir alan sectiyse (mahalle), ilan mutlaka o mahallelerden
+// birinde olmali; talep sadece ilce sectiyse ayni ilce; sadece il sectiyse ayni il.
+function locationMatchLevel(demand, property) {
+  if (!demand || !property) return null;
+  if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return null;
+  if (!demand.city || !property.city || demand.city !== property.city) return null;
+  const hoods = demandHoods(demand);
+  if (hoods.length) {
+    return (property.neighborhood && hoods.includes(String(property.neighborhood).trim())) ? "mahalle" : null;
+  }
+  if (demand.district) {
+    return (property.district && String(property.district).trim() === String(demand.district).trim()) ? "ilce" : null;
+  }
+  return "il";
+}
+// Bildirim icin butce uyumu: ilan fiyati, talebin ust butcesini %10'dan fazla asmasin.
+function budgetFits(demand, property) {
+  const max = +demand.maxBudget || 0;
+  if (!max) return true;                 // butce belirtilmemisse engelleme
+  const price = +property.price || 0;
+  if (!price) return true;
+  return price <= max * 1.1;
+}
+// Konum + butce esli bir eslesme mi? Donen konum duzeyi ("mahalle"/"ilce"/"il") ya da null.
+function locationNotifyMatch(demand, property) {
+  const lvl = locationMatchLevel(demand, property);
+  if (!lvl) return null;
+  return budgetFits(demand, property) ? lvl : null;
+}
+// Bildirim metni icin okunur konum etiketi.
+function locationLabel(property, lvl) {
+  if (lvl === "mahalle") return [property.district, property.neighborhood].filter(Boolean).join(" ").trim();
+  if (lvl === "ilce") return String(property.district || "").trim();
+  return String(property.city || "").trim();
+}
+
 function maskSensitiveInfo(text) {
   let masked = text;
   const detected = [];
@@ -423,12 +470,17 @@ async function handleApi(req, res, url) {
     const seen = new Set();
     let matchCount = 0;
     for (const p of props) {
-      if (calculateMatchScore(d, p) >= 70) {
+      const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
+      if (calculateMatchScore(d, p) >= 70 || loc) {
         matchCount++;
         if (!seen.has(p.sellerId)) {
           seen.add(p.sellerId);
-          notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", `${d.title} talebi ilanınıza uyuyor.`, "dashboard/satici/alici-talepleri");
-          queueEmail(p.sellerId, "Size uygun yeni alıcı talebi", `${d.title} talebi portföyünüze uygun.`, "", "Uygun talep bildirimi");
+          const where = loc ? locationLabel(p, loc) : "";
+          const body = where
+            ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
+            : `${d.title} talebi ilanınıza uyuyor.`;
+          notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", body, "dashboard/satici/alici-talepleri");
+          queueEmail(p.sellerId, "Size uygun yeni alıcı talebi", body, "", "Uygun talep bildirimi");
         }
       }
     }
@@ -469,11 +521,17 @@ async function handleApi(req, res, url) {
     const seen = new Set();
     let matchCount = 0;
     for (const d of demands) {
-      if (calculateMatchScore(d, p) >= 70) {
+      const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
+      if (calculateMatchScore(d, p) >= 70 || loc) {
         matchCount++;
         if (!seen.has(d.buyerId)) {
           seen.add(d.buyerId);
-          notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", `${p.title} talebinize uyuyor.`, "dashboard/alici/teklifler");
+          const where = loc ? locationLabel(p, loc) : "";
+          const body = where
+            ? `${p.title} — ${where} konumundaki talebinize uyuyor.`
+            : `${p.title} talebinize uyuyor.`;
+          notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", body, "dashboard/alici/teklifler");
+          queueEmail(d.buyerId, "Talebine uygun yeni ev", body, "dashboard/alici/teklifler", "Uygun ilan bildirimi");
         }
       }
     }

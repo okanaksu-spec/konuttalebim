@@ -1,7 +1,7 @@
 // Konuttalebim - API sunucusu (node:http, sifir dis bagimlilik)
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -15,6 +15,15 @@ const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html,
 const PORT = process.env.PORT || 3000;
 const BASE_URL = (process.env.PUBLIC_BASE_URL || "https://konuttalebi.com").replace(/\/+$/, "");
 const MAX_IMAGE_CHARS = 2_600_000;            // ~1.9MB base64 gorsel siniri
+
+// ---------- TR konum verisi (81 il / 973 ilce / ~73k mahalle) ----------
+// Bellekte tutulur, endpoint'ler dilim dilim doner; istemciye tumu gonderilmez.
+const LOC_DIR = join(__dirname, "data");
+const loadLoc = (f) => { try { return JSON.parse(readFileSync(join(LOC_DIR, f), "utf8")); } catch (e) { console.error("[loc] " + f + " yuklenemedi:", e.message); return null; } };
+const TR_CITIES = (loadLoc("tr-cities.json") || []).slice().sort((a, b) => a.name.localeCompare(b.name, "tr")); // [{code,name}]
+const TR_DISTRICTS = loadLoc("tr-districts.json") || {};      // { "34": ["Kadıköy", ...] }
+const TR_NEIGHBOURHOODS = loadLoc("tr-neighbourhoods.json") || {}; // { "34": { "Kadıköy": ["Bostancı Mah", ...] } }
+const trCode = (v) => (v || "").toString().replace(/[^0-9]/g, "").padStart(2, "0");
 
 // Yuklenen gorseli dogrula: sadece kucuk data URL resimlerine izin ver.
 function cleanImage(value) {
@@ -344,6 +353,22 @@ async function handleApi(req, res, url) {
     return res.end("OK");
   }
 
+  // --- konum verisi (il/ilce/mahalle) — herkese açık, kademeli dropdown için ---
+  if (seg[0] === "locations" && method === "GET") {
+    if (seg[1] === "iller") return ok(res, { iller: TR_CITIES });
+    if (seg[1] === "ilceler") {
+      const code = trCode(url.searchParams.get("il"));
+      return ok(res, { ilceler: (TR_DISTRICTS[code] || []).slice().sort((a, b) => a.localeCompare(b, "tr")) });
+    }
+    if (seg[1] === "mahalleler") {
+      const code = trCode(url.searchParams.get("il"));
+      const ilce = url.searchParams.get("ilce") || "";
+      const list = (TR_NEIGHBOURHOODS[code] && TR_NEIGHBOURHOODS[code][ilce]) || [];
+      return ok(res, { mahalleler: list.slice().sort((a, b) => a.localeCompare(b, "tr")) });
+    }
+    return ok(res, {});
+  }
+
   if (!user) return err(res, 401, "Giriş gerekli.");
 
   // --- profil ---
@@ -378,13 +403,14 @@ async function handleApi(req, res, url) {
       heatingType: (body.heatingType || "").toString().slice(0, 40),
       buildingAge: (body.buildingAge || "").toString().slice(0, 20),
       floorPref: (body.floorPref || "").toString().slice(0, 40),
-      occupation: (body.occupation || "").toString().slice(0, 40)
+      occupation: (body.occupation || "").toString().slice(0, 40),
+      neighborhoods: JSON.stringify(Array.isArray(body.neighborhoods) ? body.neighborhoods.slice(0, 60).map((x) => String(x).slice(0, 60)) : [])
     };
     if (!d.title || !d.minBudget || !d.maxBudget || d.maxBudget < d.minBudget || d.description.length < 20)
       return err(res, 400, "Başlık, geçerli bütçe ve en az 20 karakter açıklama gerekli.");
     const dImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, today());
+    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,neighborhoods,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, d.neighborhoods, today());
     // uygun saticilara bildirim + talep sahibine karsilikli eslesme bildirimi
     const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
     const seen = new Set();

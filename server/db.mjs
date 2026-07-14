@@ -116,7 +116,8 @@ for (const alter of [
   "ALTER TABLE demands ADD COLUMN floorPref TEXT",
   "ALTER TABLE demands ADD COLUMN occupation TEXT",
   "ALTER TABLE properties ADD COLUMN interiorFeatures TEXT",
-  "ALTER TABLE properties ADD COLUMN exteriorFeatures TEXT"
+  "ALTER TABLE properties ADD COLUMN exteriorFeatures TEXT",
+  "ALTER TABLE demands ADD COLUMN neighborhoods TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

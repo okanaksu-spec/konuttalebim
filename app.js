@@ -642,6 +642,7 @@ function toast(message) {
 function header() {
   const publicLinks = [
     ["home", "Ana Sayfa"],
+    ["ilanlar", "İlanlar"],
     ["nasil-calisir", "Nasıl Çalışır"],
     ["fiyatlandirma", "Fiyatlandırma"],
     ["yardim", "Yardım"]
@@ -771,6 +772,25 @@ function homePage() {
             </div>
           </div>
         </div>
+      </div>
+    </section>
+    <section class="band band-white">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="kicker">Yayındaki ilanlar</div>
+            <h2>Gerçek ilanlar arasında gez, hemen ara.</h2>
+            <p class="lead">İl, ilçe, mahalle ve kategoriye göre yayındaki gerçek ilanları keşfet — üye olmadan da gezebilirsin. İletişim bilgisi yalnızca üyelikle açılır.</p>
+          </div>
+        </div>
+        <div class="search-filterbar" style="margin-top:6px">
+          <select id="home-tx"><option>Satılık</option><option>Kiralık</option></select>
+          <select id="home-cat"><option value="">Tüm kategoriler</option>${MAIN_CATEGORIES.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
+          <select id="home-city"><option value="">Tüm iller</option>${TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("")}</select>
+          <button class="btn btn-primary" onclick="KT.homeSearch()">${icon("search", 16)} Ara</button>
+        </div>
+        <div id="home-listings" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>İlanlar yükleniyor…</b><span class="muted">Yayındaki ilanlar birazdan görünecek.</span></div></div>
+        <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/ilanlar">${icon("search", 15)} Tüm ilanları gör</a></div>
       </div>
     </section>
     <section class="trust-strip">
@@ -1159,6 +1179,9 @@ function publicPage(kind) {
   }
   if (["iletisim", "kvkk", "gizlilik", "kullanim-sartlari", "cerez-politikasi", "mesafeli-satis", "on-bilgilendirme", "iade-iptal", "teslimat", "guvenli-islem-rehberi"].includes(kind)) {
     return legalPage(kind);
+  }
+  if (kind === "ilanlar" || kind === "ara") {
+    return `<section class="band band-white"><div class="container">${searchPage()}</div></section>`;
   }
   return homePage();
 }
@@ -2170,7 +2193,7 @@ function stat(label, value) {
 // Kademeli konum alanlari (İl→İlçe→Mahalle). multiMahalle=true → talepte çoklu seçim.
 function searchPage() {
   searchState.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
-  const ilOpts = `<option value="">Tüm iller</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("");
+  const ilOpts = `<option value="">Tüm iller</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}" ${searchState.city === il.code ? "selected" : ""}>${escapeHtml(il.name)}</option>`).join("");
   return `
     ${pageHead("İlan Ara", "Soldan kategoriye tıkla; yayındaki ilanları kutucuklar halinde gör. Kayıt şehrin fark etmez; her il/ilçe/mahalleyi arayabilirsin. İletişim bilgisi yalnızca üyelikle açılır.")}
     <div class="search-layout">
@@ -2427,8 +2450,10 @@ function render() {
         ? renderAdmin(path)
         : publicPage(path);
   document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? copyrightBar() : footer()}</div>`;
-  // Arama sayfasi acilinca ilanlari otomatik yukle.
-  if (path.startsWith("dashboard/ara")) KT.searchRun();
+  // Arama sayfasi (uye paneli ya da public #/ilanlar) acilinca ilanlari otomatik yukle.
+  if (path.startsWith("dashboard/ara") || path === "ilanlar" || path === "ara") KT.searchRun();
+  // Ana sayfada yayindaki gercek ilanlari yukle.
+  if (path === "home" || path === "" || path === "/") KT.loadHomeListings();
 }
 
 window.KT = {
@@ -2639,6 +2664,30 @@ window.KT = {
       ? items.map(listingCard).join("")
       : `<div class="empty" style="grid-column:1/-1"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: mahalle/ilçe kaldır ya da fiyat aralığını aç.</span></div>`;
   },
+  // Ana sayfadaki hızlı arama çubuğu → public #/ilanlar sayfasına filtreyle geç.
+  homeSearch() {
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    searchState.tx = g("home-tx") === "Kiralık" ? "RENT" : "SALE";
+    uiTxMode = searchState.tx;
+    searchState.mainCategory = g("home-cat") || "";
+    searchState.subCategory = "";
+    const citySel = document.getElementById("home-city");
+    searchState.city = citySel ? citySel.value : "";
+    searchState.cityName = (citySel && citySel.value) ? citySel.selectedOptions[0].text : "";
+    searchState.district = ""; searchState.neighborhood = ""; searchState.minPrice = ""; searchState.maxPrice = ""; searchState.sort = "new";
+    setRoute("ilanlar");
+  },
+  // Ana sayfada yayındaki en yeni gerçek ilanları göster (giriş gerekmez).
+  async loadHomeListings() {
+    const box = document.getElementById("home-listings");
+    if (!box) return;
+    const r = await api("/properties/search?");
+    const items = (r.ok && r.data && r.data.items) ? r.data.items.slice(0, 8) : [];
+    _searchItems = items;
+    box.innerHTML = items.length
+      ? items.map(listingCard).join("")
+      : `<div class="empty" style="grid-column:1/-1"><b>Henüz ilan yok</b><span class="muted">İlk ilanlar eklendiğinde burada görünür.</span></div>`;
+  },
   searchDetail(id) {
     const p = _searchItems.find((x) => x.id === id);
     if (!p) return;
@@ -2651,7 +2700,9 @@ window.KT = {
     if (p.buildingAge) meta.push("Bina " + p.buildingAge);
     if (p.floor) meta.push("Kat " + p.floor);
     const feats = [...parseFeatures(p.interiorFeatures), ...parseFeatures(p.exteriorFeatures)].map(escapeHtml);
-    const cta = (u && u.role === "BUYER")
+    const cta = !isSignedIn()
+      ? `<a class="btn btn-primary" style="flex:1" href="#/uye-ol" onclick="KT.closeSearchDetail()">İletişim için üye ol</a>`
+      : (u && u.role === "BUYER")
       ? `<a class="btn btn-primary" style="flex:1" href="#/dashboard/alici/talep-olustur" onclick="KT.closeSearchDetail()">Uygun talep oluştur</a>`
       : `<a class="btn btn-primary" style="flex:1" href="#/dashboard/satici/paketler" onclick="KT.closeSearchDetail()">Paketleri gör</a>`;
     const old = document.getElementById("kt-listing-overlay");

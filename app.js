@@ -870,14 +870,14 @@ function homePage() {
             <h3>Evini Sat</h3>
             <p>Satılık evine uygun alıcı taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. Tam adres alıcıya gösterilmez.</p>
             <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>İlan görseli yükle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — ilan ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — teklif ver</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-gold">${icon("home", 26)}</span>
             <h3>Evini Kirala</h3>
             <p>Kiraya vereceğin eve uygun kiracı taleplerini gör; uygun kiracının iletişim bilgisine üyelikle ulaş, doğrudan anlaş. Fiyata biz karışmayız.</p>
             <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Doğrudan kiracıyla iletişim</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — ilan ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — teklif ver</button>
           </article>
         </div>
         <p class="lead" style="text-align:center;margin-top:20px">Emlak danışmanı mısın? <button class="btn btn-outline" onclick="KT.startRegistration('agent')">${icon("chart", 15)} Profesyonel paketle üye ol</button></p>

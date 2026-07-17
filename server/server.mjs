@@ -302,18 +302,23 @@ function buildState(user) {
   const myPayments = isAdmin ? all("payments")
     : (user ? all("payments").filter((p) => p.userId === user.id) : []);
   const demandsArr = conv(all("demands"), boolFields.demands);
+  const propertiesArr = conv(all("properties"), boolFields.properties);
 
   return {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
     config: { paymentsLive: paymentsAreLive() },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
-    users,
+    // Gizlilik: misafir (giris yapmamis) istekte kisisel/ters-pazar verisi donmez.
+    // Kullanici listesi, alici butce profilleri, talepler ve ham ilan kayitlari
+    // yalnizca giris yapmis kullaniciya doner. Public ilan bocesi /properties/search
+    // endpoint'inden (maskeli) beslenir; ana sayfa vitrin sayaci stats'tan gelir.
+    users: user ? users : [],
     authAccounts: [],
-    buyerProfiles,
+    buyerProfiles: user ? buyerProfiles : {},
     plans,
-    demands: demandsArr,
-    properties: conv(all("properties"), boolFields.properties),
+    demands: user ? demandsArr : [],
+    properties: user ? propertiesArr : [],
     offers: myOffers,
     matches: myMatches,
     messages: myMessages,

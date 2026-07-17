@@ -430,9 +430,8 @@ async function handleApi(req, res, url) {
     return ok(res, {});
   }
 
-  if (!user) return err(res, 401, "Giriş gerekli.");
-
-  // --- ilan arama (uye): il/ilce/mahalle + kategori + fiyat filtreli, iletisim gizli ---
+  // --- ilan arama (HERKESE AÇIK): il/ilce/mahalle + kategori + fiyat filtreli, iletisim gizli ---
+  // Giris gerekmez; ilanlar maskeli doner (satici kimligi/iletisim yok, aciklama maskeli).
   if (seg[0] === "properties" && seg[1] === "search" && method === "GET") {
     const q = url.searchParams;
     const tx = q.get("tx") === "RENT" ? "RENT" : (q.get("tx") === "SALE" ? "SALE" : "");
@@ -470,6 +469,8 @@ async function handleApi(req, res, url) {
     }));
     return ok(res, { items });
   }
+
+  if (!user) return err(res, 401, "Giriş gerekli.");
 
   // --- profil ---
   if (seg[0] === "profile" && method === "PATCH") {

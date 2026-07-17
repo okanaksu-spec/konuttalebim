@@ -378,9 +378,9 @@ function roleKeyForRole(role) {
 }
 
 function roleForKey(roleKey) {
-  if (roleKey === "seller") return "SELLER";
+  if (roleKey === "seller" || roleKey === "landlord") return "SELLER";
   if (roleKey === "agent") return "AGENT";
-  return "BUYER";
+  return "BUYER"; // buyer, tenant
 }
 
 function roleLabel(role) {
@@ -996,43 +996,54 @@ function propertyOfferSample(property, demand, profile) {
   `;
 }
 
-function registerFlowInfo(roleKey) {
-  const rent = uiTxMode === "RENT";
-  if (roleKey === "agent") return { label: "Emlak danışmanı", steps: [
+function registerFlowInfo(sel) {
+  if (sel === "agent") return { label: "Emlak danışmanı", steps: [
     "Satılık ve kiralık portföyünü ekle; tam adres karşı tarafa gösterilmez.",
     "Sana uygun alıcı ve kiracı taleplerini eşleşme puanına göre gör.",
     "Üyelikle talep sahibinin iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
   ]};
-  if (roleKey === "seller") return rent
-    ? { label: "Ev sahibi", steps: [
-        "İlanını ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
-        "Kiralık ev arayan kiracıların taleplerini gör.",
-        "Üyelikle kiracının iletişim bilgisine ulaş; kirayı ve şartları doğrudan siz belirlersiniz."
-      ]}
-    : { label: "Satıcı", steps: [
-        "Evini ekle; konum, özellik ve fiyatını gir, tam adres alıcıya gösterilmez.",
-        "Evine uygun, gerçek alıcı taleplerini gör.",
-        "Üyelikle alıcının iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
-      ]};
-  return rent
-    ? { label: "Kiracı", steps: [
-        "Kiralık talebini oluştur; bölge, aylık kira aralığı, oda ve eşyalı tercihini belirt.",
-        "Sana uygun kiralık ilanlar eşleşme puanına göre öne çıkar.",
-        "Üyelikle ilan sahibinin iletişim bilgisine ulaş; doğrudan ev sahibiyle anlaşırsın."
-      ]}
-    : { label: "Alıcı", steps: [
-        "Talebini oluştur; bölge, bütçe aralığı, oda ve tercihlerini belirt (belge istenmez).",
-        "Sana uygun satılık ilanlar eşleşme puanına göre öne çıkar.",
-        "Üyelikle ilan sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
-      ]};
+  if (sel === "landlord") return { label: "Ev sahibi", steps: [
+    "İlanını ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
+    "Kiralık ev arayan kiracıların taleplerini gör.",
+    "Üyelikle kiracının iletişim bilgisine ulaş; kirayı ve şartları doğrudan siz belirlersiniz."
+  ]};
+  if (sel === "seller") return { label: "Satıcı", steps: [
+    "Evini ekle; konum, özellik ve fiyatını gir, tam adres alıcıya gösterilmez.",
+    "Evine uygun, gerçek alıcı taleplerini gör.",
+    "Üyelikle alıcının iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
+  ]};
+  if (sel === "tenant") return { label: "Kiracı", steps: [
+    "Kiralık talebini oluştur; bölge, aylık kira aralığı, oda ve eşyalı tercihini belirt.",
+    "Sana uygun kiralık ilanlar eşleşme puanına göre öne çıkar.",
+    "Üyelikle ilan sahibinin iletişim bilgisine ulaş; doğrudan ev sahibiyle anlaşırsın."
+  ]};
+  return { label: "Alıcı", steps: [
+    "Talebini oluştur; bölge, bütçe aralığı, oda ve tercihlerini belirt (belge istenmez).",
+    "Sana uygun satılık ilanlar eşleşme puanına göre öne çıkar.",
+    "Üyelikle ilan sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
+  ]};
+}
+function regAsideHTML(sel) {
+  const flow = registerFlowInfo(sel);
+  return `
+    <span class="badge badge-blue">${icon("shield", 13)} ${flow.label} üyeliği</span>
+    <h3>Nasıl çalışır?</h3>
+    <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
+      ${flow.steps.map((s, i) => `<li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">${i + 1}</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">${s}</span></li>`).join("")}
+    </ol>
+    <p style="font-size:14px;margin-top:16px">Zaten üyeysen <a href="#/giris">giriş yap</a>.</p>`;
 }
 
 function authRegisterPage(roleKey = "buyer") {
-  const selectedRole = ["buyer", "seller", "agent"].includes(roleKey) ? roleKey : "buyer";
-  const flow = registerFlowInfo(selectedRole);
+  const base = ["buyer", "seller", "agent"].includes(roleKey) ? roleKey : "buyer";
+  const selectedRole = base === "agent" ? "agent"
+    : base === "seller" ? (uiTxMode === "RENT" ? "landlord" : "seller")
+    : (uiTxMode === "RENT" ? "tenant" : "buyer");
   const roleOptions = [
     ["buyer", "Alıcı"],
+    ["tenant", "Kiracı"],
     ["seller", "Satıcı"],
+    ["landlord", "Ev sahibi"],
     ["agent", "Emlak danışmanı"]
   ];
   return publicShell("Üyelik oluştur", "Alıcı, kiracı, satıcı, ev sahibi veya emlak danışmanı olarak hesabını aç; panelin rolüne göre hazırlanır.", `
@@ -1042,7 +1053,7 @@ function authRegisterPage(roleKey = "buyer") {
           ${field("Ad soyad / firma adı", "r-name", "text", "Ad Soyad")}
           <div class="field">
             <label for="r-role">Üyelik tipi</label>
-            <select id="r-role">
+            <select id="r-role" onchange="KT.onRegRoleChange()">
               ${roleOptions.map(([value, label]) => `<option value="${value}" ${value === selectedRole ? "selected" : ""}>${label}</option>`).join("")}
             </select>
           </div>
@@ -1069,14 +1080,7 @@ function authRegisterPage(roleKey = "buyer") {
           <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
         </div>
       </form>
-      <aside class="auth-side">
-        <span class="badge badge-blue">${icon("shield", 13)} ${flow.label} üyeliği</span>
-        <h3>Nasıl çalışır?</h3>
-        <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
-          ${flow.steps.map((s, i) => `<li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">${i + 1}</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">${s}</span></li>`).join("")}
-        </ol>
-        <p style="font-size:14px;margin-top:16px">Zaten üyeysen <a href="#/giris">giriş yap</a>.</p>
-      </aside>
+      <aside class="auth-side" id="reg-aside">${regAsideHTML(selectedRole)}</aside>
     </div>
   `);
 }
@@ -2442,6 +2446,12 @@ window.KT = {
     uiTxMode = (val === "Kiralık" || val === "RENT") ? "RENT" : "SALE";
     render();
   },
+  onRegRoleChange() {
+    const sel = (document.getElementById("r-role") || {}).value || "buyer";
+    uiTxMode = (sel === "tenant" || sel === "landlord") ? "RENT" : "SALE";
+    const aside = document.getElementById("reg-aside");
+    if (aside) aside.innerHTML = regAsideHTML(sel);
+  },
   startByRole() {
     if (isSignedIn()) return this.goDashboard();
     setRoute("uye-ol");
@@ -2467,6 +2477,7 @@ window.KT = {
     document.getElementById("r-error").classList.remove("show");
     const name = document.getElementById("r-name").value.trim();
     const roleKey = document.getElementById("r-role").value;
+    uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
     const email = normalizeEmail(document.getElementById("r-email").value);
     const phone = document.getElementById("r-phone").value.trim();
     const city = document.getElementById("r-city").value;

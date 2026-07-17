@@ -328,6 +328,7 @@ function buildState(user) {
     abuseSignals: [],
     auditLogs: isAdmin ? all("audit_logs") : [],
     payments: myPayments,
+    entitlements: isAdmin ? all("entitlements") : (user ? all("entitlements").filter((e) => e.userId === user.id) : []),
     // Ana sayfa vitrin sayaclari (kisisel veri degil, sadece toplam adet)
     stats: { demands: demandsArr.length, offers: allOffers.length, matches: matches.length }
   };

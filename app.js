@@ -1457,6 +1457,7 @@ function dashboardLayout(role, content, activePath) {
     admin: [
       ["dashboard/admin", "Dashboard", "chart"],
       ["dashboard/admin/kullanicilar", "Kullanıcılar", "user"],
+      ["dashboard/admin/uyelikler", "Üyelikler", "card"],
       ["dashboard/admin/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/admin/ilanlar", "Satıcı İlanları", "home"],
       ["dashboard/admin/teklifler", "Teklifler", "card"],
@@ -1814,9 +1815,10 @@ function sellerPackages() {
 
 function renderAdmin(path) {
   let content = adminOverview();
-  if (path.includes("/kullanicilar")) content = adminTable("Kullanıcılar", state.users, ["name", "email", "role", "city", "status", "createdAt"]);
-  if (path.includes("/talepler")) content = adminTable("Alıcı Talepleri", state.demands, ["title", "city", "district", "status", "offerCount"]);
-  if (path.includes("/ilanlar")) content = adminTable("Satıcı İlanları", state.properties, ["title", "city", "district", "price", "status"]);
+  if (path.includes("/kullanicilar")) content = adminUsers();
+  if (path.includes("/uyelikler")) content = adminMemberships();
+  if (path.includes("/talepler")) content = adminDemands();
+  if (path.includes("/ilanlar")) content = adminProperties();
   if (path.includes("/teklifler")) content = adminTable("Teklifler", state.offers, ["id", "demandId", "propertyId", "price", "status", "matchScore"]);
   if (path.includes("/epostalar")) content = adminEmails();
   if (path.includes("/belgeler")) content = adminDocuments();
@@ -1879,6 +1881,140 @@ function formatCell(value, col) {
   if (col === "price" || col === "amount") return money(value);
   if (value == null) return "-";
   return escapeHtml(value);
+}
+
+// ---------- Admin: üyelik tipi + aktif üyelik yardımcıları ----------
+const PLAN_TYPE = {
+  "plan-buyer-free": "Alıcı", "plan-buyer-boost": "Alıcı", "plan-buyer-contact": "Alıcı",
+  "plan-tenant-free": "Kiracı",
+  "plan-landlord-contact": "Ev sahibi", "plan-landlord-boost": "Ev sahibi",
+  "plan-seller-boost": "Satıcı", "plan-seller-contact": "Satıcı",
+  "plan-pro": "Emlak danışmanı"
+};
+function userTip(u) {
+  if (!u) return "";
+  if (u.role === "ADMIN") return "Yönetici";
+  if (u.role === "AGENT") return "Emlak danışmanı";
+  if (u.role === "BUYER") {
+    const ds = (state.demands || []).filter((d) => d.buyerId === u.id);
+    const r = ds.some((d) => (d.transactionType || "SALE") === "RENT");
+    const s = ds.some((d) => (d.transactionType || "SALE") === "SALE");
+    return r && s ? "Alıcı + Kiracı" : r ? "Kiracı" : s ? "Alıcı" : "Alıcı / Kiracı";
+  }
+  if (u.role === "SELLER") {
+    const ps = (state.properties || []).filter((p) => p.sellerId === u.id);
+    const r = ps.some((p) => (p.transactionType || "SALE") === "RENT");
+    const s = ps.some((p) => (p.transactionType || "SALE") === "SALE");
+    return r && s ? "Satıcı + Ev sahibi" : r ? "Ev sahibi" : s ? "Satıcı" : "Satıcı / Ev sahibi";
+  }
+  return u.role || "";
+}
+function activeMembership(userId) {
+  const ents = (state.entitlements || []).filter((e) => e.userId === userId);
+  if (!ents.length) return null;
+  const e = ents.slice().sort((a, b) => String(b.activeFrom || "").localeCompare(String(a.activeFrom || "")))[0];
+  const plan = (state.plans || []).find((p) => p.id === e.planId);
+  return { planId: e.planId, name: plan ? plan.name : e.planId, activeFrom: e.activeFrom, activeTo: e.activeTo };
+}
+
+function adminUsers() {
+  const cities = [...new Set((state.users || []).map((u) => u.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+  return `
+    ${pageHead("Kullanıcılar", "Tüm üyeler. Ad/e-posta/telefon ile ara; tip ve şehre göre filtrele.")}
+    <div class="toolbar">
+      <input id="au-q" placeholder="Ara: ad, e-posta, telefon" oninput="KT.renderAdminUsers()" style="flex:1;min-width:200px">
+      <select id="au-tip" onchange="KT.renderAdminUsers()"><option value="">Tüm tipler</option><option>Alıcı</option><option>Kiracı</option><option>Satıcı</option><option>Ev sahibi</option><option>Emlak danışmanı</option><option>Yönetici</option></select>
+      <select id="au-city" onchange="KT.renderAdminUsers()"><option value="">Tüm şehirler</option>${cities.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
+    </div>
+    <div id="admin-users-box">${adminUsersTable(state.users || [])}</div>
+  `;
+}
+function adminUsersTable(list) {
+  const rows = list.map((u) => {
+    const m = activeMembership(u.id);
+    return `<tr>
+      <td>${escapeHtml(u.name || "")}</td>
+      <td>${escapeHtml(u.phone || "—")}</td>
+      <td>${escapeHtml(u.email || "—")}</td>
+      <td>${escapeHtml(u.city || "—")}</td>
+      <td><span class="badge badge-blue">${escapeHtml(userTip(u))}</span></td>
+      <td>${m ? `<span class="badge badge-gold">${escapeHtml(m.name)}</span>` : `<span class="muted">Ücretsiz</span>`}</td>
+      <td>${escapeHtml(u.createdAt || "")}</td>
+    </tr>`;
+  }).join("");
+  return `<p class="muted" style="margin:0 0 8px">${list.length} üye</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ad</th><th>Telefon</th><th>E-posta</th><th>Şehir</th><th>Tip</th><th>Aktif Üyelik</th><th>Kayıt</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7" class="muted">Kayıt yok</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function adminMemberships() {
+  return `
+    ${pageHead("Üyelikler", "Aktif üyelikler: üye, üyelik tipi, paket ve tarih. Ara/filtrele.")}
+    <div class="toolbar">
+      <input id="am-q" placeholder="Ara: ad, telefon, şehir" oninput="KT.renderAdminMemberships()" style="flex:1;min-width:200px">
+      <select id="am-tip" onchange="KT.renderAdminMemberships()"><option value="">Tüm tipler</option><option>Alıcı</option><option>Kiracı</option><option>Satıcı</option><option>Ev sahibi</option><option>Emlak danışmanı</option></select>
+    </div>
+    <div id="admin-memb-box">${adminMembTable(state.entitlements || [])}</div>
+  `;
+}
+function adminMembTable(ents) {
+  const rows = ents.map((e) => {
+    const u = (state.users || []).find((x) => x.id === e.userId) || {};
+    const plan = (state.plans || []).find((p) => p.id === e.planId);
+    const tip = PLAN_TYPE[e.planId] || userTip(u) || "—";
+    return { u, e, plan, tip };
+  }).sort((a, b) => String(b.e.activeFrom || "").localeCompare(String(a.e.activeFrom || "")));
+  const body = rows.map(({ u, e, plan, tip }) => `<tr>
+      <td>${escapeHtml(u.name || e.userId)}</td>
+      <td>${escapeHtml(u.phone || "—")}</td>
+      <td>${escapeHtml(u.city || "—")}</td>
+      <td><span class="badge badge-blue">${escapeHtml(tip)}</span></td>
+      <td>${escapeHtml(plan ? plan.name : e.planId)}</td>
+      <td>${escapeHtml(e.activeFrom || "")}</td>
+      <td>${escapeHtml(e.activeTo || "süresiz")}</td>
+    </tr>`).join("");
+  return `<p class="muted" style="margin:0 0 8px">${rows.length} üyelik</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Üye</th><th>Telefon</th><th>Şehir</th><th>Üyelik tipi</th><th>Paket</th><th>Başlangıç</th><th>Bitiş</th></tr></thead>
+      <tbody>${body || `<tr><td colspan="7" class="muted">Henüz üyelik yok</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function adminProperties() {
+  return `
+    ${pageHead("Satıcı İlanları", "Bir ilanın 'Oku' butonuna basıp tüm içeriğini (açıklama dahil) görebilirsin.")}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Başlık</th><th>Kategori</th><th>Şehir / İlçe</th><th>Fiyat</th><th>İşlem</th><th>Durum</th><th></th></tr></thead>
+      <tbody>${(state.properties || []).map((p) => `<tr>
+        <td>${escapeHtml(p.title || "")}</td>
+        <td>${escapeHtml([p.mainCategory, p.propertyType].filter(Boolean).join(" · "))}</td>
+        <td>${escapeHtml([p.city, p.district].filter(Boolean).join(" / "))}</td>
+        <td>${money(p.price)}</td>
+        <td>${p.transactionType === "RENT" ? "Kiralık" : "Satılık"}</td>
+        <td><span class="badge ${p.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${escapeHtml(p.status || "")}</span></td>
+        <td><button class="btn btn-small btn-primary" onclick="KT.adminItemDetail('property','${escapeAttr(p.id)}')">Oku</button></td>
+      </tr>`).join("") || `<tr><td colspan="7" class="muted">İlan yok</td></tr>`}</tbody>
+    </table></div>
+  `;
+}
+function adminDemands() {
+  return `
+    ${pageHead("Alıcı Talepleri", "Bir talebin 'Oku' butonuna basıp tüm içeriğini (açıklama dahil) görebilirsin.")}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Başlık</th><th>Kategori</th><th>Şehir / İlçe</th><th>Bütçe / Kira</th><th>İşlem</th><th>Durum</th><th></th></tr></thead>
+      <tbody>${(state.demands || []).map((d) => `<tr>
+        <td>${escapeHtml(d.title || "")}</td>
+        <td>${escapeHtml([d.mainCategory, d.propertyType].filter(Boolean).join(" · "))}</td>
+        <td>${escapeHtml([d.city, d.district].filter(Boolean).join(" / "))}</td>
+        <td>${money(d.minBudget)} - ${money(d.maxBudget)}</td>
+        <td>${d.transactionType === "RENT" ? "Kiralık" : "Satılık"}</td>
+        <td><span class="badge ${d.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${escapeHtml(d.status || "")}</span></td>
+        <td><button class="btn btn-small btn-primary" onclick="KT.adminItemDetail('demand','${escapeAttr(d.id)}')">Oku</button></td>
+      </tr>`).join("") || `<tr><td colspan="7" class="muted">Talep yok</td></tr>`}</tbody>
+    </table></div>
+  `;
 }
 
 function messagesPage(matchId, roleName) {
@@ -2531,6 +2667,76 @@ window.KT = {
   closeSearchDetail() {
     const ov = document.getElementById("kt-listing-overlay");
     if (ov) ov.remove();
+  },
+  // --- Admin: kullanıcı/üyelik filtreleri + ilan/talep okuma ---
+  renderAdminUsers() {
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const q = g("au-q").toLowerCase().trim(), tip = g("au-tip"), city = g("au-city");
+    let list = (state.users || []).slice();
+    if (q) list = list.filter((u) => ((u.name || "") + " " + (u.email || "") + " " + (u.phone || "")).toLowerCase().includes(q));
+    if (city) list = list.filter((u) => u.city === city);
+    if (tip) list = list.filter((u) => userTip(u).includes(tip));
+    const box = document.getElementById("admin-users-box");
+    if (box) box.innerHTML = adminUsersTable(list);
+  },
+  renderAdminMemberships() {
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const q = g("am-q").toLowerCase().trim(), tip = g("am-tip");
+    const ents = (state.entitlements || []).filter((e) => {
+      const u = (state.users || []).find((x) => x.id === e.userId) || {};
+      const t = PLAN_TYPE[e.planId] || userTip(u) || "";
+      if (tip && !t.includes(tip)) return false;
+      if (q && !(((u.name || "") + " " + (u.phone || "") + " " + (u.city || "")).toLowerCase().includes(q))) return false;
+      return true;
+    });
+    const box = document.getElementById("admin-memb-box");
+    if (box) box.innerHTML = adminMembTable(ents);
+  },
+  adminItemDetail(type, id) {
+    const it = type === "property" ? (state.properties || []).find((p) => p.id === id) : (state.demands || []).find((d) => d.id === id);
+    if (!it) return;
+    const rent = it.transactionType === "RENT";
+    const owner = type === "property" ? (state.users || []).find((u) => u.id === it.sellerId) : (state.users || []).find((u) => u.id === it.buyerId);
+    const hoods = parseFeatures(it.neighborhoods);
+    const loc = [it.city, it.district].concat(hoods.length ? hoods : (it.neighborhood ? [it.neighborhood] : [])).filter(Boolean).join(", ") || "Konum belirtilmedi";
+    const meta = [it.mainCategory, it.propertyType].filter(Boolean);
+    if (it.roomCount) meta.push(it.roomCount);
+    if (type === "property" && it.netSqm) meta.push(it.netSqm + " m²");
+    if (type === "property" && it.floor) meta.push("Kat " + it.floor);
+    if (it.buildingAge) meta.push("Bina " + it.buildingAge);
+    if (type === "property" && it.heatingType) meta.push(it.heatingType);
+    if (type === "property" && it.occupancyStatus) meta.push(it.occupancyStatus);
+    const feats = [...parseFeatures(it.interiorFeatures), ...parseFeatures(it.exteriorFeatures)].map(escapeHtml);
+    const priceLine = type === "property"
+      ? money(it.price) + (rent ? " / ay" : "")
+      : money(it.minBudget) + " – " + money(it.maxBudget) + (rent ? " / ay" : "");
+    const ownerLine = owner ? `${escapeHtml(owner.name || "—")} · ${escapeHtml(owner.phone || "—")} · ${escapeHtml(owner.email || "—")}` : "—";
+    const ownerLabel = type === "property" ? "İlan sahibi (satıcı)" : "Talep sahibi (alıcı)";
+    const old = document.getElementById("kt-admin-detail"); if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-admin-detail";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.onclick = (e) => { if (e.target === ov) KT.closeAdminDetail(); };
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:600px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(8,18,30,.35);padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <h3 style="margin:0;font-size:20px;color:#10243a">${escapeHtml(it.title || "")}</h3>
+          <span class="badge ${rent ? "badge-blue" : "badge-green"}">${rent ? "Kiralık" : "Satılık"}</span>
+        </div>
+        <p style="margin:6px 0;color:#5b6b7d;font-size:14px">${icon("map", 13)} ${escapeHtml(loc)}</p>
+        <p style="margin:8px 0;font-size:20px;font-weight:700;color:#e07b39">${priceLine}</p>
+        <div class="pill-row" style="margin:10px 0">${meta.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
+        ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
+        <div style="margin:12px 0;padding:12px;background:#f5f8fb;border-radius:10px">
+          <div style="font-size:12px;color:#7a8a99;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px">Açıklama</div>
+          <div style="font-size:14px;color:#26333f;line-height:1.6;white-space:pre-wrap">${escapeHtml(it.description || "—")}</div>
+        </div>
+        <div style="margin:12px 0;font-size:13.5px;color:#26333f;padding:10px;background:#fff7ed;border:1px solid #f4e2c8;border-radius:10px"><strong>${ownerLabel}:</strong> ${ownerLine}</div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline" onclick="KT.closeAdminDetail()">Kapat</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  closeAdminDetail() {
+    const ov = document.getElementById("kt-admin-detail"); if (ov) ov.remove();
   },
   async createDemand(event) {
     event.preventDefault();

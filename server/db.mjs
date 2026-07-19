@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS auth_accounts (
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, userId TEXT, createdAt TEXT
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+  tokenHash TEXT PRIMARY KEY, userId TEXT, expiresAt TEXT, usedAt TEXT, createdAt TEXT
+);
 CREATE TABLE IF NOT EXISTS buyer_profiles (
   userId TEXT PRIMARY KEY, verificationLevel TEXT, badge TEXT,
   budgetTrustScore INTEGER, profileCompletion INTEGER,

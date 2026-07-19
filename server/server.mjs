@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname, normalize } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 import {
   db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData, purgeUsersByIds, syncPlans
 } from "./db.mjs";
@@ -108,6 +108,36 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
   if (!u) return;
   db.prepare("INSERT INTO email_outbox (id,toUserId,toEmail,toName,subject,body,actionUrl,reason,status,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)")
     .run(uid("e"), userId, u.email, u.name, subject, body, actionUrl || "", reason || "", "MOCK_SENT", today());
+}
+
+// ---------- Gercek e-posta gonderimi ----------
+// RESEND_API_KEY tanimliysa Resend API'si ile gonderir; yoksa yalnizca outbox'a
+// (mock) yazar. Boylece saglayici gelene kadar akis kirilmadan calisir, saglayici
+// baglaninca tek ortam degiskeni ile gercek gonderime gecer.
+const APP_URL = () => (process.env.APP_URL || "https://konuttalebi.com").replace(/\/+$/, "");
+const MAIL_FROM = () => process.env.MAIL_FROM || "Konuttalebi <onboarding@resend.dev>";
+const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
+const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function deliverEmail(userId, toEmail, toName, subject, html, reason) {
+  const key = (process.env.RESEND_API_KEY || "").trim();
+  let status = "MOCK_SENT";
+  if (key && toEmail) {
+    try {
+      const resp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], subject, html })
+      });
+      status = resp.ok ? "SENT" : "FAILED";
+      if (!resp.ok) console.error("[mail] Resend hata:", resp.status, await resp.text().catch(() => ""));
+    } catch (e) { status = "FAILED"; console.error("[mail] gonderim hatasi:", e.message); }
+  }
+  try {
+    db.prepare("INSERT INTO email_outbox (id,toUserId,toEmail,toName,subject,body,actionUrl,reason,status,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(uid("e"), userId || "", toEmail || "", toName || "", subject, html, "", reason || "", status, today());
+  } catch { /* yoksay */ }
+  return status;
 }
 
 // ---------- Is mantigi (sunucu tarafi) ----------
@@ -398,6 +428,56 @@ async function handleApi(req, res, url) {
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, u.id, new Date().toISOString());
     return ok(res, { userId: u.id, role: u.role }, sessionCookie(token));
+  }
+
+  // --- sifre: sifirlama talebi (herkese acik) ---
+  if (seg[0] === "password" && seg[1] === "forgot" && method === "POST") {
+    if (!rateLimit(`pwforgot:${clientIp(req)}`, 5, 15 * 60 * 1000))
+      return err(res, 429, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.");
+    const email = norm(body.email);
+    // Guvenlik: e-posta kayitli olsun olmasin AYNI notr yanit doner (kullanici sayimini engeller).
+    const neutral = { message: "Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Gelen kutunu kontrol et." };
+    const acc = email.includes("@") ? db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(email) : null;
+    if (acc) {
+      const u = db.prepare("SELECT id,name,email,status FROM users WHERE id = ?").get(acc.userId);
+      if (u && u.status === "ACTIVE") {
+        db.prepare("DELETE FROM password_resets WHERE userId = ? AND usedAt IS NULL").run(u.id);
+        const rawToken = randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 saat gecerli
+        db.prepare("INSERT INTO password_resets (tokenHash,userId,expiresAt,usedAt,createdAt) VALUES (?,?,?,?,?)")
+          .run(sha256hex(rawToken), u.id, expiresAt, null, new Date().toISOString());
+        const link = `${APP_URL()}/#/sifre-sifirla?token=${rawToken}`;
+        const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#10243a">
+          <h2 style="margin:0 0 12px">Şifre sıfırlama</h2>
+          <p>Merhaba ${escapeHtmlSrv(u.name || "")},</p>
+          <p>Konuttalebi hesabının şifresini sıfırlamak için aşağıdaki butona tıkla. Bağlantı <b>1 saat</b> geçerlidir ve yalnızca bir kez kullanılabilir.</p>
+          <p style="margin:22px 0"><a href="${link}" style="display:inline-block;background:#c8a24b;color:#10243a;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Şifremi sıfırla</a></p>
+          <p style="color:#5a6b7c;font-size:13px">Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:<br>${link}</p>
+          <p style="color:#5a6b7c;font-size:13px">Bu talebi sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.</p>
+        </div>`;
+        addAudit(u.id, "PASSWORD_RESET_REQUESTED", "User", u.id, "Şifre sıfırlama talebi");
+        await deliverEmail(u.id, u.email, u.name, "Konuttalebi — şifre sıfırlama", html, "Şifre sıfırlama");
+      }
+    }
+    return ok(res, neutral);
+  }
+
+  // --- sifre: yeni sifre belirleme (token ile, herkese acik) ---
+  if (seg[0] === "password" && seg[1] === "reset" && method === "POST") {
+    if (!rateLimit(`pwreset:${clientIp(req)}`, 10, 15 * 60 * 1000))
+      return err(res, 429, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.");
+    const rawToken = (body.token || "").trim();
+    const password = body.password || "";
+    if (!rawToken) return err(res, 400, "Geçersiz bağlantı.");
+    if (password.length < 6) return err(res, 400, "Şifre en az 6 karakter olmalı.");
+    const row = db.prepare("SELECT * FROM password_resets WHERE tokenHash = ?").get(sha256hex(rawToken));
+    if (!row || row.usedAt || new Date(row.expiresAt).getTime() < Date.now())
+      return err(res, 400, "Bağlantı geçersiz veya süresi dolmuş. Lütfen yeniden şifre sıfırlama isteyin.");
+    db.prepare("UPDATE auth_accounts SET passwordHash = ? WHERE userId = ?").run(hashPassword(password), row.userId);
+    db.prepare("UPDATE password_resets SET usedAt = ? WHERE tokenHash = ?").run(new Date().toISOString(), row.tokenHash);
+    db.prepare("DELETE FROM sessions WHERE userId = ?").run(row.userId); // guvenlik: tum oturumlari kapat
+    addAudit(row.userId, "PASSWORD_RESET_DONE", "User", row.userId, "Şifre sıfırlandı");
+    return ok(res, { message: "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin." });
   }
 
   // --- cikis ---

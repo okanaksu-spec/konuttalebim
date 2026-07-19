@@ -676,6 +676,16 @@ function header() {
   `;
 }
 
+// Sosyal medya ikonlari (footer'da her sayfada). Linkler kullanici verince guncellenir; simdilik "#".
+const SOCIAL = [
+  ["YouTube", "#", '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.11-2.12C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.39.53A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.12C4.5 20.45 12 20.45 12 20.45s7.5 0 9.39-.53A3 3 0 0 0 23.5 17.8 31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8zM9.6 15.6V8.4l6.25 3.6z"/></svg>'],
+  ["X", "#", '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 1.5h3.68l-8.04 9.19L24 22.5h-7.41l-5.8-7.58-6.64 7.58H.46l8.6-9.83L0 1.5h7.6l5.24 6.93zm-1.29 18.8h2.04L6.48 3.6H4.29z"/></svg>'],
+  ["Instagram", "#", '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="17.6" cy="6.4" r="1.3" fill="currentColor" stroke="none"/></svg>']
+];
+function socialLinks() {
+  return `<div class="social-links" style="display:inline-flex;gap:14px;align-items:center">${SOCIAL.map(([n, u, s]) => `<a href="${u}" aria-label="${n}" title="${n}" rel="noopener" style="color:inherit;opacity:.82;display:inline-flex">${s}</a>`).join("")}</div>`;
+}
+
 function footer() {
   return `
     <footer class="footer">
@@ -701,7 +711,7 @@ function footer() {
           <a href="/evine-kiraci-bul">Evine kiracı bul</a>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(255,255,255,.12);margin-top:22px;padding-top:16px;text-align:center;color:#8ba3b8;font-size:13px">${copyrightText()}</div>
+      <div style="border-top:1px solid rgba(255,255,255,.12);margin-top:22px;padding-top:16px;color:#8ba3b8;font-size:13px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>${copyrightText()}</span>${socialLinks()}</div>
     </footer>
   `;
 }
@@ -711,7 +721,7 @@ function copyrightText() {
   return `© ${new Date().getFullYear()} Konuttalebi — ${COMPANY.unvan}. Tüm hakları saklıdır.`;
 }
 function copyrightBar() {
-  return `<div class="copyright-bar">${copyrightText()}</div>`;
+  return `<div class="copyright-bar" style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between"><span>${copyrightText()}</span>${socialLinks()}</div>`;
 }
 
 function homePage() {

@@ -868,7 +868,7 @@ function homePage() {
           <div class="section-title">
             <div class="kicker">Rolünü seç</div>
             <h2>Ev al, evini sat, ev kirala veya evini kiraya ver — Konuttalebi sana göre çalışır.</h2>
-            <p class="lead">Dört akıştan sana uygun olanı seç: talebini oluştur, sistem seni eşleştirsin; üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanları için profesyonel paket de var.</p>
+            <p class="lead">Sana uygun akışı seç: talebini oluştur, sistem seni eşleştirsin; üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanıysan profesyonel paketle tüm portföyünü yönet.</p>
           </div>
         </div>
         <div class="grid grid-2 role-areas">
@@ -900,8 +900,14 @@ function homePage() {
             <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Doğrudan kiracıyla iletişim</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — talebini ver</button>
           </article>
+          <article class="card role-area" style="grid-column:1/-1">
+            <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>
+            <h3>Emlak Danışmanı</h3>
+            <p>Satılık ve kiralık çoklu portföyünü tek panelden yönet; uygun alıcı ve kiracı taleplerine profesyonel paketle doğrudan ulaş. Bireysel akışların tüm avantajları, danışman ölçeğinde.</p>
+            <ul class="role-points"><li>Satılık + kiralık çoklu portföy</li><li>Tüm iletişim bilgilerini gör</li><li>Aylık öne çıkarma hakları</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Profesyonel paketle üye ol</button>
+          </article>
         </div>
-        <p class="lead" style="text-align:center;margin-top:20px">Emlak danışmanı mısın? <button class="btn btn-outline" onclick="KT.startRegistration('agent')">${icon("chart", 15)} Profesyonel paketle üye ol</button></p>
       </div>
     </section>
     <section class="band band-white">

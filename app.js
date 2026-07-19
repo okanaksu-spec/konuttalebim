@@ -1119,6 +1119,7 @@ function authLoginPage() {
           <button class="btn btn-primary" type="submit">${icon("lock", 16)} Giriş yap</button>
           <a class="btn btn-outline" href="#/uye-ol">Üye ol</a>
         </div>
+        <p class="muted" style="margin-top:12px;font-size:13px"><a href="#/sifremi-unuttum">Şifreni mi unuttun?</a></p>
       </form>
       <aside class="auth-side">
         <span class="badge badge-gold">${icon("lock", 13)} Güvenli giriş</span>
@@ -1133,9 +1134,66 @@ function authLoginPage() {
   `);
 }
 
+function forgotPasswordPage() {
+  return publicShell("Şifreni sıfırla", "E-posta adresini gir; sana bir sıfırlama bağlantısı gönderelim.", `
+    <div class="auth-layout auth-layout-narrow">
+      <form class="panel auth-panel" onsubmit="KT.requestPasswordReset(event)">
+        <div class="form-grid">
+          ${field("E-posta", "fp-email", "email", "adiniz@eposta.com")}
+        </div>
+        <div id="fp-error" class="error"></div>
+        <div id="fp-ok" class="notice" style="display:none;margin:6px 0 12px">Eğer bu e-posta kayıtlıysa, sıfırlama bağlantısı gönderildi. Gelen kutunu (ve spam) kontrol et.</div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">${icon("mail", 16)} Sıfırlama bağlantısı gönder</button>
+          <a class="btn btn-outline" href="#/giris">Girişe dön</a>
+        </div>
+      </form>
+      <aside class="auth-side">
+        <span class="badge badge-gold">${icon("lock", 13)} Güvenli sıfırlama</span>
+        <h3>Şifreni mi unuttun?</h3>
+        <p>E-postana tek kullanımlık, <strong>1 saat</strong> geçerli bir bağlantı gönderiyoruz. Bağlantıdan yeni şifreni belirleyebilirsin. Güvenlik için e-postanın kayıtlı olup olmadığını açık etmeyiz.</p>
+      </aside>
+    </div>
+  `);
+}
+
+function resetPasswordPage() {
+  const token = new URLSearchParams((location.hash.split("?")[1] || "")).get("token") || "";
+  const hasToken = token.length > 10;
+  return publicShell("Yeni şifre belirle", "Hesabın için yeni bir şifre oluştur.", `
+    <div class="auth-layout auth-layout-narrow">
+      <form class="panel auth-panel" onsubmit="KT.submitPasswordReset(event)">
+        ${hasToken ? "" : `<div class="error show" style="margin-bottom:12px">Bağlantı geçersiz görünüyor. Lütfen <a href="#/sifremi-unuttum">yeniden şifre sıfırlama isteyin</a>.</div>`}
+        <input type="hidden" id="rp-token" value="${escapeAttr(token)}">
+        <div class="form-grid">
+          ${field("Yeni şifre", "rp-password", "password", "En az 6 karakter")}
+          ${field("Yeni şifre tekrar", "rp-password2", "password", "Şifreni tekrar yaz")}
+        </div>
+        <div id="rp-error" class="error"></div>
+        <div id="rp-ok" class="notice" style="display:none;margin:6px 0 12px">Şifren güncellendi. Giriş sayfasına yönlendiriliyorsun…</div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit"${hasToken ? "" : " disabled"}>${icon("check", 16)} Şifreyi güncelle</button>
+          <a class="btn btn-outline" href="#/giris">Girişe dön</a>
+        </div>
+      </form>
+      <aside class="auth-side">
+        <span class="badge badge-gold">${icon("lock", 13)} Güvenli</span>
+        <h3>Neredeyse tamam.</h3>
+        <p>Yeni şifreni belirledikten sonra güvenlik için tüm cihazlardaki oturumların kapanır; yeni şifrenle tekrar giriş yaparsın.</p>
+      </aside>
+    </div>
+  `);
+}
+
 function publicPage(kind) {
   if (kind === "giris") {
     return authLoginPage();
+  }
+  if (kind === "sifremi-unuttum") {
+    return forgotPasswordPage();
+  }
+  if (kind === "sifre-sifirla" || kind.startsWith("sifre-sifirla")) {
+    return resetPasswordPage();
   }
   if (kind === "uye-ol" || kind.startsWith("uye-ol/")) {
     return authRegisterPage(kind.split("/")[1] || "buyer");
@@ -2487,6 +2545,36 @@ window.KT = {
     if (!nav) return;
     const open = nav.classList.toggle("open");
     if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+  },
+  async requestPasswordReset(event) {
+    event.preventDefault();
+    const btn = event.submitter;
+    const email = (document.getElementById("fp-email").value || "").trim();
+    document.getElementById("fp-error").classList.remove("show");
+    if (!email.includes("@")) return showFormError("fp-error", "Geçerli bir e-posta gir.");
+    if (btn) btn.disabled = true;
+    const r = await api("/password/forgot", "POST", { email });
+    if (btn) btn.disabled = false;
+    if (!r.ok) return showFormError("fp-error", (r.data && r.data.error) || "İşlem başarısız. Tekrar dene.");
+    const okEl = document.getElementById("fp-ok");
+    if (r.data && r.data.message) okEl.textContent = r.data.message;
+    okEl.style.display = "block";
+  },
+  async submitPasswordReset(event) {
+    event.preventDefault();
+    const btn = event.submitter;
+    const token = (document.getElementById("rp-token").value || "").trim();
+    const p1 = document.getElementById("rp-password").value || "";
+    const p2 = document.getElementById("rp-password2").value || "";
+    document.getElementById("rp-error").classList.remove("show");
+    if (p1.length < 6 || p1 !== p2) return showFormError("rp-error", "Şifre en az 6 karakter olmalı ve iki alan eşleşmeli.");
+    if (btn) btn.disabled = true;
+    const r = await api("/password/reset", "POST", { token, password: p1 });
+    if (btn) btn.disabled = false;
+    if (!r.ok) return showFormError("rp-error", (r.data && r.data.error) || "İşlem başarısız.");
+    document.getElementById("rp-ok").style.display = "block";
+    toast("Şifren güncellendi. Giriş yapabilirsin.");
+    setTimeout(() => setRoute("giris"), 1400);
   },
   goDashboard(path) {
     if (path) return setRoute(path);

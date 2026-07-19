@@ -735,8 +735,8 @@ function homePage() {
       <div class="hero-inner">
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
-          <h1>Sen ne aradığını söyle, doğru ilan sahibiyle doğrudan buluş.</h1>
-          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun ilanın sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
+          <h1>Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
+          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun mülk sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
           <div class="hero-actions">
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
             <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
@@ -779,9 +779,9 @@ function homePage() {
       <div class="container">
         <div class="section-head">
           <div class="section-title">
-            <div class="kicker">Yayındaki ilanlar</div>
-            <h2>Gerçek ilanlar arasında gez, hemen ara.</h2>
-            <p class="lead">İl, ilçe, mahalle ve kategoriye göre yayındaki gerçek ilanları keşfet — üye olmadan da gezebilirsin. İletişim bilgisi yalnızca üyelikle açılır.</p>
+            <div class="kicker">Yayındaki konutlar</div>
+            <h2>Gerçek konutlar arasında gez, hemen ara.</h2>
+            <p class="lead">İl, ilçe, mahalle ve kategoriye göre yayındaki gerçek konutları keşfet — üye olmadan da gezebilirsin. İletişim bilgisi yalnızca üyelikle açılır.</p>
           </div>
         </div>
         <div class="search-filterbar" style="margin-top:6px">
@@ -790,14 +790,14 @@ function homePage() {
           <select id="home-city"><option value="">Tüm iller</option>${TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("")}</select>
           <button class="btn btn-primary" onclick="KT.homeSearch()">${icon("search", 16)} Ara</button>
         </div>
-        <div id="home-listings" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>İlanlar yükleniyor…</b><span class="muted">Yayındaki ilanlar birazdan görünecek.</span></div></div>
-        <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/ilanlar">${icon("search", 15)} Tüm ilanları gör</a></div>
+        <div id="home-listings" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>Konutlar yükleniyor…</b><span class="muted">Yayındaki konutlar birazdan görünecek.</span></div></div>
+        <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/ilanlar">${icon("search", 15)} Tüm konutları gör</a></div>
       </div>
     </section>
     <section class="trust-strip">
       <div class="container trust-grid">
         <div class="trust-item">${icon("card", 19)}<div><strong>Bütçe beyanı</strong><span>Alıcı sadece bütçe aralığını ve alım niyetini beyan eder.</span></div></div>
-        <div class="trust-item">${icon("lock", 19)}<div><strong>İletişim bilgisi</strong><span>İlan sahibinin telefon ve e-postası üyelikle açılır; gerisini doğrudan siz konuşursunuz.</span></div></div>
+        <div class="trust-item">${icon("lock", 19)}<div><strong>İletişim bilgisi</strong><span>Mülk sahibinin telefon ve e-postası üyelikle açılır; gerisini doğrudan siz konuşursunuz.</span></div></div>
         <div class="trust-item">${icon("chart", 19)}<div><strong>Uyum puanı</strong><span>Bölge, bütçe, oda ve kredi uygunluğu birlikte puanlanır.</span></div></div>
       </div>
     </section>
@@ -805,8 +805,8 @@ function homePage() {
       <div class="container color-showcase-grid">
         <div class="color-copy">
           <div class="kicker">Canlı talep piyasası</div>
-          <h2>Aradığını açıkça söyle; sana uygun ilanın sahibinin iletişim bilgisine ulaş, gerisini doğrudan konuş.</h2>
-          <p>Konuttalebi'de belge istenmez. Bütçe/kira aralığını ve tercihlerini beyan edersin; sistem seni uygun ilanlarla eşleştirir. Üyelikle ilan sahibinin iletişim bilgisine ulaşır, fiyata ve pazarlığa karışmadan doğrudan anlaşırsın.</p>
+          <h2>Aradığını açıkça söyle; sana uygun mülk sahibinin iletişim bilgisine ulaş, gerisini doğrudan konuş.</h2>
+          <p>Konuttalebi'de belge istenmez. Bütçe/kira aralığını ve tercihlerini beyan edersin; sistem seni uygun konutlarla eşleştirir. Üyelikle mülk sahibinin iletişim bilgisine ulaşır, fiyata ve pazarlığa karışmadan doğrudan anlaşırsın.</p>
           <div class="color-chip-row">
             <span class="color-chip chip-coral">Talep beyanı</span>
             <span class="color-chip chip-teal">Talebe özel eşleşme</span>
@@ -820,7 +820,7 @@ function homePage() {
           </div>
           <div class="visual-card visual-card-sm">
             <div class="visual-photo residence"></div>
-            <span>Ataşehir rezidans ilanı</span>
+            <span>Ataşehir rezidans</span>
           </div>
           <div class="visual-card visual-card-sm visual-card-alt">
             <div class="visual-photo villa"></div>
@@ -834,8 +834,8 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Ürün akışı</div>
-            <h2>Talebini oluştur, eşleş, ilan sahibiyle doğrudan iletişime geç.</h2>
-            <p class="lead">Karşı taraf senin kimliğini veya özel bilgini değil, talep/ilan özetini ve güven rozetlerini görür. İletişim bilgisi üyelikle açılır; ödemeye, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız. <em style="opacity:.75">(Aşağıdaki kartlar temsili örnektir.)</em></p>
+            <h2>Talebini oluştur, eşleş, mülk sahibiyle doğrudan iletişime geç.</h2>
+            <p class="lead">Karşı taraf senin kimliğini veya özel bilgini değil, talep özetini ve güven rozetlerini görür. İletişim bilgisi üyelikle açılır; ödemeye, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız. <em style="opacity:.75">(Aşağıdaki kartlar temsili örnektir.)</em></p>
           </div>
         </div>
         <div class="product-strip">
@@ -849,15 +849,15 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Neden farklı?</div>
-            <h2>Klasik ilan aramasının tersine çevrilmiş hali.</h2>
+            <h2>Klasik ev aramasının tersine çevrilmiş hali.</h2>
           </div>
         </div>
         <div class="grid grid-3">
-          ${featureCard("key", "Aradığın netleşir", "Bölge, bütçe ve ihtiyacını beyan et; sistem seni en uygun ilan ve taleplerle eşleştirir.")}
+          ${featureCard("key", "Aradığın netleşir", "Bölge, bütçe ve ihtiyacını beyan et; sistem seni en uygun konut ve taleplerle eşleştirir.")}
           ${featureCard("card", "Belge değil, beyan", "Belge yüklemezsin; bütçe/kira aralığı, peşinat ve zaman tercihini beyan edersin.")}
-          ${featureCard("lock", "İletişim üyelikle açılır", "İlan sahibinin telefon ve e-postası yalnızca bilgileri görme üyeliğiyle açılır; sonra doğrudan iletişime geçersin.")}
+          ${featureCard("lock", "İletişim üyelikle açılır", "Mülk sahibinin telefon ve e-postası yalnızca bilgileri görme üyeliğiyle açılır; sonra doğrudan iletişime geçersin.")}
           ${featureCard("chart", "Talebe göre eşleşme", "Bölge, bütçe, oda, m2, konut tipi ve kredi uygunluğu puanlanır.")}
-          ${featureCard("alert", "Kötüye kullanım izlenir", "Sahte, tekrarlı veya taciz amaçlı talep ve ilanlar risk paneline düşer.")}
+          ${featureCard("alert", "Kötüye kullanım izlenir", "Sahte, tekrarlı veya taciz amaçlı talep ve içerikler risk paneline düşer.")}
           ${featureCard("card", "Aracı yok, komisyon yok", "Tek işimiz doğru tarafları buluşturmak; fiyata, pazarlığa veya sözleşmeye karışmayız.")}
         </div>
       </div>
@@ -875,14 +875,14 @@ function homePage() {
           <article class="card role-area">
             <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
             <h3>Ev Al</h3>
-            <p>Satın almak istediğin evi tarif et, talebini oluştur; sana uygun ilanların sahibine üyelikle ulaş, doğrudan görüş. Belge istenmez, sadece bütçe beyanı.</p>
-            <ul class="role-points"><li>Bütçe aralığı ve peşinat beyanı</li><li>Bölge, oda ve tipe göre eşleşme</li><li>İlan sahibiyle doğrudan iletişim</li></ul>
+            <p>Satın almak istediğin evi tarif et, talebini oluştur; sana uygun mülk sahibine üyelikle ulaş, doğrudan görüş. Belge istenmez, sadece bütçe beyanı.</p>
+            <ul class="role-points"><li>Bütçe aralığı ve peşinat beyanı</li><li>Bölge, oda ve tipe göre eşleşme</li><li>Mülk sahibiyle doğrudan iletişim</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer','SALE')">${icon("key", 16)} Ev Al — talep oluştur</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
             <h3>Ev Kirala</h3>
-            <p>Kiralamak istediğin evi tarif et; sana uygun kiralık ilanların sahibine üyelikle ulaş, doğrudan anlaş. Aylık kira ve depozito aralığını beyan et.</p>
+            <p>Kiralamak istediğin evi tarif et; sana uygun ev sahibine üyelikle ulaş, doğrudan anlaş. Aylık kira ve depozito aralığını beyan et.</p>
             <ul class="role-points"><li>Aylık kira aralığı ve eşyalı tercihi</li><li>Bölgeye göre kiralık eşleşme</li><li>Doğrudan ev sahibiyle iletişim</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer','RENT')">${icon("key", 16)} Ev Kirala — talep oluştur</button>
           </article>
@@ -890,7 +890,7 @@ function homePage() {
             <span class="role-ic role-ic-teal">${icon("home", 26)}</span>
             <h3>Evini Sat</h3>
             <p>Satılık evine uygun alıcı taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. Tam adres alıcıya gösterilmez.</p>
-            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>İlan görseli yükle</li></ul>
+            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>Ev görseli yükle</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — talebini ver</button>
           </article>
           <article class="card role-area">
@@ -1024,7 +1024,7 @@ function registerFlowInfo(sel) {
     "Üyelikle talep sahibinin iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
   ]};
   if (sel === "landlord") return { label: "Ev sahibi", steps: [
-    "İlanını ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
+    "Evini ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
     "Kiralık ev arayan kiracıların taleplerini gör.",
     "Üyelikle kiracının iletişim bilgisine ulaş; kirayı ve şartları doğrudan siz belirlersiniz."
   ]};
@@ -1035,13 +1035,13 @@ function registerFlowInfo(sel) {
   ]};
   if (sel === "tenant") return { label: "Kiracı", steps: [
     "Kiralık talebini oluştur; bölge, aylık kira aralığı, oda ve eşyalı tercihini belirt.",
-    "Sana uygun kiralık ilanlar eşleşme puanına göre öne çıkar.",
-    "Üyelikle ilan sahibinin iletişim bilgisine ulaş; doğrudan ev sahibiyle anlaşırsın."
+    "Sana uygun kiralık konutlar eşleşme puanına göre öne çıkar.",
+    "Üyelikle mülk sahibinin iletişim bilgisine ulaş; doğrudan ev sahibiyle anlaşırsın."
   ]};
   return { label: "Alıcı", steps: [
     "Talebini oluştur; bölge, bütçe aralığı, oda ve tercihlerini belirt (belge istenmez).",
-    "Sana uygun satılık ilanlar eşleşme puanına göre öne çıkar.",
-    "Üyelikle ilan sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
+    "Sana uygun satılık konutlar eşleşme puanına göre öne çıkar.",
+    "Üyelikle mülk sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
   ]};
 }
 function regAsideHTML(sel) {
@@ -1124,9 +1124,9 @@ function authLoginPage() {
       <aside class="auth-side">
         <span class="badge badge-gold">${icon("lock", 13)} Güvenli giriş</span>
         <h3>Tekrar hoş geldin.</h3>
-        <p>Üyeliğinle paneline dön; talep, ilan ve eşleşmelerini tek yerden yönet. İletişim bilgilerin her zaman korunur.</p>
+        <p>Üyeliğinle paneline dön; talep, teklif ve eşleşmelerini tek yerden yönet. İletişim bilgilerin her zaman korunur.</p>
         <div class="auth-benefits">
-          <span>${icon("key", 16)} Talep ve ilan yönetimi</span>
+          <span>${icon("key", 16)} Talep ve teklif yönetimi</span>
           <span>${icon("lock", 16)} Doğrudan iletişim</span>
         </div>
       </aside>
@@ -1202,20 +1202,20 @@ function publicPage(kind) {
     return packageOfferPage();
   }
   if (kind === "nasil-calisir") {
-    return publicShell("Nasıl Çalışır", "Talep ve ilan eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
+    return publicShell("Nasıl Çalışır", "Talep ve teklif eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
       ${howSteps()}
       <div class="grid grid-2" style="margin-top:18px">
-        <article class="card"><h3>Alıcı / kiracı akışı</h3><p>Hesap oluştur, aradığın evi tarif et, bütçeni beyan et; sana uygun ilanlarla eşleş, üyelikle ilan sahibinin iletişim bilgisine ulaş, doğrudan görüş.</p></article>
+        <article class="card"><h3>Alıcı / kiracı akışı</h3><p>Hesap oluştur, aradığın evi tarif et, bütçeni beyan et; sana uygun konutlarla eşleş, üyelikle mülk sahibinin iletişim bilgisine ulaş, doğrudan görüş.</p></article>
         <article class="card"><h3>Satıcı / ev sahibi akışı</h3><p>Evini ekle, sana uygun alıcı ve kiracı taleplerini gör; üyelikle karşı tarafın iletişim bilgisine ulaş, doğrudan görüşüp anlaş.</p></article>
       </div>
     `);
   }
   if (kind === "alici") {
-    return publicShell("Alıcılar için", "Yüzlerce ilan arasında kaybolmadan aradığın evi tarif et.", `
+    return publicShell("Alıcılar için", "Yüzlerce konut arasında kaybolmadan aradığın evi tarif et.", `
       <div class="grid grid-3">
         ${featureCard("key", "Talebini aç", "Bölge, bütçe ve özelliklerini tek kartta toparla.")}
         ${featureCard("card", "Bütçeni beyan et", "Belge yüklemeden bütçe aralığını, peşinatını ve alım zamanını belirt.")}
-        ${featureCard("chat", "Doğrudan ulaş", "Üyelikle ilan sahibinin telefon ve e-postasına eriş, doğrudan görüş.")}
+        ${featureCard("chat", "Doğrudan ulaş", "Üyelikle mülk sahibinin telefon ve e-postasına eriş, doğrudan görüş.")}
       </div>
       <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('buyer')">Alıcı olarak üye ol</button></div>
     `);
@@ -2781,7 +2781,7 @@ window.KT = {
     _searchItems = items;
     box.innerHTML = items.length
       ? items.map(listingCard).join("")
-      : `<div class="empty" style="grid-column:1/-1"><b>Henüz ilan yok</b><span class="muted">İlk ilanlar eklendiğinde burada görünür.</span></div>`;
+      : `<div class="empty" style="grid-column:1/-1"><b>Henüz konut yok</b><span class="muted">İlk konutlar eklendiğinde burada görünür.</span></div>`;
   },
   searchDetail(id) {
     const p = _searchItems.find((x) => x.id === id);
@@ -2815,7 +2815,7 @@ window.KT = {
           <div class="pill-row" style="margin:10px 0">${meta.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
           ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
           <p style="margin:12px 0;color:#26333f;font-size:14px;line-height:1.6">${escapeHtml(p.description || "")}</p>
-          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} İletişim gizli.</strong> İlan sahibinin telefon/e-postası yalnızca eşleşme sonrası üyelikle açılır. Tam adres gösterilmez.</div>
+          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} İletişim gizli.</strong> Mülk sahibinin telefon/e-postası yalnızca eşleşme sonrası üyelikle açılır. Tam adres gösterilmez.</div>
           <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="KT.closeSearchDetail()">Kapat</button>${cta}</div>
         </div>
       </div>`;

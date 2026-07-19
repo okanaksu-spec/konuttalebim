@@ -2950,6 +2950,8 @@ window.KT = {
     payload.imageData = await readImageInput("d-image");
     const r = await api("/demands", "POST", payload);
     if (!r.ok) return showFormError("d-error", r.data.error || "Talep oluşturulamadı.");
+    // Google Ads — "Talep oluşturma" dönüşümü (reklamdan gelen talep oluşturmayı ölçer)
+    if (window.gtag) { try { gtag("event", "conversion", { send_to: "AW-18335656859/IuOECKTCnNMcEJvXj6dE" }); } catch (e) { /* yoksay */ } }
     toast(`Talebin yayına alındı. Uygun ${rent ? "ev sahiplerine" : "satıcılara"} bildirim hazırlandı.`);
     setRoute("dashboard/alici/taleplerim");
   },

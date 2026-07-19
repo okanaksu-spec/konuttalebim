@@ -868,7 +868,7 @@ function homePage() {
           <div class="section-title">
             <div class="kicker">Rolünü seç</div>
             <h2>Ev al, evini sat, ev kirala veya evini kiraya ver — Konuttalebi sana göre çalışır.</h2>
-            <p class="lead">Dört akıştan sana uygun olanı seç: talebini oluştur ya da ilanını ver, sistem seni eşleştirsin; üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanları için profesyonel paket de var.</p>
+            <p class="lead">Dört akıştan sana uygun olanı seç: talebini oluştur, sistem seni eşleştirsin; üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanları için profesyonel paket de var.</p>
           </div>
         </div>
         <div class="grid grid-2 role-areas">
@@ -891,14 +891,14 @@ function homePage() {
             <h3>Evini Sat</h3>
             <p>Satılık evine uygun alıcı taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. Tam adres alıcıya gösterilmez.</p>
             <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>İlan görseli yükle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — ilanını ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — talebini ver</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-gold">${icon("home", 26)}</span>
             <h3>Evini Kirala</h3>
             <p>Kiraya vereceğin eve uygun kiracı taleplerini gör; uygun kiracının iletişim bilgisine üyelikle ulaş, doğrudan anlaş. Fiyata biz karışmayız.</p>
             <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Doğrudan kiracıyla iletişim</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — ilanını ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — talebini ver</button>
           </article>
         </div>
         <p class="lead" style="text-align:center;margin-top:20px">Emlak danışmanı mısın? <button class="btn btn-outline" onclick="KT.startRegistration('agent')">${icon("chart", 15)} Profesyonel paketle üye ol</button></p>
@@ -1306,14 +1306,14 @@ function packageOfferPage() {
     ${cards}
     <div style="margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-outline" onclick="KT.skipPackages()">${icon("key", 16)} Paketsiz ücretsiz devam et</button>
-      <span class="muted">Paket almadan da talep/ilan oluşturabilir ve eşleşebilirsin.</span>
+      <span class="muted">Paket almadan da talep oluşturabilir ve eşleşebilirsin.</span>
     </div>
   `);
 }
 
 function faq() {
   const rows = [
-    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu, satıcı ve ev sahiplerinin ilan verdiği çift yönlü bir emlak platformudur. Talebine/ilanına uygun taraflar sana teklif gönderir; beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın iletişim bilgisine ulaşır, doğrudan kendi aranızda anlaşırsınız. Platform içi mesajlaşma yoktur; fiyata ve pazarlığa karışmayız."],
+    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu, satıcı ve ev sahiplerinin talep verdiği çift yönlü bir emlak platformudur. Talebine/ilanına uygun taraflar sana teklif gönderir; beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın iletişim bilgisine ulaşır, doğrudan kendi aranızda anlaşırsınız. Platform içi mesajlaşma yoktur; fiyata ve pazarlığa karışmayız."],
     ["Belge yüklemem gerekiyor mu?", "Hayır. Yalnızca bütçe/kira aralığını, peşinatını ve zaman tercihini beyan edersin."],
     ["Telefonum ne zaman görünür?", "Karşı taraf, senin talebin/ilanın için bilgileri görme üyeliğini aldığında iletişim bilgin görünür. Bu bilgi yalnızca eşleşme kapsamında ve açık rızanla paylaşılır."],
     ["Emlak danışmanları kullanabilir mi?", "Evet, ancak daha sıkı rate limit ve kalite skoruna tabidir."],

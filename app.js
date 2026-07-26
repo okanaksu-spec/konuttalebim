@@ -3396,6 +3396,8 @@ async function navigate() {
 }
 window.addEventListener("hashchange", navigate);
 window.addEventListener("DOMContentLoaded", async () => {
+  // Reklam kaynagini ilk aciliste sakla (kullanici site icinde dolasirken kaybolmasin).
+  captureAttribution();
   await refreshState();
   if (!location.hash) location.hash = "/home";
   render();

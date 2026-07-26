@@ -214,12 +214,13 @@ let _searchItems = [];
 // olusturulunca etiketi asagidaki haritaya yazmak yeterli; kod degismez.
 // Etiketi olmayan olaylar yine de gtag olayi olarak gonderilir (GA4/ileride kullanilir).
 const ADS_ID = "AW-18335656859";
-const CONVERSION_LABELS = {
-  talep_olustur: "IuOECKTCnNMcEJvXj6dE", // canli: "Talep oluşturma"
-  kayit_tamamla: "",                      // Ads'te olusturulunca etiketi buraya
-  ilan_ekle: "",
-  teklif_gonder: "",
-  odeme: "",
+// label: Ads dönüşüm etiketi · value/currency: Ads'te tanimli varsayilan deger
+const CONVERSIONS = {
+  talep_olustur: { label: "IuOECKTCnNMcEJvXj6dE" },                            // Talep oluşturma
+  kayit_tamamla: { label: "3tnDCObH7tYcEJvXj6dE", value: 1.0, currency: "TRY" }, // Kayıt tamamlama
+  ilan_ekle: { label: "vR85COnH7tYcEJvXj6dE", value: 1.0, currency: "TRY" },     // İlan (ev) ekleme
+  teklif_gonder: { label: "8xOrCPSGg9ccEJvXj6dE", value: 1.0, currency: "TRY" }, // Teklif gönderme
+  odeme: { label: "-cS3CPeGg9ccEJvXj6dE", currency: "TRY" },                     // Ödeme (deger islemden gelir)
 };
 // Reklam kaynagi: ilk gelisteki gclid/utm parametrelerini sakla (30 gun).
 const ATTR_KEY = "kt-attribution-v1";
@@ -242,8 +243,15 @@ function attribution() { return captureAttribution(); }
 function ktTrack(eventName, params) {
   try {
     if (!window.gtag) return;
-    const label = CONVERSION_LABELS[eventName];
-    if (label) gtag("event", "conversion", { send_to: `${ADS_ID}/${label}`, ...(params || {}) });
+    const conv = CONVERSIONS[eventName];
+    if (conv && conv.label) {
+      const payload = { send_to: `${ADS_ID}/${conv.label}` };
+      if (conv.value !== undefined) payload.value = conv.value;
+      if (conv.currency) payload.currency = conv.currency;
+      // Olaydan gelen deger/islem no varsayilanlari ezer (orn. odeme tutari).
+      for (const [k, v] of Object.entries(params || {})) if (v !== undefined) payload[k] = v;
+      gtag("event", "conversion", payload);
+    }
     gtag("event", `kt_${eventName}`, params || {});
   } catch { /* olcum hatasi akisi bozmasin */ }
 }
@@ -3369,7 +3377,12 @@ window.KT = {
     if (after > before) {
       const fresh = (state.entitlements || [])[after - 1] || {};
       const plan = planById(fresh.planId);
-      ktTrack("odeme", { value: plan && plan.price ? Number(plan.price) : undefined, currency: "TRY", paket: (plan && plan.name) || fresh.planId || "" });
+      ktTrack("odeme", {
+        value: plan && plan.price ? Number(plan.price) : undefined,
+        currency: "TRY",
+        transaction_id: fresh.id || fresh.paymentId || "",
+        paket: (plan && plan.name) || fresh.planId || ""
+      });
     }
     render();
     toast("Ödeme sonucu kontrol edildi. Üyeliğin aktifse iletişim bilgisi artık açık.");

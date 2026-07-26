@@ -110,6 +110,31 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
     .run(uid("e"), userId, u.email, u.name, subject, body, actionUrl || "", reason || "", "MOCK_SENT", today());
 }
 
+// ---------- Google ile giris (OAuth 2.0 / OpenID Connect) ----------
+// Gizli anahtarlar yalnizca ortam degiskeninde: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.
+// Tanimli degilse ozellik kapali kalir (istemcide buton gorunmez).
+const GOOGLE = {
+  get clientId() { return (process.env.GOOGLE_CLIENT_ID || "").trim(); },
+  get clientSecret() { return (process.env.GOOGLE_CLIENT_SECRET || "").trim(); },
+  get enabled() { return Boolean(this.clientId && this.clientSecret); },
+};
+const googleRedirectUri = () => `${BASE_URL}/api/auth/google/callback`;
+// Kisa omurlu imzali cerez (state + bekleyen profil) — sunucu sirri ile HMAC'lenir.
+const cookieSecret = () => process.env.SESSION_SECRET || process.env.GOOGLE_CLIENT_SECRET || "konuttalebi-dev-secret";
+function signPayload(objOrStr) {
+  const raw = typeof objOrStr === "string" ? objOrStr : JSON.stringify(objOrStr);
+  const b64 = Buffer.from(raw, "utf8").toString("base64url");
+  const mac = createHash("sha256").update(b64 + cookieSecret()).digest("base64url").slice(0, 32);
+  return `${b64}.${mac}`;
+}
+function verifyPayload(signed) {
+  if (!signed || !signed.includes(".")) return null;
+  const [b64, mac] = signed.split(".");
+  const expected = createHash("sha256").update(b64 + cookieSecret()).digest("base64url").slice(0, 32);
+  if (mac !== expected) return null;
+  try { return JSON.parse(Buffer.from(b64, "base64url").toString("utf8")); } catch { return null; }
+}
+
 // ---------- Gercek e-posta gonderimi ----------
 // RESEND_API_KEY tanimliysa Resend API'si ile gonderir; yoksa yalnizca outbox'a
 // (mock) yazar. Boylece saglayici gelene kadar akis kirilmadan calisir, saglayici
@@ -338,7 +363,7 @@ function buildState(user) {
 
   return {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
-    config: { paymentsLive: paymentsAreLive() },
+    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
     // Gizlilik: misafir (giris yapmamis) istekte kisisel/ters-pazar verisi donmez.
@@ -421,7 +446,10 @@ async function handleApi(req, res, url) {
       return err(res, 429, "Çok fazla giriş denemesi. Lütfen birkaç dakika sonra tekrar deneyin.");
     const email = norm(body.email);
     const acc = db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(email);
-    if (!acc || !verifyPassword(body.password || "", acc.passwordHash))
+    // Google ile acilmis hesaplarin sifresi yoktur; kullaniciyi dogru yola yonlendir.
+    if (acc && acc.provider === "google" && !acc.passwordHash)
+      return err(res, 401, "Bu hesap Google ile açılmış. Lütfen \"Google ile devam et\" ile giriş yapın.");
+    if (!acc || !acc.passwordHash || !verifyPassword(body.password || "", acc.passwordHash))
       return err(res, 401, "E-posta veya şifre hatalı.");
     const u = db.prepare("SELECT * FROM users WHERE id = ?").get(acc.userId);
     if (!u || u.status !== "ACTIVE") return err(res, 403, "Bu üyelik aktif değil.");
@@ -432,6 +460,119 @@ async function handleApi(req, res, url) {
     return ok(res, { userId: u.id, role: u.role }, sessionCookie(token));
   }
 
+  // --- Google ile giris: 1) baslat (kullaniciyi Google'a yonlendir) ---
+  if (seg[0] === "auth" && seg[1] === "google" && seg[2] === "start" && method === "GET") {
+    if (!GOOGLE.enabled) return err(res, 503, "Google ile giriş şu anda kapalı.");
+    const state = randomBytes(16).toString("hex");
+    const params = new URLSearchParams({
+      client_id: GOOGLE.clientId,
+      redirect_uri: googleRedirectUri(),
+      response_type: "code",
+      scope: "openid email profile",
+      state,
+      prompt: "select_account",
+    });
+    res.writeHead(302, {
+      "Location": `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+      "Set-Cookie": `kt_gstate=${state}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600`,
+    });
+    return res.end();
+  }
+
+  // --- Google ile giris: 2) donus (kod -> token -> profil) ---
+  if (seg[0] === "auth" && seg[1] === "google" && seg[2] === "callback" && method === "GET") {
+    if (!GOOGLE.enabled) return err(res, 503, "Google ile giriş şu anda kapalı.");
+    const redirectTo = (hash, extraCookie) => {
+      const headers = { "Location": `${BASE_URL}/${hash}` };
+      const cookies = ["kt_gstate=; HttpOnly; Path=/; Max-Age=0"];
+      if (extraCookie) cookies.push(extraCookie);
+      headers["Set-Cookie"] = cookies;
+      res.writeHead(302, headers);
+      return res.end();
+    };
+    const code = url.searchParams.get("code") || "";
+    const state = url.searchParams.get("state") || "";
+    const cookieState = parseCookies(req.headers.cookie).kt_gstate || "";
+    if (!code || !state || state !== cookieState) return redirectTo("#/giris?google=hata");
+    let profile = null;
+    try {
+      const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code, client_id: GOOGLE.clientId, client_secret: GOOGLE.clientSecret,
+          redirect_uri: googleRedirectUri(), grant_type: "authorization_code",
+        }).toString(),
+      });
+      const tokens = await tokenResp.json();
+      if (!tokenResp.ok || !tokens.access_token) throw new Error(tokens.error_description || "token alinamadi");
+      const infoResp = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+        headers: { "Authorization": `Bearer ${tokens.access_token}` },
+      });
+      const info = await infoResp.json();
+      if (!infoResp.ok || !info.email) throw new Error("profil alinamadi");
+      profile = { email: String(info.email).trim().toLowerCase(), name: (info.name || "").trim(), verified: info.email_verified !== false };
+    } catch (e) {
+      console.error("[google] giris hatasi:", e.message);
+      return redirectTo("#/giris?google=hata");
+    }
+    if (!profile.verified) return redirectTo("#/giris?google=dogrulanmamis");
+    // Mevcut uye mi? -> dogrudan giris
+    const acc = db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(profile.email);
+    if (acc) {
+      const u = db.prepare("SELECT * FROM users WHERE id = ?").get(acc.userId);
+      if (!u || u.status !== "ACTIVE") return redirectTo("#/giris?google=pasif");
+      db.prepare("UPDATE auth_accounts SET lastLoginAt = ? WHERE userId = ?").run(today(), u.id);
+      addAudit(u.id, "USER_LOGGED_IN", "User", u.id, "Google ile giriş");
+      const token = randomUUID();
+      db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, u.id, new Date().toISOString());
+      const dash = u.role === "BUYER" ? "dashboard/alici" : u.role === "ADMIN" ? "dashboard/admin" : "dashboard/satici";
+      return redirectTo(`#/${dash}`, `kt_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`);
+    }
+    // Yeni kullanici -> kisa tamamlama ekranina (imzali bekleyen profil cerezi, 30 dk)
+    const pending = signPayload({ email: profile.email, name: profile.name, exp: Date.now() + 30 * 60 * 1000 });
+    return redirectTo("#/google-tamamla", `kt_gpending=${pending}; HttpOnly; Path=/; SameSite=Lax; Max-Age=1800`);
+  }
+
+  // --- Google ile giris: 3) bekleyen profili oku (tamamlama ekrani icin) ---
+  if (seg[0] === "auth" && seg[1] === "google" && seg[2] === "pending" && method === "GET") {
+    const p = verifyPayload(parseCookies(req.headers.cookie).kt_gpending || "");
+    if (!p || !p.email || (p.exp && p.exp < Date.now())) return err(res, 404, "Bekleyen Google kaydı yok.");
+    return ok(res, { email: p.email, name: p.name || "" });
+  }
+
+  // --- Google ile giris: 4) tamamla (rol + telefon + sehir ile hesabi ac) ---
+  if (seg[0] === "auth" && seg[1] === "google" && seg[2] === "complete" && method === "POST") {
+    const p = verifyPayload(parseCookies(req.headers.cookie).kt_gpending || "");
+    if (!p || !p.email || (p.exp && p.exp < Date.now())) return err(res, 400, "Google oturumu zaman aşımına uğradı. Tekrar deneyin.");
+    const email = String(p.email).trim().toLowerCase();
+    const name = ((body.name || p.name || "").trim()) || email.split("@")[0];
+    const phone = (body.phone || "").trim();
+    const city = (body.city || "").trim() || "İstanbul";
+    const role = ["BUYER", "SELLER", "AGENT"].includes(body.role) ? body.role : "BUYER";
+    const marketingConsent = body.marketingConsent ? 1 : 0;
+    if (name.length < 3 || phone.length < 10) return err(res, 400, "Ad ve geçerli telefon gerekli.");
+    if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
+      return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var. Lütfen giriş yapın.");
+    const id = uid("u");
+    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
+    addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    // Sifre yok: saglayici Google. E-posta Google tarafindan dogrulanmis kabul edilir.
+    db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt,provider) VALUES (?,?,?,?,?,?,?)")
+      .run(id, email, "", 1, today(), today(), "google");
+    if (role === "BUYER")
+      db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
+        .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
+    notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
+    addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği Google ile oluşturuldu.`);
+    const token = randomUUID();
+    db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
+    return ok(res, { userId: id, role }, {
+      "Set-Cookie": [`kt_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800`, "kt_gpending=; HttpOnly; Path=/; Max-Age=0"],
+    });
+  }
+
   // --- sifre: sifirlama talebi (herkese acik) ---
   if (seg[0] === "password" && seg[1] === "forgot" && method === "POST") {
     if (!rateLimit(`pwforgot:${clientIp(req)}`, 5, 15 * 60 * 1000))
@@ -439,7 +580,9 @@ async function handleApi(req, res, url) {
     const email = norm(body.email);
     // Guvenlik: e-posta kayitli olsun olmasin AYNI notr yanit doner (kullanici sayimini engeller).
     const neutral = { message: "Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Gelen kutunu kontrol et." };
-    const acc = email.includes("@") ? db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(email) : null;
+    const accRaw = email.includes("@") ? db.prepare("SELECT * FROM auth_accounts WHERE email = ?").get(email) : null;
+    // Google ile acilmis hesaplarda sifre yok; sifirlama maili gondermek anlamsiz olur.
+    const acc = (accRaw && accRaw.provider === "google" && !accRaw.passwordHash) ? null : accRaw;
     if (acc) {
       const u = db.prepare("SELECT id,name,email,status FROM users WHERE id = ?").get(acc.userId);
       if (u && u.status === "ACTIVE") {

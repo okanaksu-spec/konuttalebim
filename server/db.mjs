@@ -122,7 +122,9 @@ for (const alter of [
   "ALTER TABLE properties ADD COLUMN exteriorFeatures TEXT",
   "ALTER TABLE demands ADD COLUMN neighborhoods TEXT",
   "ALTER TABLE demands ADD COLUMN mainCategory TEXT DEFAULT 'Konut'",
-  "ALTER TABLE properties ADD COLUMN mainCategory TEXT DEFAULT 'Konut'"
+  "ALTER TABLE properties ADD COLUMN mainCategory TEXT DEFAULT 'Konut'",
+  // Google ile acilan hesaplari isaretlemek icin (sifre yerine saglayici)
+  "ALTER TABLE auth_accounts ADD COLUMN provider TEXT DEFAULT 'password'"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

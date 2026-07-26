@@ -901,14 +901,14 @@ function homePage() {
             <h3>Evini Sat</h3>
             <p>Satılık evine uygun alıcı taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. Tam adres alıcıya gösterilmez.</p>
             <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>Ev görseli yükle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — talebini ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — teklifini ver</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-gold">${icon("home", 26)}</span>
             <h3>Evini Kirala</h3>
             <p>Kiraya vereceğin eve uygun kiracı taleplerini gör; uygun kiracının iletişim bilgisine üyelikle ulaş, doğrudan anlaş. Fiyata biz karışmayız.</p>
             <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Doğrudan kiracıyla iletişim</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — talebini ver</button>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — teklifini ver</button>
           </article>
           <article class="card role-area" style="grid-column:1/-1">
             <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>

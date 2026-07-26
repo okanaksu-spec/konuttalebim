@@ -103,11 +103,30 @@ function notify(userId, type, title, body, actionUrl) {
   db.prepare("INSERT INTO notifications (id,userId,type,title,body,actionUrl,createdAt) VALUES (?,?,?,?,?,?,?)")
     .run(uid("n"), userId, type, title, body, actionUrl || "", today());
 }
+// Uyelik tipine gore panel yolu ve karsilama metni (e-postalarda kullanilir).
+function dashboardPathForRole(role) {
+  const r = String(role || "").toUpperCase();
+  if (r === "ADMIN") return "dashboard/admin";
+  if (r === "SELLER" || r === "AGENT") return "dashboard/satici";
+  return "dashboard/alici";
+}
+function welcomeBody(role) {
+  const r = String(role || "").toUpperCase();
+  if (r === "SELLER" || r === "AGENT")
+    return "Hesabın hazır. Evini ekle; sana uygun alıcı ve kiracı taleplerini görüp doğrudan teklif gönderebilirsin. Talep havuzuna panelinden ulaşabilirsin.";
+  return "Hesabın hazır. Ne aradığını tarif eden bir talep oluştur; sana uygun mülk sahipleri teklif göndersin. Eşleşme olduğunda e-posta ile haber vereceğiz.";
+}
+
+// Bildirim e-postasi: panel ici bildirimle ayni anda uyeye e-posta da gider.
+// Gonderim deliverEmail uzerinden (Resend); anahtar yoksa outbox'a MOCK_SENT yazilir.
+// Bilerek "atesle ve bekleme" (fire-and-forget): e-posta gecikmesi API yanitini bekletmesin.
 function queueEmail(userId, subject, body, actionUrl, reason) {
   const u = db.prepare("SELECT name,email FROM users WHERE id = ?").get(userId);
-  if (!u) return;
-  db.prepare("INSERT INTO email_outbox (id,toUserId,toEmail,toName,subject,body,actionUrl,reason,status,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)")
-    .run(uid("e"), userId, u.email, u.name, subject, body, actionUrl || "", reason || "", "MOCK_SENT", today());
+  if (!u || !u.email) return;
+  const html = notificationEmailHtml(u.name, subject, body, actionUrl);
+  Promise.resolve()
+    .then(() => deliverEmail(userId, u.email, u.name, `Konuttalebi — ${subject}`, html, reason))
+    .catch((e) => console.error("[mail] bildirim gonderilemedi:", e && e.message));
 }
 
 // ---------- Google ile giris (OAuth 2.0 / OpenID Connect) ----------
@@ -145,6 +164,39 @@ const MAIL_FROM = () => process.env.MAIL_FROM || "Konuttalebi <onboarding@resend
 const MAIL_REPLY_TO = () => process.env.MAIL_REPLY_TO || "info@konuttalebi.com";
 const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Bildirim e-postalari icin ortak sablon (marka basligi + metin + tek eylem butonu).
+function notificationEmailHtml(toName, title, body, actionUrl) {
+  const clean = String(actionUrl || "").replace(/^#?\/*/, "");
+  const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
+  const label = clean.startsWith("dashboard") ? "Panelime git" : "Konuttalebi'ye git";
+  const merhaba = toName ? `Merhaba ${escapeHtmlSrv(String(toName).split(" ")[0])},` : "Merhaba,";
+  return `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10243a">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
+        <tr><td style="background:#10243a;padding:20px 26px">
+          <span style="color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-.3px">Konuttalebi</span>
+          <span style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.4px;display:block;margin-top:3px">TALEP VE TEKLİF</span>
+        </td></tr>
+        <tr><td style="padding:26px">
+          <p style="margin:0 0 14px;font-size:15px;color:#41556d">${merhaba}</p>
+          <h1 style="margin:0 0 12px;font-size:21px;line-height:1.35">${escapeHtmlSrv(title)}</h1>
+          <p style="margin:0 0 22px;font-size:15px;line-height:1.65;color:#41556d">${escapeHtmlSrv(body)}</p>
+          <a href="${link}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:10px">${label}</a>
+          <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#7d8ea1">İletişim bilgileri yalnızca üyelikle ve karşı tarafın rızasıyla paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
+        </td></tr>
+        <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
+          Bu e-postayı Konuttalebi üyeliğin nedeniyle aldın. Soru ve talepler için
+          <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a> adresine yazabilirsin.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
 
 async function deliverEmail(userId, toEmail, toName, subject, html, reason) {
   const key = (process.env.RESEND_API_KEY || "").trim();
@@ -293,7 +345,7 @@ function fulfillPayment(pid) {
     }
   }
   const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(pay.planId);
-  queueEmail(pay.userId, "Paket satın alındı", `${plan ? plan.name : "Üyelik"} paketiniz aktif.`, "", "Ödeme bildirimi");
+  queueEmail(pay.userId, "Paketin aktif", `${plan ? plan.name : "Üyelik"} paketin ödemesi alındı ve hesabında aktif edildi. Panelinden kullanmaya başlayabilirsin.`, "dashboard", "Ödeme bildirimi");
   addAudit(pay.userId, "PAYMENT_SUCCESS", "Payment", pid, plan ? plan.name : pay.planId);
   return true;
 }
@@ -433,7 +485,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
-    queueEmail(id, "Konuttalebim üyeliğiniz oluşturuldu", "Hesabınız hazır.", "", "Yeni üyelik karşılama");
+    queueEmail(id, "Üyeliğin oluşturuldu", welcomeBody(role), dashboardPathForRole(role), "Yeni üyelik karşılama");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği oluşturuldu.`);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
@@ -565,6 +617,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
+    queueEmail(id, "Üyeliğin oluşturuldu", welcomeBody(role), dashboardPathForRole(role), "Yeni üyelik karşılama");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği Google ile oluşturuldu.`);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
@@ -759,7 +812,7 @@ async function handleApi(req, res, url) {
             ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
             : `${d.title} talebi ilanınıza uyuyor.`;
           notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", body, "dashboard/satici/alici-talepleri");
-          queueEmail(p.sellerId, "Size uygun yeni alıcı talebi", body, "", "Uygun talep bildirimi");
+          queueEmail(p.sellerId, "Sana uygun yeni talep var", body, "dashboard/satici/alici-talepleri", "Uygun talep bildirimi");
         }
       }
     }
@@ -836,7 +889,7 @@ async function handleApi(req, res, url) {
       .run(id, demand.id, property.id, user.id, demand.buyerId, +body.price || property.price, (body.message || "").trim(), score, "SENT", today());
     db.prepare("UPDATE demands SET offerCount = offerCount + 1 WHERE id = ?").run(demand.id);
     notify(demand.buyerId, "NEW_OFFER", "Yeni teklif geldi", `${demand.title} talebinize teklif var.`, "dashboard/alici/teklifler");
-    queueEmail(demand.buyerId, "Talebinize yeni teklif", "Talebinize uygun bir teklif geldi.", "", "Yeni teklif bildirimi");
+    queueEmail(demand.buyerId, "Talebine yeni teklif geldi", `"${demand.title}" talebine bir mülk sahibi teklif gönderdi. Teklifi panelinden inceleyip ilgilendiğini belirtebilirsin.`, "dashboard/alici/teklifler", "Yeni teklif bildirimi");
     addAudit(user.id, "OFFER_SENT", "Offer", id, `Skor ${score}`);
     return ok(res, { id, matchScore: score });
   }
@@ -857,6 +910,7 @@ async function handleApi(req, res, url) {
         db.prepare("INSERT INTO matches (id,offerId,buyerId,sellerId,status,createdAt) VALUES (?,?,?,?,?,?)")
           .run(mid, offer.id, offer.buyerId, offer.sellerId, "MATCHED", today());
         notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Alıcı teklifinizle ilgilendi. Üyelikle iletişim bilgisine ulaşabilirsiniz.", "dashboard/satici/eslesmeler");
+        queueEmail(offer.sellerId, "Teklifin ilgi gördü — yeni eşleşme", "Gönderdiğin teklifle ilgilenildi. Panelindeki Eşleşmeler bölümünden karşı tarafın iletişim bilgisine üyelikle ulaşıp doğrudan görüşebilirsin.", "dashboard/satici/eslesmeler", "Yeni eşleşme bildirimi");
       }
     }
     addAudit(user.id, "OFFER_RESPONDED", "Offer", offer.id, response);

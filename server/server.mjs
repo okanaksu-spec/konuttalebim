@@ -103,6 +103,19 @@ function notify(userId, type, title, body, actionUrl) {
   db.prepare("INSERT INTO notifications (id,userId,type,title,body,actionUrl,createdAt) VALUES (?,?,?,?,?,?,?)")
     .run(uid("n"), userId, type, title, body, actionUrl || "", today());
 }
+// Reklam/kanal kaynagini kaydet (istemci ilk gelisteki gclid/utm degerlerini yollar).
+// Kisisel veri degil; yalnizca kampanya kimligi. Uzunluklar sinirlandirilir.
+function saveAttribution(userId, attr) {
+  if (!attr || typeof attr !== "object") return;
+  const cut = (v) => String(v == null ? "" : v).slice(0, 120);
+  const src = cut(attr.source), med = cut(attr.medium), cmp = cut(attr.campaign), trm = cut(attr.term), gcl = cut(attr.gclid);
+  if (!src && !med && !cmp && !trm && !gcl) return;
+  try {
+    db.prepare("UPDATE users SET acqSource=?, acqMedium=?, acqCampaign=?, acqTerm=?, acqGclid=? WHERE id=?")
+      .run(src, med, cmp, trm, gcl, userId);
+  } catch { /* kolon yoksa yoksay */ }
+}
+
 // Uyelik tipine gore panel yolu ve karsilama metni (e-postalarda kullanilir).
 function dashboardPathForRole(role) {
   const r = String(role || "").toUpperCase();
@@ -381,11 +394,17 @@ function buildState(user) {
   const users = all("users").map((u) => {
     const self = user && u.id === user.id;
     const canSeeContact = self || (user && unlockedWith.has(u.id)) || (user && user.role === "ADMIN");
+    const isAdmin = user && user.role === "ADMIN";
     return {
       id: u.id, role: u.role, name: u.name, city: u.city, status: u.status,
       trustScore: u.trustScore, createdAt: u.createdAt,
       email: canSeeContact ? u.email : "",
-      phone: canSeeContact ? u.phone : ""
+      phone: canSeeContact ? u.phone : "",
+      // Kanal bilgisi yalnizca admin panelinde gorunur (kampanya raporlamasi icin).
+      acqSource: isAdmin ? (u.acqSource || "") : undefined,
+      acqMedium: isAdmin ? (u.acqMedium || "") : undefined,
+      acqCampaign: isAdmin ? (u.acqCampaign || "") : undefined,
+      acqGclid: isAdmin ? (u.acqGclid || "") : undefined
     };
   });
 
@@ -479,6 +498,7 @@ async function handleApi(req, res, url) {
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
     addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    saveAttribution(id, body.attribution);
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
       .run(id, email, hashPassword(password), 0, today(), today());
     if (role === "BUYER")
@@ -610,6 +630,7 @@ async function handleApi(req, res, url) {
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
     addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    saveAttribution(id, body.attribution);
     // Sifre yok: saglayici Google. E-posta Google tarafindan dogrulanmis kabul edilir.
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt,provider) VALUES (?,?,?,?,?,?,?)")
       .run(id, email, "", 1, today(), today(), "google");

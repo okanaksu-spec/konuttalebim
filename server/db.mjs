@@ -124,7 +124,13 @@ for (const alter of [
   "ALTER TABLE demands ADD COLUMN mainCategory TEXT DEFAULT 'Konut'",
   "ALTER TABLE properties ADD COLUMN mainCategory TEXT DEFAULT 'Konut'",
   // Google ile acilan hesaplari isaretlemek icin (sifre yerine saglayici)
-  "ALTER TABLE auth_accounts ADD COLUMN provider TEXT DEFAULT 'password'"
+  "ALTER TABLE auth_accounts ADD COLUMN provider TEXT DEFAULT 'password'",
+  // Reklam/kanal kaynagi: hangi kampanyanin uye getirdigini gorebilmek icin
+  "ALTER TABLE users ADD COLUMN acqSource TEXT",
+  "ALTER TABLE users ADD COLUMN acqMedium TEXT",
+  "ALTER TABLE users ADD COLUMN acqCampaign TEXT",
+  "ALTER TABLE users ADD COLUMN acqTerm TEXT",
+  "ALTER TABLE users ADD COLUMN acqGclid TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

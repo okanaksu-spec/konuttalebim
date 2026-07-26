@@ -209,6 +209,45 @@ const ISYERI_KULLANIM = ["Boş", "Kiracılı", "Sahibi kullanıyor"];
 let searchState = { tx: "SALE", mainCategory: "", subCategory: "", city: "", cityName: "", district: "", neighborhood: "", minPrice: "", maxPrice: "", sort: "new" };
 let _searchItems = [];
 
+// ---------- Olcumleme (Google Ads dönüşümleri + reklam kaynagi) ----------
+// Google Ads'te her dönüşüm eylemi kendi etiketiyle gelir. Yeni bir dönüşüm
+// olusturulunca etiketi asagidaki haritaya yazmak yeterli; kod degismez.
+// Etiketi olmayan olaylar yine de gtag olayi olarak gonderilir (GA4/ileride kullanilir).
+const ADS_ID = "AW-18335656859";
+const CONVERSION_LABELS = {
+  talep_olustur: "IuOECKTCnNMcEJvXj6dE", // canli: "Talep oluşturma"
+  kayit_tamamla: "",                      // Ads'te olusturulunca etiketi buraya
+  ilan_ekle: "",
+  teklif_gonder: "",
+  odeme: "",
+};
+// Reklam kaynagi: ilk gelisteki gclid/utm parametrelerini sakla (30 gun).
+const ATTR_KEY = "kt-attribution-v1";
+function captureAttribution() {
+  try {
+    const qs = new URLSearchParams(location.search);
+    const get = (k) => (qs.get(k) || "").slice(0, 120);
+    const fresh = { gclid: get("gclid"), source: get("utm_source"), medium: get("utm_medium"), campaign: get("utm_campaign"), term: get("utm_term"), at: Date.now() };
+    const hasNew = fresh.gclid || fresh.source || fresh.campaign;
+    if (hasNew) { localStorage.setItem(ATTR_KEY, JSON.stringify(fresh)); return fresh; }
+    const saved = JSON.parse(localStorage.getItem(ATTR_KEY) || "null");
+    if (saved && Date.now() - (saved.at || 0) < 30 * 24 * 3600 * 1000) return saved;
+    if (!saved && document.referrer && !document.referrer.includes(location.host))
+      return { gclid: "", source: "referral", medium: "referral", campaign: document.referrer.slice(0, 120), term: "", at: Date.now() };
+  } catch { /* yoksay */ }
+  return { gclid: "", source: "", medium: "", campaign: "", term: "", at: Date.now() };
+}
+function attribution() { return captureAttribution(); }
+// Tek giris noktasi: hem Ads dönüşümü hem adlandirilmis olay gonderir.
+function ktTrack(eventName, params) {
+  try {
+    if (!window.gtag) return;
+    const label = CONVERSION_LABELS[eventName];
+    if (label) gtag("event", "conversion", { send_to: `${ADS_ID}/${label}`, ...(params || {}) });
+    gtag("event", `kt_${eventName}`, params || {});
+  } catch { /* olcum hatasi akisi bozmasin */ }
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -2086,6 +2125,16 @@ function adminUsers() {
     <div id="admin-users-box">${adminUsersTable(state.users || [])}</div>
   `;
 }
+// Uyenin nereden geldigi (yalnizca admin panelinde). gclid varsa Google Ads demektir.
+function acqLabel(u) {
+  const src = (u.acqSource || "").trim();
+  const cmp = (u.acqCampaign || "").trim();
+  if (u.acqGclid) return `<span class="badge badge-gold" title="${escapeAttr(cmp || "Google Ads")}">Google Ads</span>`;
+  if (!src) return `<span class="muted">Doğrudan</span>`;
+  const label = src === "referral" ? "Yönlendirme" : src;
+  return `<span class="badge badge-neutral" title="${escapeAttr([src, u.acqMedium, cmp].filter(Boolean).join(" · "))}">${escapeHtml(label)}</span>`;
+}
+
 function adminUsersTable(list) {
   const rows = list.map((u) => {
     const m = activeMembership(u.id);
@@ -2096,13 +2145,14 @@ function adminUsersTable(list) {
       <td>${escapeHtml(u.city || "—")}</td>
       <td><span class="badge badge-blue">${escapeHtml(userTip(u))}</span></td>
       <td>${m ? `<span class="badge badge-gold">${escapeHtml(m.name)}</span>` : `<span class="muted">Ücretsiz</span>`}</td>
+      <td>${acqLabel(u)}</td>
       <td>${escapeHtml(u.createdAt || "")}</td>
     </tr>`;
   }).join("");
   return `<p class="muted" style="margin:0 0 8px">${list.length} üye</p>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ad</th><th>Telefon</th><th>E-posta</th><th>Şehir</th><th>Tip</th><th>Aktif Üyelik</th><th>Kayıt</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="7" class="muted">Kayıt yok</td></tr>`}</tbody>
+      <thead><tr><th>Ad</th><th>Telefon</th><th>E-posta</th><th>Şehir</th><th>Tip</th><th>Aktif Üyelik</th><th>Kaynak</th><th>Kayıt</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="8" class="muted">Kayıt yok</td></tr>`}</tbody>
     </table></div>`;
 }
 
@@ -2688,9 +2738,10 @@ window.KT = {
     if (name.length < 3) return showFormError("gc-error", "Ad Soyad en az 3 karakter olmalı.");
     if (phone.replace(/\D/g, "").length < 10) return showFormError("gc-error", "Geçerli bir telefon numarası gir.");
     const btn = event.submitter; if (btn) btn.disabled = true;
-    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent });
+    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent, attribution: attribution() });
     if (btn) btn.disabled = false;
     if (!r.ok) return showFormError("gc-error", (r.data && r.data.error) || "Üyelik tamamlanamadı.");
+    ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "google" });
     uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
     await refreshState();
     toast("Üyeliğin oluşturuldu. Hoş geldin!");
@@ -2762,8 +2813,9 @@ window.KT = {
       return showFormError("r-error", "Şifre en az 6 karakter olmalı ve tekrar alanıyla eşleşmeli.");
     if (!accepted)
       return showFormError("r-error", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
-    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent });
+    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent, attribution: attribution() });
     if (!r.ok) return showFormError("r-error", r.data.error || "Üyelik oluşturulamadı.");
+    ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "sifre" });
     await refreshState();
     toast("Üyelik oluşturuldu ve giriş yapıldı.");
     setRoute("hosgeldin"); // önce paket öneri ekranı; oradan panele geçilir
@@ -3095,7 +3147,7 @@ window.KT = {
     const r = await api("/demands", "POST", payload);
     if (!r.ok) return showFormError("d-error", r.data.error || "Talep oluşturulamadı.");
     // Google Ads — "Talep oluşturma" dönüşümü (reklamdan gelen talep oluşturmayı ölçer)
-    if (window.gtag) { try { gtag("event", "conversion", { send_to: "AW-18335656859/IuOECKTCnNMcEJvXj6dE" }); } catch (e) { /* yoksay */ } }
+    ktTrack("talep_olustur", { tx: rent ? "RENT" : "SALE", sehir: payload.city, kategori: payload.mainCategory });
     toast(`Talebin yayına alındı. Uygun ${rent ? "ev sahiplerine" : "satıcılara"} bildirim hazırlandı.`);
     setRoute("dashboard/alici/taleplerim");
   },
@@ -3147,6 +3199,7 @@ window.KT = {
     payload.imageData = await readImageInput("p-image");
     const r = await api("/properties", "POST", payload);
     if (!r.ok) return showFormError("p-error", r.data.error || "İlan eklenemedi.");
+    ktTrack("ilan_ekle", { tx: rent ? "RENT" : "SALE", sehir: payload.city, kategori: payload.mainCategory });
     toast(`${rent ? "İlanın" : "Evin"} portföyüne eklendi. Uygun ${rent ? "kiracılara" : "alıcılara"} bildirim hazırlandı.`);
     setRoute("dashboard/satici/evlerim");
   },
@@ -3168,6 +3221,7 @@ window.KT = {
       return showFormError("o-error", "Ev seçimi, fiyat ve en az 15 karakter teklif notu gerekli.");
     const r = await api("/offers", "POST", { demandId, propertyId, price, message });
     if (!r.ok) return showFormError("o-error", r.data.error || "Teklif gönderilemedi.");
+    ktTrack("teklif_gonder", { fiyat: price });
     toast("Teklif kartı alıcıya gönderildi.");
     setRoute("dashboard/satici/tekliflerim");
   },
@@ -3308,7 +3362,15 @@ window.KT = {
   async closePaymentFrame() {
     const ov = document.getElementById("kt-pay-overlay");
     if (ov) ov.remove();
+    // Odeme dönüşümü: pencere kapandiktan sonra yeni bir hak (entitlement) olustuysa say.
+    const before = (state.entitlements || []).length;
     await refreshState();
+    const after = (state.entitlements || []).length;
+    if (after > before) {
+      const fresh = (state.entitlements || [])[after - 1] || {};
+      const plan = planById(fresh.planId);
+      ktTrack("odeme", { value: plan && plan.price ? Number(plan.price) : undefined, currency: "TRY", paket: (plan && plan.name) || fresh.planId || "" });
+    }
     render();
     toast("Ödeme sonucu kontrol edildi. Üyeliğin aktifse iletişim bilgisi artık açık.");
   },

@@ -116,6 +116,8 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
 // baglaninca tek ortam degiskeni ile gercek gonderime gecer.
 const APP_URL = () => (process.env.APP_URL || "https://konuttalebi.com").replace(/\/+$/, "");
 const MAIL_FROM = () => process.env.MAIL_FROM || "Konuttalebi <onboarding@resend.dev>";
+// Kullanici gonderdigimiz maile YANIT yazarsa buraya duser (kurumsal kutu).
+const MAIL_REPLY_TO = () => process.env.MAIL_REPLY_TO || "iletisim@konuttalebi.com";
 const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -127,7 +129,7 @@ async function deliverEmail(userId, toEmail, toName, subject, html, reason) {
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], subject, html })
+        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], reply_to: MAIL_REPLY_TO(), subject, html })
       });
       status = resp.ok ? "SENT" : "FAILED";
       if (!resp.ok) console.error("[mail] Resend hata:", resp.status, await resp.text().catch(() => ""));
@@ -454,6 +456,7 @@ async function handleApi(req, res, url) {
           <p style="margin:22px 0"><a href="${link}" style="display:inline-block;background:#c8a24b;color:#10243a;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Şifremi sıfırla</a></p>
           <p style="color:#5a6b7c;font-size:13px">Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:<br>${link}</p>
           <p style="color:#5a6b7c;font-size:13px">Bu talebi sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.</p>
+          <p style="color:#5a6b7c;font-size:13px;border-top:1px solid #e5eaf0;padding-top:12px;margin-top:18px">Sorun yaşarsan bu e-postayı yanıtlayabilir ya da <a href="mailto:${escapeHtmlSrv(MAIL_REPLY_TO())}" style="color:#10243a">${escapeHtmlSrv(MAIL_REPLY_TO())}</a> adresine yazabilirsin.</p>
         </div>`;
         addAudit(u.id, "PASSWORD_RESET_REQUESTED", "User", u.id, "Şifre sıfırlama talebi");
         await deliverEmail(u.id, u.email, u.name, "Konuttalebi — şifre sıfırlama", html, "Şifre sıfırlama");

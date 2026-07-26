@@ -982,16 +982,31 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 // Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
 // Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
 const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html"]);
+// Duzgun 404 sayfasi: UTF-8 basligi olmadan Turkce karakterler bozuk gorunuyordu.
+function notFoundPage(res) {
+  const html = `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Konuttalebi | Sayfa bulunamadı</title><meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-align:center;padding:24px}
+.box{max-width:520px}h1{font-size:64px;margin:0;color:#d6a94a;letter-spacing:-2px}h2{font-size:24px;margin:8px 0 12px}p{opacity:.8;line-height:1.6;margin:0 0 24px}
+a{display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px}</style></head>
+<body><div class="box"><h1>404</h1><h2>Bu sayfa bulunamadı</h2>
+<p>Aradığın sayfa taşınmış veya kaldırılmış olabilir. Ana sayfadan talebini oluşturabilir ya da yayındaki konutlara göz atabilirsin.</p>
+<a href="/">Ana sayfaya dön</a></div></body></html>`;
+  res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+  return res.end(html);
+}
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (p === "/") p = "/index.html";
   else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
   else if (p === "/evine-kiraci-bul") p = "/evine-kiraci-bul.html";
   const isAsset = p.startsWith("/assets/") && !p.includes("..");
-  if (!STATIC_ALLOW.has(p) && !isAsset) { res.writeHead(404); return res.end("Bulunamadı"); }
+  if (!STATIC_ALLOW.has(p) && !isAsset) return notFoundPage(res);
   const filePath = normalize(join(WEB_DIR, p));
   if (filePath !== WEB_DIR && !filePath.startsWith(WEB_DIR + "/")) { res.writeHead(403); return res.end("Forbidden"); }
-  if (!existsSync(filePath)) { res.writeHead(404); return res.end("Bulunamadı"); }
+  if (!existsSync(filePath)) return notFoundPage(res);
   try {
     const data = await readFile(filePath);
     res.writeHead(200, { "Content-Type": MIME[extname(filePath)] || "application/octet-stream" });

@@ -759,7 +759,7 @@ function homePage() {
           <div class="hero-card hero-card-main">
             <div class="sample-top">
               <span class="badge ${badgeForProfile(profile)}">${icon("shield", 13)} ${escapeHtml(profile.verificationLevel)}</span>
-              <span class="pill">${profile.budgetTrustScore}/100 güven</span>
+              <span class="pill">${profile.budgetTrustScore}/100 bütçe güveni</span>
             </div>
             <h3>${escapeHtml(sampleDemand.title)}</h3>
             <p>${escapeHtml(sampleDemand.city)} / ${escapeHtml(sampleDemand.district)} · ${escapeHtml(sampleDemand.roomCount)} · ${shortMoney(sampleDemand.minBudget)}-${shortMoney(sampleDemand.maxBudget)}</p>
@@ -847,7 +847,7 @@ function homePage() {
           </div>
         </div>
         <div class="product-strip">
-          ${demandCard(sampleDemand, { sample: true })}
+          ${demandCard(sampleDemand, { sample: true, profile })}
           ${propertyOfferSample(sampleProperty, sampleDemand, profile)}
         </div>
       </div>
@@ -982,7 +982,8 @@ function howSteps() {
 }
 
 function demandCard(demand, options = {}) {
-  const profile = buyerProfile(demand.buyerId);
+  // options.profile: temsili orneklerde ayni profili paylasmak icin (ana sayfa vitrini)
+  const profile = options.profile || buyerProfile(demand.buyerId);
   const score = profile.budgetTrustScore || 40;
   return `
     <article class="${options.sample ? "sample-card" : "row-card"}">
@@ -2561,6 +2562,46 @@ function ensureMatch(offer) {
   return match;
 }
 
+// Rotaya gore tarayici sekme basligi. Tek sayfa uygulama oldugu icin elle guncelliyoruz.
+const PAGE_TITLES = {
+  "": "Ev al, sat, kirala — yeni nesil emlak anlayışı",
+  home: "Ev al, sat, kirala — yeni nesil emlak anlayışı",
+  ilanlar: "Yayındaki konutlar",
+  ara: "Konut ara",
+  "nasil-calisir": "Nasıl çalışır?",
+  fiyatlandirma: "Fiyatlandırma ve üyelik paketleri",
+  yardim: "Yardım ve sık sorulan sorular",
+  alici: "Alıcılar için",
+  satici: "Satıcılar için",
+  giris: "Giriş yap",
+  "uye-ol": "Üye ol",
+  "sifremi-unuttum": "Şifremi unuttum",
+  "sifre-sifirla": "Yeni şifre belirle",
+  "google-tamamla": "Bilgilerini tamamla",
+  hosgeldin: "Hoş geldin — paketini seç",
+  iletisim: "İletişim",
+  kvkk: "KVKK aydınlatma metni",
+  gizlilik: "Gizlilik politikası",
+  "kullanim-sartlari": "Kullanım şartları",
+  "cerez-politikasi": "Çerez politikası",
+  "mesafeli-satis": "Mesafeli satış sözleşmesi",
+  "on-bilgilendirme": "Ön bilgilendirme formu",
+  "iade-iptal": "İade ve iptal koşulları",
+  teslimat: "Teslimat ve ifa",
+  "guvenli-islem-rehberi": "Güvenli işlem rehberi",
+};
+function updatePageTitle(path) {
+  const base = "Konuttalebi";
+  let suffix = "";
+  if (path.startsWith("dashboard")) {
+    suffix = path.startsWith("dashboard/admin") ? "Yönetim paneli" : "Panelim";
+  } else {
+    const key = path.split("/")[0].split("?")[0];
+    suffix = PAGE_TITLES[key] !== undefined ? PAGE_TITLES[key] : PAGE_TITLES.home;
+  }
+  document.title = suffix ? `${base} | ${suffix}` : base;
+}
+
 function render() {
   const path = route();
   // Panel sayfalari giris gerektirir; admin paneli sadece ADMIN rolune acik.
@@ -2579,6 +2620,7 @@ function render() {
         ? renderAdmin(path)
         : publicPage(path);
   document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? copyrightBar() : footer()}</div>`;
+  updatePageTitle(path);
   // Arama sayfasi (uye paneli ya da public #/ilanlar) acilinca ilanlari otomatik yukle.
   if (path.startsWith("dashboard/ara") || path === "ilanlar" || path === "ara") KT.searchRun();
   // Ana sayfada yayindaki gercek ilanlari yukle.

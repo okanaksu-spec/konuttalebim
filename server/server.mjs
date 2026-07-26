@@ -117,7 +117,7 @@ function queueEmail(userId, subject, body, actionUrl, reason) {
 const APP_URL = () => (process.env.APP_URL || "https://konuttalebi.com").replace(/\/+$/, "");
 const MAIL_FROM = () => process.env.MAIL_FROM || "Konuttalebi <onboarding@resend.dev>";
 // Kullanici gonderdigimiz maile YANIT yazarsa buraya duser (kurumsal kutu).
-const MAIL_REPLY_TO = () => process.env.MAIL_REPLY_TO || "iletisim@konuttalebi.com";
+const MAIL_REPLY_TO = () => process.env.MAIL_REPLY_TO || "info@konuttalebi.com";
 const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 

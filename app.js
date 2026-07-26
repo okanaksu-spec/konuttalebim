@@ -1114,16 +1114,32 @@ function authRegisterPage(roleKey = "buyer") {
           <button class="btn btn-primary" type="submit">${icon("check", 16)} Üyeliği oluştur</button>
           <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
         </div>
+        ${googleAuthBlock("Google ile üye ol")}
       </form>
       <aside class="auth-side" id="reg-aside">${regAsideHTML(selectedRole)}</aside>
     </div>
   `);
 }
 
+// "Google ile devam et" butonu — yalnizca sunucuda GOOGLE_CLIENT_ID/SECRET tanimliysa gorunur.
+function googleAuthBlock(label = "Google ile devam et") {
+  if (!(state.config && state.config.googleAuth)) return "";
+  const g = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.5 30.2 0 24 0 14.6 0 6.5 5.4 2.5 13.2l7.9 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-2.8-.4-4.1H24v8.4h12.8c-.3 2.1-1.7 5.2-4.9 7.3l7.7 6c4.5-4.2 6.9-10.3 6.9-17.6z"/><path fill="#FBBC05" d="M10.4 28.7A14.6 14.6 0 0 1 9.6 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.5 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.6-5.8l-7.7-6c-2.1 1.4-4.8 2.4-7.9 2.4-6.3 0-11.7-3.7-13.6-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
+  return `
+    <div class="google-auth" style="margin-top:14px">
+      <div style="display:flex;align-items:center;gap:10px;color:#8496a8;font-size:12.5px;margin:4px 0 12px"><span style="flex:1;height:1px;background:#e5eaf0"></span>veya<span style="flex:1;height:1px;background:#e5eaf0"></span></div>
+      <a class="btn btn-outline" href="/api/auth/google/start" style="width:100%;justify-content:center;gap:10px">${g} ${label}</a>
+    </div>`;
+}
+
 function authLoginPage() {
+  // Google donusunde hata olduysa kullaniciya nedenini goster (#/giris?google=hata gibi).
+  const gErrCode = new URLSearchParams((location.hash.split("?")[1] || "")).get("google") || "";
+  const gErrText = { hata: "Google ile giriş tamamlanamadı. Lütfen tekrar deneyin.", dogrulanmamis: "Google hesabının e-postası doğrulanmamış görünüyor.", pasif: "Bu üyelik aktif değil. Destek ile iletişime geçin." }[gErrCode] || "";
   return publicShell("Giriş yap", "Üyeliğinle panele dön; alıcı, satıcı, kiracı ve ev sahibi akışına devam et.", `
     <div class="auth-layout auth-layout-narrow">
       <form class="panel auth-panel" onsubmit="KT.login(event)">
+        ${gErrText ? `<div class="error show" style="margin-bottom:12px">${gErrText}</div>` : ""}
         <div class="form-grid">
           ${field("E-posta", "l-email", "email", "adiniz@eposta.com")}
           ${field("Şifre", "l-password", "password", "Şifreniz")}
@@ -1134,6 +1150,7 @@ function authLoginPage() {
           <a class="btn btn-outline" href="#/uye-ol">Üye ol</a>
         </div>
         <p class="muted" style="margin-top:12px;font-size:13px"><a href="#/sifremi-unuttum">Şifreni mi unuttun?</a></p>
+        ${googleAuthBlock("Google ile giriş yap")}
       </form>
       <aside class="auth-side">
         <span class="badge badge-gold">${icon("lock", 13)} Güvenli giriş</span>
@@ -1142,6 +1159,42 @@ function authLoginPage() {
         <div class="auth-benefits">
           <span>${icon("key", 16)} Talep ve teklif yönetimi</span>
           <span>${icon("lock", 16)} Doğrudan iletişim</span>
+        </div>
+      </aside>
+    </div>
+  `);
+}
+
+// Google'dan donen yeni kullanici icin kisa tamamlama ekrani (rol + telefon + sehir).
+function googleCompletePage() {
+  const roleOptions = [["buyer", "Alıcı"], ["tenant", "Kiracı"], ["seller", "Satıcı"], ["landlord", "Ev sahibi"], ["agent", "Emlak danışmanı"]];
+  return publicShell("Üyeliğini tamamla", "Google hesabınla giriş yaptın. Eşleşme için birkaç bilgi daha gerekiyor.", `
+    <div class="auth-layout auth-layout-narrow">
+      <form class="panel auth-panel" onsubmit="KT.googleComplete(event)">
+        <div class="notice" id="gc-info" style="margin-bottom:14px">Google bilgilerin alınıyor…</div>
+        <div class="form-grid">
+          <div class="field"><label for="gc-name">Ad Soyad</label><input id="gc-name" type="text" placeholder="Adınız"></div>
+          <div class="field"><label for="gc-email">E-posta</label><input id="gc-email" type="email" disabled style="background:#f1f5f9"></div>
+          <div class="field"><label for="gc-role">Üyelik tipi</label><select id="gc-role">${roleOptions.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></div>
+          ${field("Telefon", "gc-phone", "tel", "05xx xxx xx xx")}
+          <div class="field full"><label for="gc-city">Şehir</label><select id="gc-city">${["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa", "Antalya"].map((c) => `<option>${c}</option>`).join("")}</select></div>
+          <div class="field full">
+            <label class="check"><input id="gc-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+          </div>
+        </div>
+        <div id="gc-error" class="error"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">${icon("check", 16)} Üyeliği tamamla</button>
+          <a class="btn btn-outline" href="#/giris">Vazgeç</a>
+        </div>
+      </form>
+      <aside class="auth-side">
+        <span class="badge badge-gold">${icon("lock", 13)} Son adım</span>
+        <h3>Neden bu bilgiler?</h3>
+        <p>Üyelik tipin akışını belirler (talep mi bırakacaksın, teklif mi vereceksin). Şehir eşleşme için, telefon ise yalnızca eşleştiğin ve üyelik alan tarafa açılır — herkese açık değildir.</p>
+        <div class="auth-benefits">
+          <span>${icon("key", 16)} Şifre belirlemene gerek yok</span>
+          <span>${icon("lock", 16)} Bilgilerin rızanla paylaşılır</span>
         </div>
       </aside>
     </div>
@@ -1205,6 +1258,9 @@ function publicPage(kind) {
   }
   if (kind === "sifremi-unuttum") {
     return forgotPasswordPage();
+  }
+  if (kind === "google-tamamla") {
+    return googleCompletePage();
   }
   if (kind === "sifre-sifirla" || kind.startsWith("sifre-sifirla")) {
     return resetPasswordPage();
@@ -2527,6 +2583,8 @@ function render() {
   if (path.startsWith("dashboard/ara") || path === "ilanlar" || path === "ara") KT.searchRun();
   // Ana sayfada yayindaki gercek ilanlari yukle.
   if (path === "home" || path === "" || path === "/") KT.loadHomeListings();
+  // Google tamamlama ekraninda bekleyen profili (ad/e-posta) doldur.
+  if (path === "google-tamamla" || path.startsWith("google-tamamla")) KT.loadGooglePending();
 }
 
 window.KT = {
@@ -2559,6 +2617,42 @@ window.KT = {
     if (!nav) return;
     const open = nav.classList.toggle("open");
     if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+  },
+  // Google'dan donen bekleyen profili tamamlama ekranina doldur.
+  async loadGooglePending() {
+    const info = document.getElementById("gc-info");
+    const r = await api("/auth/google/pending");
+    if (!r.ok) {
+      if (info) { info.textContent = "Google oturumu bulunamadı veya süresi doldu. Lütfen tekrar deneyin."; info.style.background = "#fdecea"; }
+      const btn = document.querySelector('form[onsubmit*="googleComplete"] button[type="submit"]');
+      if (btn) btn.disabled = true;
+      return;
+    }
+    const nameEl = document.getElementById("gc-name");
+    const mailEl = document.getElementById("gc-email");
+    if (nameEl && !nameEl.value) nameEl.value = r.data.name || "";
+    if (mailEl) mailEl.value = r.data.email || "";
+    if (info) info.innerHTML = `<strong>${escapeHtml(r.data.email || "")}</strong> ile devam ediyorsun. Şifre belirlemene gerek yok.`;
+  },
+  async googleComplete(event) {
+    event.preventDefault();
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    document.getElementById("gc-error").classList.remove("show");
+    const name = g("gc-name").trim();
+    const phone = g("gc-phone").trim();
+    const city = g("gc-city");
+    const roleKey = g("gc-role") || "buyer";
+    const marketingConsent = (document.getElementById("gc-marketing") || {}).checked || false;
+    if (name.length < 3) return showFormError("gc-error", "Ad Soyad en az 3 karakter olmalı.");
+    if (phone.replace(/\D/g, "").length < 10) return showFormError("gc-error", "Geçerli bir telefon numarası gir.");
+    const btn = event.submitter; if (btn) btn.disabled = true;
+    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent });
+    if (btn) btn.disabled = false;
+    if (!r.ok) return showFormError("gc-error", (r.data && r.data.error) || "Üyelik tamamlanamadı.");
+    uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
+    await refreshState();
+    toast("Üyeliğin oluşturuldu. Hoş geldin!");
+    setRoute(dashboardPathForRole(r.data.role));
   },
   async requestPasswordReset(event) {
     event.preventDefault();

@@ -123,22 +123,28 @@ function dashboardPathForRole(role) {
   if (r === "SELLER" || r === "AGENT") return "dashboard/satici";
   return "dashboard/alici";
 }
-function welcomeBody(role) {
-  const r = String(role || "").toUpperCase();
-  if (r === "SELLER" || r === "AGENT")
-    return "Hesabın hazır. Evini ekle; sana uygun alıcı ve kiracı taleplerini görüp doğrudan teklif gönderebilirsin. Talep havuzuna panelinden ulaşabilirsin.";
-  return "Hesabın hazır. Ne aradığını tarif eden bir talep oluştur; sana uygun mülk sahipleri teklif göndersin. Eşleşme olduğunda e-posta ile haber vereceğiz.";
+// Karsilama metni her uyelik tipi icin ayni (genel). Yalnizca yeni kayitlarda gonderilir.
+function welcomeBody() {
+  return [
+    "Konut aramanın yeni yolu Konuttalebi'ye hoş geldin.",
+    "Burada ilanların arasında kaybolmazsın. Ne aradığını söylersin, sana uygun talepler ve teklifler doğrudan karşına gelir.",
+    "Hemen paneline girerek talebini oluşturabilir veya mevcut talepleri inceleyebilirsin.",
+    "İletişim bilgilerin gizli tutulur ve yalnızca karşılıklı eşleşme sonrasında paylaşılır.",
+    "Başlamaya hazır mısın?"
+  ].join("\n\n");
 }
 
 // Bildirim e-postasi: panel ici bildirimle ayni anda uyeye e-posta da gider.
 // Gonderim deliverEmail uzerinden (Resend); anahtar yoksa outbox'a MOCK_SENT yazilir.
 // Bilerek "atesle ve bekleme" (fire-and-forget): e-posta gecikmesi API yanitini bekletmesin.
-function queueEmail(userId, subject, body, actionUrl, reason) {
+function queueEmail(userId, subject, body, actionUrl, reason, closing) {
   const u = db.prepare("SELECT name,email FROM users WHERE id = ?").get(userId);
   if (!u || !u.email) return;
-  const html = notificationEmailHtml(u.name, subject, body, actionUrl);
+  const html = notificationEmailHtml(u.name, subject, body, actionUrl, closing);
+  // Konu zaten marka adiyla basliyorsa tekrar on ek koyma.
+  const subj = /^konuttalebi/i.test(subject) ? subject : `Konuttalebi — ${subject}`;
   Promise.resolve()
-    .then(() => deliverEmail(userId, u.email, u.name, `Konuttalebi — ${subject}`, html, reason))
+    .then(() => deliverEmail(userId, u.email, u.name, subj, html, reason))
     .catch((e) => console.error("[mail] bildirim gonderilemedi:", e && e.message));
 }
 
@@ -179,11 +185,18 @@ const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Bildirim e-postalari icin ortak sablon (marka basligi + metin + tek eylem butonu).
-function notificationEmailHtml(toName, title, body, actionUrl) {
+function notificationEmailHtml(toName, title, body, actionUrl, closing) {
   const clean = String(actionUrl || "").replace(/^#?\/*/, "");
   const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
-  const label = clean.startsWith("dashboard") ? "Panelime git" : "Konuttalebi'ye git";
+  const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ye git";
   const merhaba = toName ? `Merhaba ${escapeHtmlSrv(String(toName).split(" ")[0])},` : "Merhaba,";
+  // Bos satirla ayrilmis metni paragraflara cevir.
+  const paragraphs = String(body || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    .map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#41556d">${escapeHtmlSrv(p)}</p>`).join("");
+  // closing verilirse butonun altinda o gorunur; yoksa standart gizlilik notu.
+  const afterCta = closing
+    ? `<p style="margin:22px 0 0;font-size:14px;line-height:1.7;color:#41556d">${escapeHtmlSrv(closing)}</p>`
+    : `<p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#7d8ea1">İletişim bilgileri yalnızca üyelikle ve karşı tarafın rızasıyla paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>`;
   return `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10243a">
@@ -196,12 +209,14 @@ function notificationEmailHtml(toName, title, body, actionUrl) {
         </td></tr>
         <tr><td style="padding:26px">
           <p style="margin:0 0 14px;font-size:15px;color:#41556d">${merhaba}</p>
-          <h1 style="margin:0 0 12px;font-size:21px;line-height:1.35">${escapeHtmlSrv(title)}</h1>
-          <p style="margin:0 0 22px;font-size:15px;line-height:1.65;color:#41556d">${escapeHtmlSrv(body)}</p>
-          <a href="${link}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:10px">${label}</a>
-          <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#7d8ea1">İletişim bilgileri yalnızca üyelikle ve karşı tarafın rızasıyla paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
+          ${closing ? "" : `<h1 style="margin:0 0 12px;font-size:21px;line-height:1.35">${escapeHtmlSrv(title)}</h1>`}
+          ${paragraphs}
+          <a href="${link}" style="display:inline-block;margin-top:8px;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:10px">${label}</a>
+          ${afterCta}
         </td></tr>
         <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
+          <p style="margin:0 0 8px;color:#10243a;font-weight:700;font-size:13px">Konuttalebi<br>
+            <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
           Bu e-postayı Konuttalebi üyeliğin nedeniyle aldın. Soru ve talepler için
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a> adresine yazabilirsin.
         </td></tr>
@@ -510,7 +525,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
-    queueEmail(id, "Üyeliğin oluşturuldu", welcomeBody(role), dashboardPathForRole(role), "Yeni üyelik karşılama");
+    queueEmail(id, "Konuttalebi'ye hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği oluşturuldu.`);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
@@ -643,7 +658,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
-    queueEmail(id, "Üyeliğin oluşturuldu", welcomeBody(role), dashboardPathForRole(role), "Yeni üyelik karşılama");
+    queueEmail(id, "Konuttalebi'ye hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği Google ile oluşturuldu.`);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());

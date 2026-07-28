@@ -313,7 +313,9 @@ export function renderCityPage(side, slug) {
     : `Aynı şehirde ev arayan tarafa geç: ${city.name}'da kiralık ev talebini oluşturabilir, ev sahiplerinden teklif alabilirsin.`;
   const crossLabel = isTenant ? `${city.name}'da evine kiracı bul` : `${city.name}'da kiralık ev talebi oluştur`;
 
-  const ctaAttrs = `onclick="ktCityCta('${slug}','${isTenant ? "kiraci" : "ev_sahibi"}','${path}')"`;
+  // Iki CTA ayni sayfada: ustteki hero, alttaki kapanis bandi. Konum ayri gonderilir.
+  const taraf = isTenant ? "kiraci" : "ev_sahibi";
+  const ctaAttr = (konum) => `onclick="ktCityCta('${slug}','${taraf}','${konum}','${ctaHref}')"`;
 
   return `<!doctype html>
 <html lang="tr">
@@ -348,9 +350,19 @@ export function renderCityPage(side, slug) {
       gtag('js', new Date());
       gtag('config', 'AW-18335656859');
       gtag('config', 'G-LFBWPTNVDE');
-      // Sehir sayfasi CTA olayi (hangi ilin butonu calisiyor?)
-      function ktCityCta(sehir, taraf, hedef){
-        try { gtag('event','sehir_sayfasi_cta',{ sehir: sehir, taraf: taraf, hedef: hedef }); } catch(e){}
+      // Sehir sayfasi CTA olayi (hangi ilin, hangi konumdaki butonu calisiyor?)
+      // ONEMLI: gtag yukleyicisi Ads kimligiyle basladigi icin varsayilan hedef Ads'tir.
+      // send_to yazilmazsa olay GA4'e ulasmaz; bu yuzden iki kimlik de acikca verilir.
+      function ktCityCta(sehir, taraf, konum, hedef){
+        try {
+          gtag('event','sehir_sayfasi_cta',{
+            send_to: ['G-LFBWPTNVDE','AW-18335656859'],
+            sehir: sehir,
+            taraf: taraf,
+            konum: konum,   // 'hero' | 'bant'
+            hedef: hedef    // gercek varis adresi
+          });
+        } catch(e){}
       }
     </script>
   </head>
@@ -362,7 +374,7 @@ ${HEADER_HTML}
         <span class="eyebrow">${isTenant ? "Kiralık ev arayanlar" : "Evine kiracı bul"} · ${esc(city.name)}</span>
         <h1>${esc(data.h1)}</h1>
         <p>${esc(sub)}</p>
-        <a class="btn" href="${ctaHref}" ${ctaAttrs}>${ctaLabel}</a>
+        <a class="btn" href="${ctaHref}" ${ctaAttr('hero')}>${ctaLabel}</a>
       </div>
     </div>
 
@@ -407,7 +419,7 @@ ${HEADER_HTML}
         <div class="band">
           <h2>${isTenant ? `${esc(city.name)}'da aradığın evi tarif et` : `${esc(city.name)}'daki talepleri incele`}</h2>
           <p>${esc(sub)}</p>
-          <a class="btn" href="${ctaHref}" ${ctaAttrs}>${ctaLabel}</a>
+          <a class="btn" href="${ctaHref}" ${ctaAttr('bant')}>${ctaLabel}</a>
         </div>
       </div>
     </section>

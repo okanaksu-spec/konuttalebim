@@ -2438,8 +2438,17 @@ function stat(label, value) {
 function searchPage() {
   searchState.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
   const ilOpts = `<option value="">Tüm iller</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}" ${searchState.city === il.code ? "selected" : ""}>${escapeHtml(il.name)}</option>`).join("");
+  const demandMode = searchState.mode === "demands";
+  const tabs = `
+    <div class="sc-tx" style="max-width:420px;margin:0 0 16px">
+      <button type="button" class="${demandMode ? "" : "active"}" onclick="KT.searchMode('properties')">${icon("home", 15)} Konutlar</button>
+      <button type="button" class="${demandMode ? "active" : ""}" onclick="KT.searchMode('demands')">${icon("key", 15)} Ev arayanlar</button>
+    </div>`;
   return `
-    ${pageHead("İlan Ara", "Soldan kategoriye tıkla; yayındaki ilanları kutucuklar halinde gör. Kayıt şehrin fark etmez; her il/ilçe/mahalleyi arayabilirsin. İletişim bilgisi yalnızca üyelikle açılır.")}
+    ${pageHead(demandMode ? "Ev Arayanlar" : "İlan Ara", demandMode
+      ? "Yayındaki alıcı ve kiracı talepleri. Kimlik bilgisi görünmez; bölge, ihtiyaç ve bütçe aralığı görünür. Teklif göndermek ve iletişim bilgisine ulaşmak için üyelik gerekir."
+      : "Soldan kategoriye tıkla; yayındaki ilanları kutucuklar halinde gör. Kayıt şehrin fark etmez; her il/ilçe/mahalleyi arayabilirsin. İletişim bilgisi yalnızca üyelikle açılır.")}
+    ${tabs}
     <div class="search-layout">
       <aside class="search-side" id="search-side">${renderSearchSidebar()}</aside>
       <div class="search-main">
@@ -2452,7 +2461,7 @@ function searchPage() {
           <button type="button" class="btn btn-primary" onclick="KT.searchApplyFilters()">${icon("search", 15)} Uygula</button>
         </div>
         <div class="search-topbar">
-          <div class="search-count" id="search-count">İlanlar yükleniyor…</div>
+          <div class="search-count" id="search-count">${demandMode ? "Talepler" : "İlanlar"} yükleniyor…</div>
           <select class="search-sort" onchange="KT.searchSort(this.value)">
             <option value="new">En Yeniler</option>
             <option value="price-asc">Fiyat (artan)</option>
@@ -2506,6 +2515,34 @@ function listingCard(p) {
         <div class="lc-loc">${icon("map", 13)} ${escapeHtml(loc)}</div>
         <div class="lc-price">${money(p.price)}${rent ? " / ay" : ""}</div>
         <div class="lc-foot"><span class="lc-lock">${icon("lock", 12)} İletişim gizli</span><span class="lc-date">${escapeHtml(p.createdAt || "")}</span></div>
+      </div>
+    </article>
+  `;
+}
+
+// Herkese acik talep karti: kimlik yok, yalnizca ihtiyac ozeti + maskeli aciklama.
+function publicDemandCard(d) {
+  const rent = d.transactionType === "RENT";
+  const loc = [d.city, d.district].filter(Boolean).join(", ") || "Konum belirtilmedi";
+  const budget = (d.minBudget || d.maxBudget)
+    ? `${shortMoney(d.minBudget)} - ${shortMoney(d.maxBudget)}${rent ? " / ay" : ""}`
+    : "Bütçe belirtilmedi";
+  const sqm = (d.minSqm || d.maxSqm) ? `${d.minSqm || "?"}-${d.maxSqm || "?"} m²` : "";
+  const detay = [d.roomCount, sqm, d.purchaseTimeline].filter(Boolean).join(" · ");
+  return `
+    <article class="listing-card ${isBoosted(d) ? "promoted-card" : ""}" onclick="KT.searchDetail('${escapeAttr(d.id)}')">
+      <div class="lc-media">
+        <div class="lc-ph">${icon("key", 40)}</div>
+        <span class="lc-badge">${escapeHtml(d.propertyType || d.mainCategory || "Konut")}</span>
+        <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiracı arıyor" : "Alıcı arıyor"}</span>
+        ${isBoosted(d) ? `<span class="lc-boost">Üste taşındı</span>` : ""}
+      </div>
+      <div class="lc-body">
+        <div class="lc-title">${escapeHtml(d.title || "")}</div>
+        <div class="lc-loc">${icon("map", 13)} ${escapeHtml(loc)}</div>
+        <div class="lc-price">${escapeHtml(budget)}</div>
+        ${detay ? `<div class="lc-loc" style="margin-top:2px">${escapeHtml(detay)}</div>` : ""}
+        <div class="lc-foot"><span class="lc-lock">${icon("lock", 12)} Kimlik gizli</span><span class="lc-date">${escapeHtml(d.createdAt || "")}</span></div>
       </div>
     </article>
   `;
@@ -3011,30 +3048,40 @@ window.KT = {
     searchState.sort = v || "new";
     KT.searchRun();
   },
+  // Konutlar <-> Ev arayanlar (talepler) sekmesi
+  searchMode(mode) {
+    searchState.mode = mode === "demands" ? "demands" : "properties";
+    render();
+  },
   async searchRun() {
     const box = document.getElementById("search-results");
     const cnt = document.getElementById("search-count");
     const s = searchState;
+    const demandMode = s.mode === "demands";
     const params = new URLSearchParams();
     params.set("tx", s.tx);
     if (s.mainCategory) params.set("mainCategory", s.mainCategory);
     if (s.subCategory) params.set("subCategory", s.subCategory);
     if (s.cityName) params.set("city", s.cityName);
     if (s.district) params.set("district", s.district);
-    if (s.neighborhood) params.set("neighborhood", s.neighborhood);
+    if (!demandMode && s.neighborhood) params.set("neighborhood", s.neighborhood);
     if (s.minPrice) params.set("minPrice", s.minPrice);
     if (s.maxPrice) params.set("maxPrice", s.maxPrice);
-    if (box) box.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Aranıyor…</b><span class="muted">Uygun ilanlar getiriliyor.</span></div>`;
-    const r = await api("/properties/search?" + params.toString());
+    const kind = demandMode ? "talepler" : "ilanlar";
+    if (box) box.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Aranıyor…</b><span class="muted">Uygun ${kind} getiriliyor.</span></div>`;
+    const r = await api((demandMode ? "/demands/search?" : "/properties/search?") + params.toString());
     let items = (r.ok && r.data && r.data.items) ? r.data.items : [];
-    if (s.sort === "price-asc") items = items.slice().sort((a, b) => (a.price || 0) - (b.price || 0));
-    else if (s.sort === "price-desc") items = items.slice().sort((a, b) => (b.price || 0) - (a.price || 0));
+    const priceOf = (x) => demandMode ? (x.maxBudget || x.minBudget || 0) : (x.price || 0);
+    if (s.sort === "price-asc") items = items.slice().sort((a, b) => priceOf(a) - priceOf(b));
+    else if (s.sort === "price-desc") items = items.slice().sort((a, b) => priceOf(b) - priceOf(a));
     _searchItems = items;
-    if (cnt) cnt.textContent = items.length ? `${items.length} ilan listelendi` : "İlan bulunamadı";
+    if (cnt) cnt.textContent = items.length
+      ? `${items.length} ${demandMode ? "talep" : "ilan"} listelendi`
+      : (demandMode ? "Talep bulunamadı" : "İlan bulunamadı");
     if (!box) return;
     box.innerHTML = items.length
-      ? items.map(listingCard).join("")
-      : `<div class="empty" style="grid-column:1/-1"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: mahalle/ilçe kaldır ya da fiyat aralığını aç.</span></div>`;
+      ? items.map(demandMode ? publicDemandCard : listingCard).join("")
+      : `<div class="empty" style="grid-column:1/-1"><b>Sonuç bulunamadı</b><span class="muted">Filtreleri genişletmeyi dene: ilçe kaldır ya da ${demandMode ? "bütçe" : "fiyat"} aralığını aç.</span></div>`;
   },
   // Ana sayfadaki hızlı arama çubuğu → public #/ilanlar sayfasına filtreyle geç.
   homeSearch() {
@@ -3063,6 +3110,7 @@ window.KT = {
   searchDetail(id) {
     const p = _searchItems.find((x) => x.id === id);
     if (!p) return;
+    if (searchState.mode === "demands") return KT.demandDetail(p);
     const u = currentUser();
     const rent = p.transactionType === "RENT";
     const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(", ") || "Konum belirtilmedi";
@@ -3093,6 +3141,44 @@ window.KT = {
           ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
           <p style="margin:12px 0;color:#26333f;font-size:14px;line-height:1.6">${escapeHtml(p.description || "")}</p>
           <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} İletişim gizli.</strong> Mülk sahibinin telefon/e-postası yalnızca eşleşme sonrası üyelikle açılır. Tam adres gösterilmez.</div>
+          <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="KT.closeSearchDetail()">Kapat</button>${cta}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  // Herkese acik talep detayi: kimlik yok; teklif icin uyelik yonlendirmesi var.
+  demandDetail(d) {
+    const u = currentUser();
+    const rent = d.transactionType === "RENT";
+    const loc = [d.city, d.district].filter(Boolean).join(", ") || "Konum belirtilmedi";
+    const meta = [d.mainCategory, d.propertyType].filter(Boolean);
+    if (d.roomCount) meta.push(d.roomCount);
+    if (d.minSqm || d.maxSqm) meta.push(`${d.minSqm || "?"}-${d.maxSqm || "?"} m²`);
+    if (d.purchaseTimeline) meta.push(d.purchaseTimeline);
+    if (d.heatingType) meta.push(d.heatingType);
+    const feats = [...parseFeatures(d.interiorFeatures), ...parseFeatures(d.exteriorFeatures)].map(escapeHtml);
+    const budget = `${shortMoney(d.minBudget)} - ${shortMoney(d.maxBudget)}${rent ? " / ay" : ""}`;
+    const cta = !isSignedIn()
+      ? `<a class="btn btn-primary" style="flex:1" href="#/uye-ol/${rent ? "landlord" : "seller"}" onclick="KT.closeSearchDetail()">Teklif vermek için üye ol</a>`
+      : (u && u.role === "BUYER")
+        ? `<a class="btn btn-primary" style="flex:1" href="#/dashboard/alici/taleplerim" onclick="KT.closeSearchDetail()">Kendi talebimi yönet</a>`
+        : `<a class="btn btn-primary" style="flex:1" href="#/dashboard/satici/talepler" onclick="KT.closeSearchDetail()">Panelde teklif ver</a>`;
+    const old = document.getElementById("kt-listing-overlay");
+    if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-listing-overlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.onclick = (e) => { if (e.target === ov) KT.closeSearchDetail(); };
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(8,18,30,.35)">
+        <div class="lc-media" style="height:150px;border-radius:14px 14px 0 0"><div class="lc-ph">${icon("key", 46)}</div><span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiracı arıyor" : "Alıcı arıyor"}</span></div>
+        <div style="padding:20px">
+          <h3 style="margin:0 0 6px;font-size:20px;color:#10243a">${escapeHtml(d.title || "")}</h3>
+          <p style="margin:0 0 4px;color:#5b6b7d;font-size:14px">${icon("map", 13)} ${escapeHtml(loc)}</p>
+          <p style="margin:8px 0;font-size:22px;font-weight:700;color:#e07b39">${escapeHtml(budget)}</p>
+          <div class="pill-row" style="margin:10px 0">${meta.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
+          ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
+          <p style="margin:12px 0;color:#26333f;font-size:14px;line-height:1.6">${escapeHtml(d.description || "")}</p>
+          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} Kimlik gizli.</strong> Talep sahibinin adı, telefonu ve e-postası gösterilmez. Teklifin ilgi görürse iletişim bilgisi üyelikle açılır; ödemeye ve pazarlığa karışmayız.</div>
           <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="KT.closeSearchDetail()">Kapat</button>${cta}</div>
         </div>
       </div>`;

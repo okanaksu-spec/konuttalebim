@@ -289,8 +289,10 @@ function ktTrack(eventName, params) {
       gtag("event", "conversion", payload);
     }
     // Adlandirilmis olay (GA4): baglam bilgisi burada kalir, dönüşüm yukune karismaz.
-    // gtag yukleyicisi Ads kimligiyle basladigi icin varsayilan hedef Ads'tir;
-    // send_to yazilmazsa olay GA4'e hic ulasmaz. Bu yuzden iki kimlik de verilir.
+    // send_to acikca yaziliyor. DUZELTME (29 Tem 2026): eskiden buraya "send_to
+    // yazilmazsa olay GA4'e hic ulasmaz" diye bir not dusmustuk — bu YANLIS.
+    // Canlida olculdu: send_to verilmeyen ozel olay sayfadaki TUM config hedeflerine
+    // gidiyor, yani GA4'e de ulasiyor. Yine de hedefi acik yazmak dogru aliskanlik.
     gtag("event", `kt_${eventName}`, { send_to: [GA4_ID, ADS_ID], ...p });
   } catch { /* olcum hatasi akisi bozmasin */ }
 }
@@ -3595,13 +3597,11 @@ window.KT = {
 // ZORUNLU. Kaldirmadan once tekrar olc.
 // Ayrica gtag, page_location'i document.location'dan alirken fragment'i (#/...)
 // atiyor; bu yuzden adres acikca geciriliyor, yoksa tum rotalar "/" olarak birikir.
-let ktFirstNavigate = true;
 function ktPageView() {
   if (typeof gtag !== "function") return;
-  // Ilk yuklemede gtag'in kendi otomatik page_view'u zaten gidiyor; router acilista
-  // rotayi (#/home) bir kez ayarladigi icin buraya da ugruyoruz — o ilk cagriyi atla,
-  // yoksa acilista 2 page_view olur.
-  if (ktFirstNavigate) { ktFirstNavigate = false; return; }
+  // Ilk cagri da gonderilir: index.html'de GA4 config'i send_page_view:false ile
+  // acildigi icin otomatik page_view yok. Boylece acilis "/" degil "/home" olarak
+  // tek satirda toplanir, cift sayim da olmaz.
   try {
     const hash = (location.hash || "").replace(/^#/, "");           // "/ilanlar"
     const base = location.pathname.replace(/\/+$/, "");             // "" (kok icin)

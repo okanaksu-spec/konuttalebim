@@ -1958,7 +1958,7 @@ function propertyForm() {
 }
 
 // Talep havuzu filtresi (panel ici; sayfa yenilenmeden calisir)
-let demandPoolFilter = { tx: "", city: "" };
+let demandPoolFilter = { tx: "", city: "", touched: false };
 
 function demandPoolTitle(tx) {
   if (tx === "RENT") return "Kiracı Talepleri";
@@ -1986,7 +1986,13 @@ function demandPoolRows() {
 }
 function sellerDemands() {
   // Varsayilan: uyenin akisina uygun taraf (ev sahibi -> kiracı talepleri).
-  if (!demandPoolFilter.tx) demandPoolFilter.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
+  // Emlak danismani iki tarafla da calisir; ona tum talepler acilir.
+  if (demandPoolFilter.tx === undefined || demandPoolFilter.tx === null) demandPoolFilter.tx = "";
+  if (demandPoolFilter.tx === "" && !demandPoolFilter.touched) {
+    const role = (currentUser() || {}).role;
+    demandPoolFilter.tx = role === "AGENT" ? "" : (uiTxMode === "RENT" ? "RENT" : "SALE");
+    demandPoolFilter.touched = true;
+  }
   const { html, count } = demandPoolRows();
   const cities = [...new Set(state.demands.map((d) => d.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
   const opt = (v, label, sel) => `<option value="${escapeAttr(v)}"${sel === v ? " selected" : ""}>${escapeHtml(label)}</option>`;
@@ -2766,7 +2772,11 @@ window.KT = {
   setDemandPoolFilter() {
     const tx = (document.getElementById("dp-tx") || {}).value;
     const city = (document.getElementById("dp-city") || {}).value;
-    demandPoolFilter = { tx: tx === undefined ? demandPoolFilter.tx : tx, city: city === undefined ? demandPoolFilter.city : city };
+    demandPoolFilter = {
+      tx: tx === undefined ? demandPoolFilter.tx : tx,
+      city: city === undefined ? demandPoolFilter.city : city,
+      touched: true // kullanici sectiyse varsayilan bir daha ezmesin
+    };
     render();
   },
   toggleNav(btn) {

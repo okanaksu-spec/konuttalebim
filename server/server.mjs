@@ -462,8 +462,13 @@ function buildState(user) {
     auditLogs: isAdmin ? all("audit_logs") : [],
     payments: myPayments,
     entitlements: isAdmin ? all("entitlements") : (user ? all("entitlements").filter((e) => e.userId === user.id) : []),
-    // Ana sayfa vitrin sayaclari (kisisel veri degil, sadece toplam adet)
-    stats: { demands: demandsArr.length, offers: allOffers.length, matches: matches.length }
+    // Ana sayfa vitrin sayaclari (kisisel veri degil, sadece toplam adet).
+    // Yalnizca yayinda olan kayitlar sayilir; kaldirilan/pasif olanlar vitrine yansimaz.
+    stats: {
+      demands: demandsArr.filter((d) => (d.status || "ACTIVE") === "ACTIVE").length,
+      offers: allOffers.length,
+      matches: matches.length
+    }
   };
 }
 

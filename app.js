@@ -1053,10 +1053,10 @@ function demandCard(demand, options = {}) {
     <article class="${options.sample ? "sample-card" : "row-card"}">
       ${options.sample ? "" : (demand.imageData ? `<div class="thumb"><img class="thumb-img" src="${demand.imageData}" alt=""></div>` : `<div class="thumb">${icon("key", 28)}</div>`)}
       <div>
-        <div class="sample-top">
+        ${options.profile ? `<div class="sample-top">
           <span class="badge ${badgeForProfile(profile)}">${icon("shield", 13)} ${escapeHtml(profile.verificationLevel)}</span>
           <span class="pill">${score}/100 bütçe güveni</span>
-        </div>
+        </div>` : `<div class="sample-top">${txPill(demand)}</div>`}
         <h3 style="margin-top:12px">${escapeHtml(demand.title)}</h3>
         <p class="muted">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)}</p>
         <div class="pill-row" style="margin-top:12px">
@@ -1660,7 +1660,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici/evlerim", "Evlerim", "home"],
       ["dashboard/satici/ev-ekle", "Yeni Ev", "send"],
       ["dashboard/ara", "İlan Ara", "search"],
-      ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
+      ["dashboard/satici/talepler", uiTxMode === "RENT" ? "Kiracı Talepleri" : "Alıcı Talepleri", "key"],
       ["dashboard/satici/tekliflerim", "Tekliflerim", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/satici/dogrulama", "Satıcı Doğrulama", "shield"],
@@ -1670,7 +1670,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici", "Genel Bakış", "chart"],
       ["dashboard/satici/evlerim", "Portföy", "home"],
       ["dashboard/ara", "İlan Ara", "search"],
-      ["dashboard/satici/talepler", "Alıcı Talepleri", "key"],
+      ["dashboard/satici/talepler", "Talep Havuzu", "key"],
       ["dashboard/satici/tekliflerim", "Teklifler", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/satici/paketler", "Kurumsal Paket", "card"]
@@ -1957,10 +1957,23 @@ function propertyForm() {
   `;
 }
 
-function sellerDemands() {
+// Talep havuzu filtresi (panel ici; sayfa yenilenmeden calisir)
+let demandPoolFilter = { tx: "", city: "" };
+
+function demandPoolTitle(tx) {
+  if (tx === "RENT") return "Kiracı Talepleri";
+  if (tx === "SALE") return "Alıcı Talepleri";
+  return "Talep Havuzu";
+}
+function demandPoolRows() {
   const user = currentUser();
   const properties = state.properties.filter((p) => p.sellerId === user.id);
-  const rows = state.demands
+  const list = state.demands.filter((d) => {
+    if (demandPoolFilter.tx && (d.transactionType || "SALE") !== demandPoolFilter.tx) return false;
+    if (demandPoolFilter.city && d.city !== demandPoolFilter.city) return false;
+    return true;
+  });
+  const rows = list
     .map((demand) => ({
       demand,
       best: properties.map((property) => calculateMatchScore(demand, property).score).sort((a, b) => b - a)[0] || 0
@@ -1969,14 +1982,34 @@ function sellerDemands() {
     .sort((a, b) => (Number(isBoosted(b.demand)) - Number(isBoosted(a.demand))) || (b.best - a.best))
     .map(({ demand, best }) => demandRow(demand, true, best))
     .join("");
+  return { html: rows, count: list.length };
+}
+function sellerDemands() {
+  // Varsayilan: uyenin akisina uygun taraf (ev sahibi -> kiracı talepleri).
+  if (!demandPoolFilter.tx) demandPoolFilter.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
+  const { html, count } = demandPoolRows();
+  const cities = [...new Set(state.demands.map((d) => d.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
+  const opt = (v, label, sel) => `<option value="${escapeAttr(v)}"${sel === v ? " selected" : ""}>${escapeHtml(label)}</option>`;
+  const tx = demandPoolFilter.tx;
   return `
-    ${pageHead("Alıcı Talepleri", "Hazır alıcıları rozet, bütçe ve konuma göre incele.")}
+    ${pageHead(demandPoolTitle(tx), tx === "RENT"
+      ? "Evini kiralamak istiyorsan buradaki kiracı taleplerinden sana uygun olanı seçip teklifini gönder."
+      : tx === "SALE"
+        ? "Evini satmak istiyorsan buradaki alıcı taleplerinden sana uygun olanı seçip teklifini gönder."
+        : "Yayındaki tüm talepler. Sana uygun olanı seçip teklifini gönder.")}
     <div class="toolbar">
-      <select><option>Tüm şehirler</option><option>İstanbul</option><option>Ankara</option><option>İzmir</option></select>
-      <select><option>Tüm rozetler</option><option>Premium doğrulanmış</option><option>Kredi ön onaylı</option><option>Bütçe beyanlı</option></select>
-      <span class="pill">${state.demands.length} aktif talep</span>
+      <select id="dp-tx" onchange="KT.setDemandPoolFilter()">
+        ${opt("RENT", "Kiracı talepleri (kiralık)", tx)}
+        ${opt("SALE", "Alıcı talepleri (satılık)", tx)}
+        ${opt("", "Tümü", tx)}
+      </select>
+      <select id="dp-city" onchange="KT.setDemandPoolFilter()">
+        ${opt("", "Tüm şehirler", demandPoolFilter.city)}
+        ${cities.map((c) => opt(c, c, demandPoolFilter.city)).join("")}
+      </select>
+      <span class="pill" id="dp-count">${count} talep</span>
     </div>
-    <div class="list">${rows || empty("Uygun talep yok", "Filtreleri genişletmeyi deneyebilirsin.")}</div>
+    <div class="list" id="dp-list">${html || empty("Uygun talep yok", "Farklı bir şehir veya işlem türü seçmeyi deneyebilirsin.")}</div>
   `;
 }
 
@@ -2512,14 +2545,14 @@ function demandExtraPills(demand) {
   return `<div class="pill-row" style="margin-top:8px">${all.map((t) => `<span class="pill">${t}</span>`).join("")}</div>`;
 }
 function demandRow(demand, sellerView, score = null) {
-  const profile = buyerProfile(demand.buyerId);
+  // Guven rozeti/puani panel listelerinde gosterilmiyor (gercek skorlama sonraki asamada).
   return `
     <article class="row-card ${isBoosted(demand) ? "promoted-card" : ""}">
       <div class="thumb">${icon("key", 28)}</div>
       <div>
         <div class="row-title">${escapeHtml(demand.title)}</div>
         <div class="row-meta">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)} · ${rangeText(demand)}</div>
-        <div class="pill-row" style="margin-top:8px">${txPill(demand)}<span class="badge ${badgeForProfile(profile)}">${profile.verificationLevel}</span><span class="pill">${demand.purchaseTimeline}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
+        <div class="pill-row" style="margin-top:8px">${txPill(demand)}<span class="pill">${escapeHtml(demand.purchaseTimeline || "")}</span>${score !== null ? `<span class="pill">${score}/100 en iyi uyum</span>` : ""}${isBoosted(demand) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
         <p class="row-note">${escapeHtml(demand.description)}</p>
         ${demandExtraPills(demand)}
       </div>
@@ -2728,6 +2761,13 @@ window.KT = {
   startByRole() {
     if (isSignedIn()) return this.goDashboard();
     setRoute("uye-ol");
+  },
+  // Talep havuzu filtresi: liste ve baslik sayfa yenilenmeden guncellenir.
+  setDemandPoolFilter() {
+    const tx = (document.getElementById("dp-tx") || {}).value;
+    const city = (document.getElementById("dp-city") || {}).value;
+    demandPoolFilter = { tx: tx === undefined ? demandPoolFilter.tx : tx, city: city === undefined ? demandPoolFilter.city : city };
+    render();
   },
   toggleNav(btn) {
     const nav = document.getElementById("site-nav");

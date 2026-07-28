@@ -1191,6 +1191,24 @@ function authRegisterPage(roleKey = "buyer") {
           </div>
           ${field("Şifre", "r-password", "password", "En az 6 karakter")}
           ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
+          <div class="field">
+            <label for="r-tckn">T.C. kimlik numarası</label>
+            <input id="r-tckn" type="text" inputmode="numeric" maxlength="11" placeholder="11 hane" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="r-birth">Doğum tarihi</label>
+            <input id="r-birth" type="date" max="${new Date().toISOString().slice(0, 10)}">
+          </div>
+          <div class="field full">
+            <div class="notice" style="margin:0">
+              <strong>Kimlik bilgin neden isteniyor?</strong> Sahte üyeliği önlemek ve eşleşen tarafların gerçek kişiler olduğundan emin olmak için.
+              Numaran <strong>şifreli</strong> saklanır, panelde bile maskeli görünür (123******01), hiçbir kullanıcıyla paylaşılmaz.
+              Ayrıntı: <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a>.
+            </div>
+          </div>
+          <div class="field full">
+            <label class="check"><input id="r-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span class="muted" style="font-weight:400">(Kimlik alanlarını doldurduysan gerekli)</span></span></label>
+          </div>
           <div class="field full">
             <label class="check"><input id="r-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></span></label>
           </div>
@@ -1267,6 +1285,14 @@ function googleCompletePage() {
           <div class="field"><label for="gc-role">Üyelik tipi</label><select id="gc-role">${roleOptions.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></div>
           ${field("Telefon", "gc-phone", "tel", "05xx xxx xx xx")}
           <div class="field full"><label for="gc-city">Şehir</label><select id="gc-city">${["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa", "Antalya"].map((c) => `<option>${c}</option>`).join("")}</select></div>
+          <div class="field"><label for="gc-tckn">T.C. kimlik numarası</label><input id="gc-tckn" type="text" inputmode="numeric" maxlength="11" placeholder="11 hane" autocomplete="off"></div>
+          <div class="field"><label for="gc-birth">Doğum tarihi</label><input id="gc-birth" type="date" max="${new Date().toISOString().slice(0, 10)}"></div>
+          <div class="field full">
+            <div class="notice" style="margin:0">Kimlik bilgin sahte üyeliği önlemek için isteniyor; <strong>şifreli</strong> saklanır, panelde maskeli görünür, hiçbir kullanıcıyla paylaşılmaz. <a href="#/kvkk" target="_blank">Ayrıntı</a></div>
+          </div>
+          <div class="field full">
+            <label class="check"><input id="gc-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin kimlik doğrulama amacıyla işlenmesine açık rıza veriyorum.</span></label>
+          </div>
           <div class="field full">
             <label class="check"><input id="gc-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
           </div>
@@ -1561,7 +1587,7 @@ function legalPage(kind) {
       <p>Veri sorumlusu sıfatıyla ${C.unvan}. KVKK başvuruları için: <strong>${C.email}</strong>.</p>
       <h3>2. İşlenen Kişisel Veri Kategorileri</h3>
       <ul class="legal-list">
-        <li><strong>Kimlik:</strong> ad-soyad; yasal zorunluluk hâlinde T.C. kimlik no.</li>
+        <li><strong>Kimlik:</strong> ad-soyad; açık rızanızla T.C. kimlik numarası ve doğum tarihi.</li>
         <li><strong>İletişim:</strong> e-posta, telefon, şehir/adres.</li>
         <li><strong>İşlem güvenliği:</strong> IP, oturum ve log kayıtları, şifre (şifrelenmiş olarak), cihaz bilgisi.</li>
         <li><strong>Hizmet kullanımı:</strong> oluşturduğunuz talep/ilanlar ve beyanlar (bütçe/kira aralığı, peşinat, kredi/nakit tercihi), gönderdiğiniz teklifler, eşleşmeler, favoriler.</li>
@@ -1574,11 +1600,20 @@ function legalPage(kind) {
       <p>Veriler; web sitesi, mobil uygulama ve e-posta yoluyla elektronik ortamda toplanır. Hukuki sebepler: sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; ve gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
       <h3>5. Talep ve İlanların Herkese Açık Görünürlüğü</h3>
       <p>Oluşturduğunuz <strong>talepler ve ilanlar, üyeliği olmayan ziyaretçiler dâhil herkese açık olarak</strong> platformda listelenir. Bu listelemede yalnızca ihtiyaç özeti görünür: şehir/ilçe, konut tipi, oda sayısı, m² aralığı, bütçe veya kira aralığı, zaman tercihi, tercih ettiğiniz özellikler ve yazdığınız açıklama metni. <strong>Adınız, telefonunuz, e-postanız ve kimliğiniz gösterilmez</strong>; açıklama metnine yazılan telefon/e-posta gibi iletişim bilgileri sistem tarafından otomatik olarak maskelenir. İletişim bilgileriniz yalnızca eşleşme sonrası, karşı tarafın <strong>Bilgileri Görme Üyeliği</strong> alması hâlinde paylaşılır. Açıklama alanına kimliğinizi ortaya çıkarabilecek bilgiler yazmamanızı öneririz. Talebinizi panelinizden yayından kaldırdığınızda herkese açık listelemeden de çıkar.</p>
-      <h3>6. Aktarım (KVKK m.8-9)</h3>
+      <h3>6. T.C. Kimlik Numarası ve Doğum Tarihi</h3>
+      <p>T.C. kimlik numarası ve doğum tarihi <strong>yalnızca açık rızanızla</strong> alınır; amacı sahte üyeliğin önlenmesi ve eşleşen tarafların gerçek kişiler olduğunun teyididir. Bu veriler şu güvencelerle işlenir:</p>
+      <ul class="legal-list">
+        <li>T.C. kimlik numarası veritabanında <strong>açık metin olarak tutulmaz</strong>; endüstri standardı şifreleme (AES-256-GCM) ile saklanır.</li>
+        <li>Yönetim panelinde dahi <strong>maskeli</strong> görünür (örn. 123******01). Açık değerin görüntülenmesi ayrı bir yetki gerektirir ve <strong>her görüntüleme gerekçesiyle birlikte kayıt altına alınır</strong>.</li>
+        <li>Bu veriler <strong>hiçbir kullanıcıyla paylaşılmaz</strong>; eşleşme sonrası açılan iletişim bilgilerine dâhil değildir.</li>
+        <li>Alanların doldurulması <strong>zorunlu değildir</strong>; boş bırakabilir, rızanızı dilediğiniz zaman ${C.email} adresine yazarak geri çekebilirsiniz. Rıza geri çekildiğinde bu veriler silinir.</li>
+        <li>Üyeliğiniz silindiğinde veya anonimleştirildiğinde bu veriler <strong>geri döndürülemez şekilde</strong> kaldırılır.</li>
+      </ul>
+      <h3>7. Aktarım (KVKK m.8-9)</h3>
       <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Eşleşmede yalnızca ilgili iletişim bilgisi, üyeliği olan tarafa açılır.</p>
-      <h3>7. Saklama Süresi</h3>
+      <h3>8. Saklama Süresi</h3>
       <p>Veriler, işleme amacının gerektirdiği ve mevzuatın öngördüğü süre boyunca saklanır; süre sonunda resen veya talebiniz üzerine silinir, yok edilir ya da anonimleştirilir.</p>
-      <h3>8. Haklarınız (KVKK m.11)</h3>
+      <h3>9. Haklarınız (KVKK m.11)</h3>
       <p>Kişisel veri sahibi olarak; verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını ve amaca uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini, şartlar oluştuğunda silinmesini/yok edilmesini isteme, otomatik analiz sonucu aleyhinize çıkan bir sonuca itiraz etme ve kanuna aykırı işleme nedeniyle zararınızın giderilmesini talep etme haklarına sahipsiniz. Başvurularınız ${C.email} üzerinden en geç <strong>30 gün</strong> içinde ücretsiz sonuçlandırılır.</p>` },
     "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler ve yönetimi hakkında.", h: `
       <p>Konuttalebi, hizmetin çalışması ve kullanıcı deneyiminin iyileştirilmesi için çerez (cookie) kullanır. Aşağıda çerez türleri ve yönetimi açıklanmıştır.</p>
@@ -1713,7 +1748,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/admin/sikayetler", "Şikayetler", "alert"],
       ["dashboard/admin/risk", "Risk Paneli", "shield"],
       ["dashboard/admin/odemeler", "Ödemeler", "card"],
-      ["dashboard/admin/audit", "Audit Logs", "file"]
+      ["dashboard/admin/audit", "Denetim Kaydı", "shield"]
     ]
   };
   const list = menus[role] || menus.buyer;
@@ -2118,27 +2153,141 @@ function renderAdmin(path) {
   if (path.includes("/sikayetler")) content = adminTable("Şikayetler", state.complaints, ["reason", "description", "status", "priority", "createdAt"]);
   if (path.includes("/risk")) content = adminTable("Risk Paneli", state.abuseSignals, ["userId", "type", "score", "metadata", "createdAt"]);
   if (path.includes("/odemeler")) content = adminTable("Ödemeler", state.payments, ["userId", "planId", "provider", "amount", "currency", "status"]);
-  if (path.includes("/audit")) content = adminTable("Audit Logs", state.auditLogs, ["actorId", "action", "entityType", "entityId", "metadata", "createdAt"]);
+  if (path.includes("/audit")) content = adminAudit();
   return dashboardLayout("admin", content, path);
 }
 
+// Belirli gun sayisi icindeki kayitlari say (createdAt "YYYY-MM-DD" biciminde).
+function sonGunSayisi(list, gun) {
+  const sinir = new Date(Date.now() - gun * 86400000).toISOString().slice(0, 10);
+  return (list || []).filter((x) => String(x.createdAt || "").slice(0, 10) >= sinir).length;
+}
+function panoSatir(etiket, bugun, hafta, ay) {
+  return `<tr><td>${escapeHtml(etiket)}</td><td style="text-align:right;font-weight:600">${bugun}</td><td style="text-align:right">${hafta}</td><td style="text-align:right">${ay}</td></tr>`;
+}
+
 function adminOverview() {
-  const activeDemands = state.demands.filter((d) => d.status === "ACTIVE").length;
-  const activeProperties = state.properties.filter((p) => p.status === "ACTIVE").length;
-  const revenue = state.payments.reduce((total, payment) => payment.status === "SUCCESS" ? total + Number(payment.amount || 0) : total, 0);
+  const users = state.users || [], demands = state.demands || [], properties = state.properties || [];
+  const offers = state.offers || [], matches = state.matches || [], payments = state.payments || [];
+  const activeDemands = demands.filter((d) => d.status === "ACTIVE").length;
+  const activeProperties = properties.filter((p) => p.status === "ACTIVE").length;
+  const revenue = payments.reduce((t, p) => p.status === "SUCCESS" ? t + Number(p.amount || 0) : t, 0);
+  const askida = users.filter((u) => u.status === "SUSPENDED").length;
+
+  // Huni: uye -> talep/ilan -> teklif -> eslesme. Oranlar bir onceki adima gore.
+  const oran = (a, b) => b > 0 ? Math.round((a / b) * 100) + "%" : "—";
+  const icerikSahibi = new Set([...demands.map((d) => d.buyerId), ...properties.map((p) => p.sellerId)].filter(Boolean)).size;
+
+  // Kaynak kirilimi: uyeler nereden geldi?
+  const kaynaklar = {};
+  for (const u of users) {
+    const k = u.acqGclid ? "Google Ads" : (u.acqSource || "").trim() || "Doğrudan";
+    kaynaklar[k] = (kaynaklar[k] || 0) + 1;
+  }
+  const kaynakListe = Object.entries(kaynaklar).sort((a, b) => b[1] - a[1]);
+  const enBuyuk = kaynakListe.length ? kaynakListe[0][1] : 1;
+
   return `
-    ${pageHead("Admin Dashboard", "Platform sağlığı, güvenlik ve ticari metrikler.")}
+    ${pageHead("Operasyon Panosu", "Günlük hareket, dönüşüm hunisi ve üyelerin nereden geldiği.")}
     <div class="stat-grid">
-      ${stat("Üyelik hesabı", state.authAccounts.length)}
-      ${stat("Aktif talep", activeDemands)}
-      ${stat("Aktif ev", activeProperties)}
-      ${stat("Mock ciro", money(revenue))}
+      ${stat("Toplam üye", users.length)}
+      ${stat("Yayındaki talep", activeDemands)}
+      ${stat("Yayındaki ilan", activeProperties)}
+      ${stat("Ciro", money(revenue))}
     </div>
     <div class="grid grid-2">
-      <section class="panel"><h3>Bekleyen satıcı belgeleri</h3><div class="list" style="margin-top:12px">${state.verificationDocuments.filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni satıcı belgesi gelirse burada görünür.")}</div></section>
-      <section class="panel"><h3>Son e-postalar</h3><div class="list" style="margin-top:12px">${state.emailOutbox.slice(0, 3).map(emailRow).join("") || empty("E-posta yok", "Uygun talep veya ev girildiğinde e-postalar burada görünür.")}</div></section>
+      <section class="panel">
+        <h3>Hareket</h3>
+        <div class="table-wrap" style="margin-top:12px"><table>
+          <thead><tr><th></th><th style="text-align:right">Bugün</th><th style="text-align:right">7 gün</th><th style="text-align:right">30 gün</th></tr></thead>
+          <tbody>
+            ${panoSatir("Yeni üye", sonGunSayisi(users, 1), sonGunSayisi(users, 7), sonGunSayisi(users, 30))}
+            ${panoSatir("Yeni talep", sonGunSayisi(demands, 1), sonGunSayisi(demands, 7), sonGunSayisi(demands, 30))}
+            ${panoSatir("Yeni ilan", sonGunSayisi(properties, 1), sonGunSayisi(properties, 7), sonGunSayisi(properties, 30))}
+            ${panoSatir("Teklif", sonGunSayisi(offers, 1), sonGunSayisi(offers, 7), sonGunSayisi(offers, 30))}
+            ${panoSatir("Eşleşme", sonGunSayisi(matches, 1), sonGunSayisi(matches, 7), sonGunSayisi(matches, 30))}
+            ${panoSatir("Ödeme", sonGunSayisi(payments, 1), sonGunSayisi(payments, 7), sonGunSayisi(payments, 30))}
+          </tbody>
+        </table></div>
+        ${askida ? `<p class="muted" style="margin:10px 0 0">${askida} üye askıda.</p>` : ""}
+      </section>
+      <section class="panel">
+        <h3>Dönüşüm hunisi</h3>
+        <div class="table-wrap" style="margin-top:12px"><table>
+          <thead><tr><th>Adım</th><th style="text-align:right">Sayı</th><th style="text-align:right">Bir önceki adıma göre</th></tr></thead>
+          <tbody>
+            <tr><td>Üye oldu</td><td style="text-align:right;font-weight:600">${users.length}</td><td style="text-align:right">—</td></tr>
+            <tr><td>Talep veya ilan girdi</td><td style="text-align:right;font-weight:600">${icerikSahibi}</td><td style="text-align:right">${oran(icerikSahibi, users.length)}</td></tr>
+            <tr><td>Teklif aldı/gönderdi</td><td style="text-align:right;font-weight:600">${offers.length}</td><td style="text-align:right">${oran(offers.length, demands.length + properties.length)}</td></tr>
+            <tr><td>Eşleşti</td><td style="text-align:right;font-weight:600">${matches.length}</td><td style="text-align:right">${oran(matches.length, offers.length)}</td></tr>
+            <tr><td>Ödeme yaptı</td><td style="text-align:right;font-weight:600">${payments.filter((p) => p.status === "SUCCESS").length}</td><td style="text-align:right">${oran(payments.filter((p) => p.status === "SUCCESS").length, matches.length)}</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+    </div>
+    <div class="grid grid-2">
+      <section class="panel">
+        <h3>Üyeler nereden geldi?</h3>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          ${kaynakListe.map(([k, v]) => `
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:3px"><span>${escapeHtml(k)}</span><strong>${v}</strong></div>
+              <div style="height:8px;background:#eef2f6;border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round((v / enBuyuk) * 100)}%;background:${k === "Google Ads" ? "#e07b39" : "#2f6f9f"}"></div></div>
+            </div>`).join("") || `<p class="muted">Henüz kaynak verisi yok.</p>`}
+        </div>
+      </section>
+      <section class="panel"><h3>Bekleyen satıcı belgeleri</h3><div class="list" style="margin-top:12px">${(state.verificationDocuments || []).filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni satıcı belgesi gelirse burada görünür.")}</div></section>
     </div>
   `;
+}
+
+// Denetim kaydi: kim, ne zaman, neye, ne yapti. Hassas alan goruntulemeleri de burada.
+const AUDIT_ETIKET = {
+  USER_REGISTERED: "Üyelik oluşturuldu", USER_LOGGED_IN: "Giriş yapıldı",
+  PROFILE_UPDATED: "Profil güncellendi", MARKETING_CONSENT: "Pazarlama izni",
+  IDENTITY_SAVED: "Kimlik verisi kaydedildi",
+  ADMIN_IDENTITY_VIEWED: "Kimlik verisi görüntülendi",
+  ADMIN_CONTENT_REMOVED: "İçerik yayından kaldırıldı", ADMIN_CONTENT_RESTORED: "İçerik geri alındı",
+  ADMIN_CONTENT_EDITED: "İçerik düzenlendi", ADMIN_USER_MANAGED: "Üye yönetildi",
+  ADMIN_MEMBERSHIP_GRANTED: "Üyelik tanımlandı", ADMIN_USER_ANONYMIZED: "Üye verisi silindi",
+  PAYMENT_STARTED: "Ödeme başlatıldı", DOCUMENT_SUBMITTED: "Belge gönderildi",
+  DOCUMENT_APPROVED: "Belge onaylandı", DOCUMENT_REJECTED: "Belge reddedildi",
+};
+// Dikkat cekmesi gereken islemler kirmizi gorunsun.
+const AUDIT_KRITIK = new Set(["ADMIN_IDENTITY_VIEWED", "ADMIN_USER_ANONYMIZED", "ADMIN_USER_MANAGED", "ADMIN_CONTENT_REMOVED"]);
+
+function adminAudit() {
+  const kisi = (id) => { const u = (state.users || []).find((x) => x.id === id); return u ? u.name : (id || "—"); };
+  const list = (state.auditLogs || []).slice().reverse();
+  return `
+    ${pageHead("Denetim Kaydı", "Panelde yapılan her işlem burada tutulur. Kimlik verisi görüntülemeleri de dâhil.")}
+    <div class="toolbar">
+      <input id="al-q" placeholder="Ara: kişi, işlem, açıklama" oninput="KT.renderAdminAudit()" style="flex:1;min-width:200px">
+      <select id="al-tip" onchange="KT.renderAdminAudit()">
+        <option value="">Tüm işlemler</option>
+        <option value="kritik">Sadece kritik işlemler</option>
+        ${Object.keys(AUDIT_ETIKET).map((k) => `<option value="${k}">${escapeHtml(AUDIT_ETIKET[k])}</option>`).join("")}
+      </select>
+    </div>
+    <div id="admin-audit-box">${adminAuditTable(list, kisi)}</div>
+  `;
+}
+function adminAuditTable(list, kisi) {
+  const rows = list.map((a) => `<tr${AUDIT_KRITIK.has(a.action) ? ' style="background:#fff7f7"' : ""}>
+      <td style="white-space:nowrap">${escapeHtml(a.createdAt || "")}</td>
+      <td>${escapeHtml(kisi(a.actorId))}</td>
+      <td>${AUDIT_KRITIK.has(a.action) ? `<strong style="color:#a12727">` : ""}${escapeHtml(AUDIT_ETIKET[a.action] || a.action || "")}${AUDIT_KRITIK.has(a.action) ? "</strong>" : ""}</td>
+      <td>${escapeHtml(a.entityType || "")} <span class="muted" style="font-size:12px">${escapeHtml(a.entityId || "")}</span></td>
+      <td style="font-size:13px">${escapeHtml(a.metadata || "")}</td>
+    </tr>`).join("");
+  return `<div style="display:flex;align-items:center;gap:10px;margin:0 0 8px">
+      <p class="muted" style="margin:0;flex:1">${list.length} kayıt</p>
+      <button class="btn btn-small btn-outline" onclick="KT.adminExportAudit()">${icon("file", 14)} CSV indir</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tarih</th><th>Kim</th><th>İşlem</th><th>Kayıt</th><th>Açıklama</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="muted">Kayıt yok</td></tr>`}</tbody>
+    </table></div>`;
 }
 
 function adminEmails() {
@@ -2218,6 +2367,8 @@ function adminUsers() {
       <input id="au-q" placeholder="Ara: ad, e-posta, telefon" oninput="KT.renderAdminUsers()" style="flex:1;min-width:200px">
       <select id="au-tip" onchange="KT.renderAdminUsers()"><option value="">Tüm tipler</option><option>Alıcı</option><option>Kiracı</option><option>Satıcı</option><option>Ev sahibi</option><option>Emlak danışmanı</option><option>Yönetici</option></select>
       <select id="au-city" onchange="KT.renderAdminUsers()"><option value="">Tüm şehirler</option>${cities.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
+      <select id="au-status" onchange="KT.renderAdminUsers()"><option value="">Tüm durumlar</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="ANONYMIZED">Anonimleştirilmiş</option></select>
+      <select id="au-uyelik" onchange="KT.renderAdminUsers()"><option value="">Üyelik farketmez</option><option value="var">Üyeliği olanlar</option><option value="yok">Ücretsiz kullananlar</option></select>
     </div>
     <div id="admin-users-box">${adminUsersTable(state.users || [])}</div>
   `;
@@ -2232,8 +2383,72 @@ function acqLabel(u) {
   return `<span class="badge badge-neutral" title="${escapeAttr([src, u.acqMedium, cmp].filter(Boolean).join(" · "))}">${escapeHtml(label)}</span>`;
 }
 
+// Kullanicilar ekranindaki filtreleri tek yerden uygula (tablo ve CSV ayni sonucu versin).
+function filtreliUyeler() {
+  const g = (id) => (document.getElementById(id) || {}).value || "";
+  const q = g("au-q").toLowerCase().trim(), tip = g("au-tip"), city = g("au-city");
+  const durum = g("au-status"), uyelik = g("au-uyelik");
+  let list = (state.users || []).slice();
+  if (q) list = list.filter((u) => ((u.name || "") + " " + (u.email || "") + " " + (u.phone || "")).toLowerCase().includes(q));
+  if (city) list = list.filter((u) => u.city === city);
+  if (tip) list = list.filter((u) => userTip(u).includes(tip));
+  if (durum) list = list.filter((u) => (u.status || "ACTIVE") === durum);
+  if (uyelik === "var") list = list.filter((u) => activeMembership(u.id));
+  if (uyelik === "yok") list = list.filter((u) => !activeMembership(u.id));
+  return list;
+}
+
+function filtreliDenetim() {
+  const g = (id) => (document.getElementById(id) || {}).value || "";
+  const q = g("al-q").toLowerCase().trim(), tip = g("al-tip");
+  const kisi = (id) => { const u = (state.users || []).find((x) => x.id === id); return u ? u.name : (id || ""); };
+  let list = (state.auditLogs || []).slice().reverse();
+  if (tip === "kritik") list = list.filter((a) => AUDIT_KRITIK.has(a.action));
+  else if (tip) list = list.filter((a) => a.action === tip);
+  if (q) list = list.filter((a) => (kisi(a.actorId) + " " + (AUDIT_ETIKET[a.action] || a.action || "") + " " + (a.metadata || "")).toLowerCase().includes(q));
+  return list;
+}
+
+// Basit CSV uretici. Excel'in Turkce karakterleri dogru okumasi icin BOM eklenir.
+function csvIndir(rows, dosyaAdi) {
+  if (!rows.length) return toast("Dışa aktarılacak kayıt yok.");
+  const basliklar = Object.keys(rows[0]);
+  const kacir = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = [basliklar.join(";"), ...rows.map((r) => basliklar.map((h) => kacir(r[h])).join(";"))].join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${dosyaAdi}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(`${rows.length} kayıt indirildi.`);
+}
+
+// Panel liste siralamasi: sutun basligina basinca sirala.
+let adminSort = { key: "createdAt", dir: -1 };
+function sortableHead(label, key) {
+  const ok = adminSort.key === key;
+  const ar = ok ? (adminSort.dir === 1 ? " ▲" : " ▼") : "";
+  return `<th style="cursor:pointer;user-select:none" onclick="KT.adminSortBy('${key}')">${escapeHtml(label)}${ar}</th>`;
+}
+function applyAdminSort(list, valueOf) {
+  return list.slice().sort((a, b) => {
+    const va = valueOf(a, adminSort.key), vb = valueOf(b, adminSort.key);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * adminSort.dir;
+    return String(va || "").localeCompare(String(vb || ""), "tr") * adminSort.dir;
+  });
+}
+
+function statusBadge(u) {
+  if (u.status === "SUSPENDED") return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">Askıda</span>`;
+  if (u.status === "ANONYMIZED") return `<span class="badge badge-neutral">Anonim</span>`;
+  return `<span class="badge badge-green">Aktif</span>`;
+}
+
 function adminUsersTable(list) {
-  const rows = list.map((u) => {
+  const sorted = applyAdminSort(list, (u, k) => k === "tip" ? userTip(u) : u[k]);
+  const rows = sorted.map((u) => {
     const m = activeMembership(u.id);
     return `<tr>
       <td>${escapeHtml(u.name || "")}</td>
@@ -2241,15 +2456,21 @@ function adminUsersTable(list) {
       <td>${escapeHtml(u.email || "—")}</td>
       <td>${escapeHtml(u.city || "—")}</td>
       <td><span class="badge badge-blue">${escapeHtml(userTip(u))}</span></td>
+      <td>${u.tcknMasked ? `<code style="font-size:12px">${escapeHtml(u.tcknMasked)}</code>` : `<span class="muted">—</span>`}</td>
       <td>${m ? `<span class="badge badge-gold">${escapeHtml(m.name)}</span>` : `<span class="muted">Ücretsiz</span>`}</td>
       <td>${acqLabel(u)}</td>
+      <td>${statusBadge(u)}</td>
       <td>${escapeHtml(u.createdAt || "")}</td>
+      <td><button class="btn btn-small btn-primary" onclick="KT.adminUserDetail('${escapeAttr(u.id)}')">Detay</button></td>
     </tr>`;
   }).join("");
-  return `<p class="muted" style="margin:0 0 8px">${list.length} üye</p>
+  return `<div style="display:flex;align-items:center;gap:10px;margin:0 0 8px">
+      <p class="muted" style="margin:0;flex:1">${list.length} üye</p>
+      <button class="btn btn-small btn-outline" onclick="KT.adminExportUsers()">${icon("file", 14)} CSV indir</button>
+    </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ad</th><th>Telefon</th><th>E-posta</th><th>Şehir</th><th>Tip</th><th>Aktif Üyelik</th><th>Kaynak</th><th>Kayıt</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="8" class="muted">Kayıt yok</td></tr>`}</tbody>
+      <thead><tr>${sortableHead("Ad", "name")}<th>Telefon</th><th>E-posta</th>${sortableHead("Şehir", "city")}${sortableHead("Tip", "tip")}<th>TCKN</th><th>Aktif Üyelik</th><th>Kaynak</th>${sortableHead("Durum", "status")}${sortableHead("Kayıt", "createdAt")}<th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="11" class="muted">Kayıt yok</td></tr>`}</tbody>
     </table></div>`;
 }
 
@@ -2286,38 +2507,78 @@ function adminMembTable(ents) {
     </table></div>`;
 }
 
-function adminProperties() {
-  return `
-    ${pageHead("Satıcı İlanları", "Bir ilanın 'Oku' butonuna basıp tüm içeriğini (açıklama dahil) görebilirsin.")}
-    <div class="table-wrap"><table>
-      <thead><tr><th>Başlık</th><th>Kategori</th><th>Şehir / İlçe</th><th>Fiyat</th><th>İşlem</th><th>Durum</th><th></th></tr></thead>
-      <tbody>${(state.properties || []).map((p) => `<tr>
+// Ilan/talep icerik listesi: arama + filtre + moderasyon aksiyonlari.
+function adminContentToolbar(pre) {
+  return `<div class="toolbar">
+      <input id="${pre}-q" placeholder="Ara: başlık, şehir, ilçe, açıklama" oninput="KT.renderAdminContent('${pre}')" style="flex:1;min-width:200px">
+      <select id="${pre}-tx" onchange="KT.renderAdminContent('${pre}')"><option value="">Satılık + Kiralık</option><option value="SALE">Satılık</option><option value="RENT">Kiralık</option></select>
+      <select id="${pre}-st" onchange="KT.renderAdminContent('${pre}')"><option value="">Tüm durumlar</option><option value="ACTIVE">Yayında</option><option value="REMOVED">Kaldırılmış</option></select>
+    </div>`;
+}
+
+function adminModButtons(tur, it) {
+  const yayinda = (it.status || "ACTIVE") === "ACTIVE";
+  return `<button class="btn btn-small btn-primary" onclick="KT.adminItemDetail('${tur}','${escapeAttr(it.id)}')">Oku</button>
+    <button class="btn btn-small btn-outline" onclick="KT.adminEditItem('${tur}','${escapeAttr(it.id)}')">Düzenle</button>
+    ${yayinda
+      ? `<button class="btn btn-small btn-outline" style="border-color:#e0b4b4;color:#a12727" onclick="KT.adminModerate('${tur}','${escapeAttr(it.id)}','REMOVED')">Kaldır</button>`
+      : `<button class="btn btn-small btn-outline" onclick="KT.adminModerate('${tur}','${escapeAttr(it.id)}','ACTIVE')">Geri al</button>`}`;
+}
+
+function adminPropertiesTable(list) {
+  const sorted = applyAdminSort(list, (p, k) => k === "price" ? Number(p.price || 0) : p[k]);
+  const rows = sorted.map((p) => `<tr>
         <td>${escapeHtml(p.title || "")}</td>
         <td>${escapeHtml([p.mainCategory, p.propertyType].filter(Boolean).join(" · "))}</td>
         <td>${escapeHtml([p.city, p.district].filter(Boolean).join(" / "))}</td>
         <td>${money(p.price)}</td>
         <td>${p.transactionType === "RENT" ? "Kiralık" : "Satılık"}</td>
-        <td><span class="badge ${p.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${escapeHtml(p.status || "")}</span></td>
-        <td><button class="btn btn-small btn-primary" onclick="KT.adminItemDetail('property','${escapeAttr(p.id)}')">Oku</button></td>
-      </tr>`).join("") || `<tr><td colspan="7" class="muted">İlan yok</td></tr>`}</tbody>
-    </table></div>
-  `;
-}
-function adminDemands() {
-  return `
-    ${pageHead("Alıcı Talepleri", "Bir talebin 'Oku' butonuna basıp tüm içeriğini (açıklama dahil) görebilirsin.")}
+        <td><span class="badge ${p.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${p.status === "ACTIVE" ? "Yayında" : "Kaldırıldı"}</span>${p.moderationReason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${escapeHtml(p.moderationReason)}</div>` : ""}</td>
+        <td style="white-space:nowrap;display:flex;gap:6px">${adminModButtons("property", p)}</td>
+      </tr>`).join("");
+  return `<div style="display:flex;align-items:center;gap:10px;margin:0 0 8px">
+      <p class="muted" style="margin:0;flex:1">${list.length} ilan</p>
+      <button class="btn btn-small btn-outline" onclick="KT.adminExportContent('property')">${icon("file", 14)} CSV indir</button>
+    </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Başlık</th><th>Kategori</th><th>Şehir / İlçe</th><th>Bütçe / Kira</th><th>İşlem</th><th>Durum</th><th></th></tr></thead>
-      <tbody>${(state.demands || []).map((d) => `<tr>
+      <thead><tr>${sortableHead("Başlık", "title")}<th>Kategori</th>${sortableHead("Şehir / İlçe", "city")}${sortableHead("Fiyat", "price")}<th>İşlem</th>${sortableHead("Durum", "status")}<th>Aksiyon</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7" class="muted">İlan yok</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function adminDemandsTable(list) {
+  const sorted = applyAdminSort(list, (d, k) => k === "price" ? Number(d.maxBudget || 0) : d[k]);
+  const rows = sorted.map((d) => `<tr>
         <td>${escapeHtml(d.title || "")}</td>
         <td>${escapeHtml([d.mainCategory, d.propertyType].filter(Boolean).join(" · "))}</td>
         <td>${escapeHtml([d.city, d.district].filter(Boolean).join(" / "))}</td>
         <td>${money(d.minBudget)} - ${money(d.maxBudget)}</td>
         <td>${d.transactionType === "RENT" ? "Kiralık" : "Satılık"}</td>
-        <td><span class="badge ${d.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${escapeHtml(d.status || "")}</span></td>
-        <td><button class="btn btn-small btn-primary" onclick="KT.adminItemDetail('demand','${escapeAttr(d.id)}')">Oku</button></td>
-      </tr>`).join("") || `<tr><td colspan="7" class="muted">Talep yok</td></tr>`}</tbody>
-    </table></div>
+        <td><span class="badge ${d.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${d.status === "ACTIVE" ? "Yayında" : "Kaldırıldı"}</span>${d.moderationReason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${escapeHtml(d.moderationReason)}</div>` : ""}</td>
+        <td style="white-space:nowrap;display:flex;gap:6px">${adminModButtons("demand", d)}</td>
+      </tr>`).join("");
+  return `<div style="display:flex;align-items:center;gap:10px;margin:0 0 8px">
+      <p class="muted" style="margin:0;flex:1">${list.length} talep</p>
+      <button class="btn btn-small btn-outline" onclick="KT.adminExportContent('demand')">${icon("file", 14)} CSV indir</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>${sortableHead("Başlık", "title")}<th>Kategori</th>${sortableHead("Şehir / İlçe", "city")}${sortableHead("Bütçe / Kira", "price")}<th>İşlem</th>${sortableHead("Durum", "status")}<th>Aksiyon</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7" class="muted">Talep yok</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function adminProperties() {
+  return `
+    ${pageHead("Satıcı İlanları", "İçeriği oku, başlık/açıklamayı düzelt, gerekirse gerekçeyle yayından kaldır.")}
+    ${adminContentToolbar("ap")}
+    <div id="admin-prop-box">${adminPropertiesTable(state.properties || [])}</div>
+  `;
+}
+function adminDemands() {
+  return `
+    ${pageHead("Alıcı Talepleri", "İçeriği oku, başlık/açıklamayı düzelt, gerekirse gerekçeyle yayından kaldır.")}
+    ${adminContentToolbar("ad")}
+    <div id="admin-dem-box">${adminDemandsTable(state.demands || [])}</div>
   `;
 }
 
@@ -2590,6 +2851,20 @@ function locationFields(prefix, multiMahalle) {
     <div class="field"><label for="${prefix}-city">Şehir (İl) <span style="color:#c0392b">*</span></label><select id="${prefix}-city" onchange="KT.loadIlce('${prefix}')">${ilOpts}</select></div>
     <div class="field"><label for="${prefix}-district">İlçe</label><select id="${prefix}-district" onchange="KT.loadMahalle('${prefix}')"><option value="">Önce il seçin</option></select></div>
     ${mahalle}`;
+}
+
+// T.C. kimlik numarasi bicimsel dogrulama (sunucudaki kontrolun aynisi).
+// Istemcide de yapiyoruz ki kullanici hatayi aninda gorsun; asil kontrol sunucuda.
+function tcknGecerliMi(value) {
+  const s = String(value || "").trim();
+  if (!/^[1-9][0-9]{10}$/.test(s)) return false;
+  const d = s.split("").map(Number);
+  const tek = d[0] + d[2] + d[4] + d[6] + d[8];
+  const cift = d[1] + d[3] + d[5] + d[7];
+  let h10 = (tek * 7 - cift) % 10;
+  if (h10 < 0) h10 += 10;
+  if (h10 !== d[9]) return false;
+  return d.slice(0, 10).reduce((a, b) => a + b, 0) % 10 === d[10];
 }
 
 function field(label, id, type, placeholder, options = [], cats = "") {
@@ -2884,8 +3159,13 @@ window.KT = {
     const marketingConsent = (document.getElementById("gc-marketing") || {}).checked || false;
     if (name.length < 3) return showFormError("gc-error", "Ad Soyad en az 3 karakter olmalı.");
     if (phone.replace(/\D/g, "").length < 10) return showFormError("gc-error", "Geçerli bir telefon numarası gir.");
+    const tckn = ((document.getElementById("gc-tckn") || {}).value || "").replace(/\D/g, "");
+    const birthDate = (document.getElementById("gc-birth") || {}).value || "";
+    const identityConsent = (document.getElementById("gc-identity-consent") || {}).checked || false;
+    if (tckn && !tcknGecerliMi(tckn)) return showFormError("gc-error", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
+    if ((tckn || birthDate) && !identityConsent) return showFormError("gc-error", "Kimlik bilgilerinin işlenmesi için açık rıza kutusunu işaretlemelisin.");
     const btn = event.submitter; if (btn) btn.disabled = true;
-    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent, attribution: attribution() });
+    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent, tckn, birthDate, identityConsent, attribution: attribution() });
     if (btn) btn.disabled = false;
     if (!r.ok) return showFormError("gc-error", (r.data && r.data.error) || "Üyelik tamamlanamadı.");
     ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "google" });
@@ -2960,7 +3240,14 @@ window.KT = {
       return showFormError("r-error", "Şifre en az 6 karakter olmalı ve tekrar alanıyla eşleşmeli.");
     if (!accepted)
       return showFormError("r-error", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
-    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent, attribution: attribution() });
+    const tckn = (document.getElementById("r-tckn") || {}).value ? document.getElementById("r-tckn").value.replace(/\D/g, "") : "";
+    const birthDate = (document.getElementById("r-birth") || {}).value || "";
+    const identityConsent = (document.getElementById("r-identity-consent") || {}).checked || false;
+    if (tckn && !tcknGecerliMi(tckn))
+      return showFormError("r-error", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
+    if ((tckn || birthDate) && !identityConsent)
+      return showFormError("r-error", "Kimlik bilgilerinin işlenmesi için açık rıza kutusunu işaretlemelisin.");
+    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent, tckn, birthDate, identityConsent, attribution: attribution() });
     if (!r.ok) return showFormError("r-error", r.data.error || "Üyelik oluşturulamadı.");
     ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "sifre" });
     await refreshState();
@@ -3225,14 +3512,230 @@ window.KT = {
   },
   // --- Admin: kullanıcı/üyelik filtreleri + ilan/talep okuma ---
   renderAdminUsers() {
-    const g = (id) => (document.getElementById(id) || {}).value || "";
-    const q = g("au-q").toLowerCase().trim(), tip = g("au-tip"), city = g("au-city");
-    let list = (state.users || []).slice();
-    if (q) list = list.filter((u) => ((u.name || "") + " " + (u.email || "") + " " + (u.phone || "")).toLowerCase().includes(q));
-    if (city) list = list.filter((u) => u.city === city);
-    if (tip) list = list.filter((u) => userTip(u).includes(tip));
     const box = document.getElementById("admin-users-box");
-    if (box) box.innerHTML = adminUsersTable(list);
+    if (box) box.innerHTML = adminUsersTable(filtreliUyeler());
+  },
+  // Sutun basligina basinca sirala; hangi liste acikssa onu yeniden ciz.
+  adminSortBy(key) {
+    adminSort = adminSort.key === key ? { key, dir: -adminSort.dir } : { key, dir: 1 };
+    if (document.getElementById("admin-users-box")) KT.renderAdminUsers();
+    if (document.getElementById("admin-prop-box")) KT.renderAdminContent("ap");
+    if (document.getElementById("admin-dem-box")) KT.renderAdminContent("ad");
+  },
+  renderAdminContent(pre) {
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const q = g(pre + "-q").toLowerCase().trim(), tx = g(pre + "-tx"), st = g(pre + "-st");
+    const ilan = pre === "ap";
+    let list = (ilan ? state.properties : state.demands || []).slice();
+    if (q) list = list.filter((x) => ((x.title || "") + " " + (x.city || "") + " " + (x.district || "") + " " + (x.description || "")).toLowerCase().includes(q));
+    if (tx) list = list.filter((x) => (x.transactionType || "SALE") === tx);
+    if (st) list = list.filter((x) => (x.status || "ACTIVE") === st);
+    const box = document.getElementById(ilan ? "admin-prop-box" : "admin-dem-box");
+    if (box) box.innerHTML = ilan ? adminPropertiesTable(list) : adminDemandsTable(list);
+  },
+  // --- Moderasyon: yayindan kaldir / geri al ---
+  async adminModerate(tur, id, durum) {
+    let gerekce = "";
+    if (durum === "REMOVED") {
+      gerekce = (window.prompt("Yayından kaldırma gerekçesi (kullanıcıya bildirilecek):", "") || "").trim();
+      if (!gerekce) return;
+      if (gerekce.length < 5) return toast("Gerekçe en az 5 karakter olmalı.");
+    }
+    const r = await api(`/admin/moderate/${tur}/${id}`, "POST", { status: durum, reason: gerekce });
+    if (!r.ok) return toast((r.data && r.data.error) || "İşlem yapılamadı.");
+    await refreshState();
+    toast(durum === "REMOVED" ? "Yayından kaldırıldı ve kullanıcıya bildirildi." : "Tekrar yayına alındı.");
+    render();
+  },
+  async adminEditItem(tur, id) {
+    const it = tur === "property" ? (state.properties || []).find((p) => p.id === id) : (state.demands || []).find((d) => d.id === id);
+    if (!it) return;
+    const baslik = window.prompt("Başlık:", it.title || "");
+    if (baslik === null) return;
+    const aciklama = window.prompt("Açıklama:", it.description || "");
+    if (aciklama === null) return;
+    const r = await api(`/admin/edit/${tur}/${id}`, "PATCH", { title: baslik, description: aciklama });
+    if (!r.ok) return toast((r.data && r.data.error) || "Güncellenemedi.");
+    await refreshState();
+    toast("Kayıt güncellendi.");
+    render();
+  },
+  // --- Uye detay: her sey tek ekranda ---
+  adminUserDetail(id) {
+    const u = (state.users || []).find((x) => x.id === id);
+    if (!u) return;
+    const dem = (state.demands || []).filter((d) => d.buyerId === id);
+    const prop = (state.properties || []).filter((p) => p.sellerId === id);
+    const off = (state.offers || []).filter((o) => o.sellerId === id || o.buyerId === id);
+    const mat = (state.matches || []).filter((m) => m.buyerId === id || m.sellerId === id);
+    const pay = (state.payments || []).filter((p) => p.userId === id);
+    const ents = (state.entitlements || []).filter((e) => e.userId === id);
+    const acc = (state.authAccounts || []).find((a) => a.userId === id) || {};
+    const planlar = (state.plans || []);
+    const satir = (k, v) => `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f6"><span style="color:#7a8a99;min-width:150px;font-size:13px">${escapeHtml(k)}</span><span style="font-size:13.5px;color:#26333f">${v}</span></div>`;
+    const mini = (baslik, liste, ciz) => `
+      <div style="margin-top:14px">
+        <div style="font-size:12px;color:#7a8a99;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">${escapeHtml(baslik)} (${liste.length})</div>
+        ${liste.length ? `<div style="display:flex;flex-direction:column;gap:5px">${liste.slice(0, 8).map(ciz).join("")}</div>` : `<p class="muted" style="margin:0;font-size:13px">Kayıt yok</p>`}
+        ${liste.length > 8 ? `<p class="muted" style="margin:5px 0 0;font-size:12px">…ve ${liste.length - 8} kayıt daha</p>` : ""}
+      </div>`;
+    const kucukKart = (metin, rozet) => `<div style="display:flex;justify-content:space-between;gap:8px;background:#f5f8fb;border-radius:8px;padding:7px 10px;font-size:13px"><span>${metin}</span><span style="color:#7a8a99;white-space:nowrap">${rozet}</span></div>`;
+
+    const old = document.getElementById("kt-admin-detail"); if (old) old.remove();
+    const ov = document.createElement("div");
+    ov.id = "kt-admin-detail";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
+    ov.onclick = (e) => { if (e.target === ov) KT.closeAdminDetail(); };
+    ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(8,18,30,.35);padding:22px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div>
+            <h3 style="margin:0;font-size:20px;color:#10243a">${escapeHtml(u.name || "—")}</h3>
+            <p class="muted" style="margin:4px 0 0;font-size:12.5px">${escapeHtml(u.id)}</p>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">${statusBadge(u)}<span class="badge badge-blue">${escapeHtml(userTip(u))}</span></div>
+        </div>
+
+        <div style="margin-top:14px">
+          ${satir("E-posta", escapeHtml(u.email || "—") + (acc.emailVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
+          ${satir("Telefon", escapeHtml(u.phone || "—"))}
+          ${satir("Şehir", escapeHtml(u.city || "—"))}
+          ${satir("Rol", escapeHtml(u.role || "—"))}
+          ${satir("Güven puanı", escapeHtml(String(u.trustScore ?? "—")))}
+          ${satir("Kayıt tarihi", escapeHtml(u.createdAt || "—"))}
+          ${satir("Son giriş", escapeHtml(acc.lastLoginAt || "—"))}
+          ${satir("Giriş yöntemi", acc.provider === "google" ? "Google" : "Şifre")}
+          ${satir("Geliş kaynağı", acqLabel(u) + (u.acqCampaign ? ` <span class="muted" style="font-size:12px">${escapeHtml(u.acqCampaign)}</span>` : ""))}
+          ${satir("T.C. kimlik no", u.tcknMasked
+            ? `<code id="kt-tckn-val">${escapeHtml(u.tcknMasked)}</code> <button class="btn btn-small btn-outline" style="margin-left:8px" onclick="KT.adminRevealIdentity('${escapeAttr(u.id)}')">Açık göster</button>`
+            : `<span class="muted">Kayıtlı değil</span>`)}
+          ${satir("Doğum tarihi", u.birthDateMasked ? `<span id="kt-birth-val">${escapeHtml(u.birthDateMasked)}</span>${u.age ? ` <span class="muted">(${u.age} yaş)</span>` : ""}` : `<span class="muted">Kayıtlı değil</span>`)}
+        </div>
+
+        ${mini("Talepleri", dem, (d) => kucukKart(escapeHtml(d.title || "—"), `${d.status === "ACTIVE" ? "yayında" : "kaldırıldı"} · ${escapeHtml(d.createdAt || "")}`))}
+        ${mini("İlanları", prop, (p) => kucukKart(escapeHtml(p.title || "—"), `${p.status === "ACTIVE" ? "yayında" : "kaldırıldı"} · ${escapeHtml(p.createdAt || "")}`))}
+        ${mini("Teklifleri", off, (o) => kucukKart(money(o.price), `${escapeHtml(o.status || "")} · ${escapeHtml(o.createdAt || "")}`))}
+        ${mini("Eşleşmeleri", mat, (m) => kucukKart(escapeHtml(m.status || "—"), escapeHtml(m.createdAt || "")))}
+        ${mini("Ödemeleri", pay, (p) => kucukKart(money(p.amount), `${escapeHtml(p.status || "")} · ${escapeHtml(p.createdAt || "")}`))}
+        ${mini("Üyelikleri", ents, (e) => { const pl = planlar.find((x) => x.id === e.planId); return kucukKart(escapeHtml(pl ? pl.name : e.planId), `${escapeHtml(e.activeFrom || "")} → ${escapeHtml(e.activeTo || "süresiz")}`); })}
+
+        <div style="margin-top:16px;padding:12px;background:#f5f8fb;border-radius:10px">
+          <div style="font-size:12px;color:#7a8a99;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px">Yönetim</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            ${u.status === "SUSPENDED"
+              ? `<button class="btn btn-small btn-primary" onclick="KT.adminUserManage('${escapeAttr(u.id)}','status','ACTIVE')">Askıyı kaldır</button>`
+              : `<button class="btn btn-small btn-outline" style="border-color:#e0b4b4;color:#a12727" onclick="KT.adminUserManage('${escapeAttr(u.id)}','status','SUSPENDED')">Üyeliği askıya al</button>`}
+            <select id="kt-role-sel" class="btn btn-small btn-outline" style="padding:6px 10px">
+              ${["BUYER", "SELLER", "AGENT", "REVIEWER", "ADMIN"].map((r) => `<option value="${r}" ${u.role === r ? "selected" : ""}>${r}</option>`).join("")}
+            </select>
+            <button class="btn btn-small btn-outline" onclick="KT.adminUserManage('${escapeAttr(u.id)}','role',document.getElementById('kt-role-sel').value)">Rolü değiştir</button>
+            <button class="btn btn-small btn-outline" onclick="KT.adminGrant('${escapeAttr(u.id)}')">Üyelik tanımla</button>
+            <button class="btn btn-small btn-outline" style="border-color:#e0b4b4;color:#a12727" onclick="KT.adminAnonymize('${escapeAttr(u.id)}')">KVKK: verilerini sil</button>
+          </div>
+          <div style="margin-top:10px">
+            <label style="font-size:12.5px;color:#7a8a99">Yönetici notu (yalnızca panelde görünür)</label>
+            <textarea id="kt-admin-note" rows="2" style="width:100%;margin-top:4px;padding:8px;border:1px solid #dde4ec;border-radius:8px;font-family:inherit;font-size:13.5px">${escapeHtml(u.adminNote || "")}</textarea>
+            <button class="btn btn-small btn-outline" style="margin-top:6px" onclick="KT.adminUserManage('${escapeAttr(u.id)}','adminNote',document.getElementById('kt-admin-note').value)">Notu kaydet</button>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline" onclick="KT.closeAdminDetail()">Kapat</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+  async adminUserManage(id, alan, deger) {
+    const govde = {};
+    govde[alan] = deger;
+    if (alan === "status" && deger === "SUSPENDED") {
+      const gerekce = (window.prompt("Askıya alma gerekçesi (kullanıcıya bildirilecek):", "") || "").trim();
+      if (!gerekce) return;
+      govde.reason = gerekce;
+    }
+    const r = await api(`/admin/users/${id}/manage`, "POST", govde);
+    if (!r.ok) return toast((r.data && r.data.error) || "İşlem yapılamadı.");
+    await refreshState();
+    toast("Kaydedildi.");
+    KT.closeAdminDetail();
+    render();
+  },
+  async adminGrant(id) {
+    const planlar = (state.plans || []);
+    const liste = planlar.map((p, i) => `${i + 1}) ${p.name}`).join("\n");
+    const secim = window.prompt(`Hangi paketi tanımlayalım?\n\n${liste}\n\nNumara yaz:`, "1");
+    if (!secim) return;
+    const plan = planlar[parseInt(secim, 10) - 1];
+    if (!plan) return toast("Geçersiz paket numarası.");
+    const gun = window.prompt(`${plan.name} kaç gün geçerli olsun?`, "30");
+    if (!gun) return;
+    const r = await api(`/admin/users/${id}/grant`, "POST", { planId: plan.id, days: parseInt(gun, 10) });
+    if (!r.ok) return toast((r.data && r.data.error) || "Tanımlanamadı.");
+    await refreshState();
+    toast(`${plan.name} tanımlandı (${r.data.activeTo} tarihine kadar).`);
+    KT.closeAdminDetail();
+    render();
+  },
+  // Acik kimlik verisi: gerekce zorunlu, her goruntuleme denetim kaydina yazilir.
+  async adminRevealIdentity(id) {
+    const gerekce = (window.prompt("Bu üyenin kimlik bilgisini neden görüntülüyorsun? (kayıt altına alınır)", "") || "").trim();
+    if (!gerekce) return;
+    if (gerekce.length < 5) return toast("Gerekçe en az 5 karakter olmalı.");
+    const r = await api(`/admin/users/${id}/identity`, "POST", { reason: gerekce });
+    if (!r.ok) return toast((r.data && r.data.error) || "Görüntülenemedi.");
+    const t = document.getElementById("kt-tckn-val");
+    if (t) { t.textContent = r.data.tckn || "—"; t.style.background = "#fff7ed"; }
+    const b = document.getElementById("kt-birth-val");
+    if (b && r.data.birthDate) b.textContent = r.data.birthDate;
+    toast("Görüntüleme denetim kaydına yazıldı.");
+  },
+  async adminAnonymize(id) {
+    const u = (state.users || []).find((x) => x.id === id);
+    if (!u) return;
+    if (!window.confirm(`${u.name} adlı üyenin kişisel verileri geri döndürülemez şekilde silinecek.\n\nTalep ve ilanları yayından kalkacak, kimlik/iletişim bilgileri temizlenecek.\n\nDevam edilsin mi?`)) return;
+    const gerekce = (window.prompt("Silme talebinin gerekçesi / dayanağı:", "KVKK m.11 silme talebi") || "").trim();
+    if (!gerekce) return;
+    const r = await api(`/admin/users/${id}/anonymize`, "POST", { confirm: id, reason: gerekce });
+    if (!r.ok) return toast((r.data && r.data.error) || "İşlem yapılamadı.");
+    await refreshState();
+    toast("Üyenin kişisel verileri silindi.");
+    KT.closeAdminDetail();
+    render();
+  },
+  // --- CSV disa aktarma. Hassas alanlar MASKELI cikar. ---
+  adminExportUsers() {
+    const rows = filtreliUyeler().map((u) => {
+      const m = activeMembership(u.id);
+      return { Ad: u.name, Telefon: u.phone, Eposta: u.email, Sehir: u.city, Tip: userTip(u),
+        TCKN_maskeli: u.tcknMasked || "", Dogum_yili: (u.birthDateMasked || "").slice(0, 4),
+        Uyelik: m ? m.name : "Ücretsiz", Kaynak: u.acqGclid ? "Google Ads" : (u.acqSource || "Doğrudan"),
+        Durum: u.status, Kayit: u.createdAt };
+    });
+    csvIndir(rows, "konuttalebi-uyeler");
+  },
+  renderAdminAudit() {
+    const box = document.getElementById("admin-audit-box");
+    if (box) box.innerHTML = adminAuditTable(filtreliDenetim(), (id) => { const u = (state.users || []).find((x) => x.id === id); return u ? u.name : (id || "—"); });
+  },
+  adminExportAudit() {
+    const kisi = (id) => { const u = (state.users || []).find((x) => x.id === id); return u ? u.name : (id || ""); };
+    csvIndir(filtreliDenetim().map((a) => ({
+      Tarih: a.createdAt, Kim: kisi(a.actorId), Islem: AUDIT_ETIKET[a.action] || a.action,
+      Kayit_turu: a.entityType, Kayit_id: a.entityId, Aciklama: a.metadata
+    })), "konuttalebi-denetim-kaydi");
+  },
+  adminExportContent(tur) {
+    const pre = tur === "property" ? "ap" : "ad";
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const q = g(pre + "-q").toLowerCase().trim(), tx = g(pre + "-tx"), st = g(pre + "-st");
+    let list = ((tur === "property" ? state.properties : state.demands) || []).slice();
+    if (q) list = list.filter((x) => ((x.title || "") + " " + (x.city || "") + " " + (x.district || "") + " " + (x.description || "")).toLowerCase().includes(q));
+    if (tx) list = list.filter((x) => (x.transactionType || "SALE") === tx);
+    if (st) list = list.filter((x) => (x.status || "ACTIVE") === st);
+    const rows = list.map((x) => ({
+      Baslik: x.title, Kategori: [x.mainCategory, x.propertyType].filter(Boolean).join(" · "),
+      Sehir: x.city, Ilce: x.district, Islem: x.transactionType === "RENT" ? "Kiralık" : "Satılık",
+      Fiyat: tur === "property" ? x.price : `${x.minBudget}-${x.maxBudget}`,
+      Durum: x.status, Gerekce: x.moderationReason || "", Tarih: x.createdAt
+    }));
+    csvIndir(rows, tur === "property" ? "konuttalebi-ilanlar" : "konuttalebi-talepler");
   },
   renderAdminMemberships() {
     const g = (id) => (document.getElementById(id) || {}).value || "";

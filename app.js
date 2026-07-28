@@ -1147,9 +1147,28 @@ function registerFlowInfo(sel) {
     "Üyelikle mülk sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
   ]};
 }
+// Kayit sayfasinin sag sutunundaki gorsel. Rol degistikce degisir ki
+// kullanici dogru akista oldugunu anlasin. Gorseller assets/ altinda mevcut.
+const REG_GORSEL = {
+  buyer: { src: "/assets/property-residence.webp", alt: "Satılık daire görseli", not: "Talebini gör, teklif sana gelsin." },
+  tenant: { src: "/assets/property-apartment.webp", alt: "Kiralık daire görseli", not: "Ev arama, evler seni bulsun." },
+  seller: { src: "/assets/property-villa.webp", alt: "Satılık konut görseli", not: "Evini bekleyen alıcıyla buluştur." },
+  landlord: { src: "/assets/property-apartment.webp", alt: "Kiralık konut görseli", not: "Evine uygun kiracıyı sen seç." },
+  agent: { src: "/assets/hero-konuttalebim.webp", alt: "Emlak danışmanı görseli", not: "Portföyünü hazır talebe bağla." },
+};
+
 function regAsideHTML(sel) {
   const flow = registerFlowInfo(sel);
+  const g = REG_GORSEL[sel] || REG_GORSEL.buyer;
   return `
+    <figure style="margin:0 0 18px;position:relative;border-radius:12px;overflow:hidden;box-shadow:0 12px 30px rgba(16,36,58,.14)">
+      <img src="${escapeAttr(g.src)}" alt="${escapeAttr(g.alt)}" loading="lazy" decoding="async"
+           style="display:block;width:100%;height:200px;object-fit:cover">
+      <figcaption style="position:absolute;inset:auto 0 0 0;padding:14px 16px;color:#fff;font-size:14.5px;font-weight:600;
+                         background:linear-gradient(to top,rgba(10,24,38,.82),rgba(10,24,38,0))">
+        ${escapeHtml(g.not)}
+      </figcaption>
+    </figure>
     <span class="badge badge-blue">${icon("shield", 13)} ${flow.label} üyeliği</span>
     <h3>Nasıl çalışır?</h3>
     <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">

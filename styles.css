@@ -1179,7 +1179,12 @@ h3 {
 .auth-side {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* Icerik ustten baslasin: ortalayinca uzun formun yaninda tepede bos bir
+     bosluk kaliyordu. Sticky ile de kaydirirken gorunur kaliyor. */
+  justify-content: flex-start;
+  position: sticky;
+  top: 96px;
+  align-self: start;
   border: 1px solid rgba(219, 228, 236, 0.92);
   border-radius: 8px;
   padding: 24px;

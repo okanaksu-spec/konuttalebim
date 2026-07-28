@@ -775,6 +775,48 @@ async function handleApi(req, res, url) {
     return ok(res, { items });
   }
 
+  // --- herkese acik TALEP aramasi (ters pazar vitrini) ---
+  // Kimlik donmez: buyerId, ad, telefon, e-posta yok. Serbest metindeki kacak
+  // iletisim bilgileri maskelenir. Iletisim yalnizca eslesme + uyelikle acilir.
+  if (seg[0] === "demands" && seg[1] === "search" && method === "GET") {
+    const q = url.searchParams;
+    const tx = q.get("tx") === "RENT" ? "RENT" : (q.get("tx") === "SALE" ? "SALE" : "");
+    const mainCategory = q.get("mainCategory") || "";
+    const subCategory = q.get("subCategory") || "";
+    const city = q.get("city") || "";
+    const district = q.get("district") || "";
+    const rooms = q.get("rooms") || "";
+    const minPrice = +q.get("minPrice") || 0;
+    const maxPrice = +q.get("maxPrice") || 0;
+    let rows = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
+    rows = rows.filter((d) => {
+      if (tx && (d.transactionType || "SALE") !== tx) return false;
+      if (mainCategory && (d.mainCategory || "Konut") !== mainCategory) return false;
+      if (subCategory && d.propertyType !== subCategory) return false;
+      if (city && d.city !== city) return false;
+      if (district && (d.district || "") !== district) return false;
+      if (rooms && (d.roomCount || "") !== rooms) return false;
+      // Butce araligi kesisiyor mu?
+      if (minPrice && (+d.maxBudget || 0) < minPrice) return false;
+      if (maxPrice && (+d.minBudget || 0) > maxPrice) return false;
+      return true;
+    });
+    const boosted = (d) => d.boostedUntil && d.boostedUntil >= today();
+    rows.sort((a, b) => (Number(boosted(b)) - Number(boosted(a))) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const items = rows.slice(0, 80).map((d) => ({
+      id: d.id, title: d.title, city: d.city, district: d.district, neighborhood: d.neighborhood,
+      mainCategory: d.mainCategory || "Konut", propertyType: d.propertyType, roomCount: d.roomCount,
+      minSqm: d.minSqm, maxSqm: d.maxSqm, minBudget: d.minBudget, maxBudget: d.maxBudget,
+      transactionType: d.transactionType || "SALE", purchaseTimeline: d.purchaseTimeline,
+      heatingType: d.heatingType, buildingAge: d.buildingAge, floorPref: d.floorPref,
+      interiorFeatures: d.interiorFeatures, exteriorFeatures: d.exteriorFeatures,
+      usesCredit: d.usesCredit, cashReady: d.cashReady, offerCount: d.offerCount,
+      boostedUntil: d.boostedUntil, createdAt: d.createdAt,
+      description: maskSensitiveInfo(d.description || "").maskedText
+    }));
+    return ok(res, { items });
+  }
+
   if (!user) return err(res, 401, "Giriş gerekli.");
 
   // --- profil ---

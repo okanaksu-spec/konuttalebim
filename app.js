@@ -214,6 +214,7 @@ let _searchItems = [];
 // olusturulunca etiketi asagidaki haritaya yazmak yeterli; kod degismez.
 // Etiketi olmayan olaylar yine de gtag olayi olarak gonderilir (GA4/ileride kullanilir).
 const ADS_ID = "AW-18335656859";
+const GA4_ID = "G-LFBWPTNVDE";
 // label: Ads dönüşüm etiketi · value/currency: Ads'te tanimli varsayilan deger
 const CONVERSIONS = {
   talep_olustur: { label: "IuOECKTCnNMcEJvXj6dE" },                            // Talep oluşturma
@@ -288,7 +289,9 @@ function ktTrack(eventName, params) {
       gtag("event", "conversion", payload);
     }
     // Adlandirilmis olay (GA4): baglam bilgisi burada kalir, dönüşüm yukune karismaz.
-    gtag("event", `kt_${eventName}`, p);
+    // gtag yukleyicisi Ads kimligiyle basladigi icin varsayilan hedef Ads'tir;
+    // send_to yazilmazsa olay GA4'e hic ulasmaz. Bu yuzden iki kimlik de verilir.
+    gtag("event", `kt_${eventName}`, { send_to: [GA4_ID, ADS_ID], ...p });
   } catch { /* olcum hatasi akisi bozmasin */ }
 }
 
@@ -3586,24 +3589,14 @@ window.KT = {
   }
 };
 
-// SPA ici rota degisiminde GA4'e tek bir page_view gonderilir.
-// Ilk yuklemede gonderilmez: gtag('config', ...) zaten bir page_view uretir,
-// aksi halde goruntulemeler cift sayilir.
-function ktPageView(path) {
-  if (typeof gtag !== "function") return;
-  try {
-    gtag("event", "page_view", {
-      page_path: path,
-      page_location: window.location.origin + path,
-      page_title: document.title
-    });
-  } catch { /* olcum hatasi akisi bozmasin */ }
-}
-
+// NOT — SPA ici rota degisiminde elle page_view GONDERILMIYOR.
+// GA4'un "gelismis olcum" ozelligi tarayici gecmisi degisimlerini (hash rotalari
+// dahil) zaten tek bir page_view olarak sayiyor; ajansin 28 Tem olcumu bunu
+// dogruladi (ilk yukleme 1, yenileme 1, rota degisimi 1). Buraya elle bir
+// page_view eklemek GA4'te cift sayima yol acar.
 async function navigate() {
   await refreshState();
   render();
-  ktPageView("/" + (location.hash || "#/home").replace(/^#\/?/, ""));
 }
 window.addEventListener("hashchange", navigate);
 window.addEventListener("DOMContentLoaded", async () => {

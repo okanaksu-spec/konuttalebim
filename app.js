@@ -224,6 +224,25 @@ const CONVERSIONS = {
 };
 // Reklam kaynagi: ilk gelisteki gclid/utm parametrelerini sakla (30 gun).
 const ATTR_KEY = "kt-attribution-v1";
+// Sehir sayfalarindan gelen ?il=istanbul parametresi: formda il onsecili gelsin.
+// Slug -> il adi (TR_ILLER icinde eslesme kurulur).
+const CITY_SLUGS = { istanbul: "İstanbul", ankara: "Ankara", izmir: "İzmir", eskisehir: "Eskişehir", bursa: "Bursa", antalya: "Antalya" };
+let preselectCity = "";
+try {
+  const ilParam = (new URLSearchParams(location.search).get("il") || "").toLowerCase();
+  if (CITY_SLUGS[ilParam]) preselectCity = CITY_SLUGS[ilParam];
+} catch { /* yoksay */ }
+// Formdaki il alanini (varsa) sehir sayfasindan gelen ile ayarlar ve ilceleri yukler.
+function applyPreselectCity(prefix) {
+  if (!preselectCity) return;
+  const sel = document.getElementById(prefix + "-city");
+  if (!sel || sel.value) return;
+  const match = TR_ILLER.find((il) => il.name === preselectCity);
+  if (!match) return;
+  sel.value = match.code;
+  if (sel.value === match.code && window.KT && KT.loadIlce) KT.loadIlce(prefix);
+}
+
 function captureAttribution() {
   try {
     const qs = new URLSearchParams(location.search);
@@ -2787,6 +2806,8 @@ function render() {
   if (path === "home" || path === "" || path === "/") KT.loadHomeListings();
   // Google tamamlama ekraninda bekleyen profili (ad/e-posta) doldur.
   if (path === "google-tamamla" || path.startsWith("google-tamamla")) KT.loadGooglePending();
+  // Sehir sayfasindan ?il= ile gelindiyse formlarda il onsecili acilsin.
+  if (preselectCity) { applyPreselectCity("d"); applyPreselectCity("p"); applyPreselectCity("s"); }
 }
 
 window.KT = {
@@ -3565,9 +3586,24 @@ window.KT = {
   }
 };
 
+// SPA ici rota degisiminde GA4'e tek bir page_view gonderilir.
+// Ilk yuklemede gonderilmez: gtag('config', ...) zaten bir page_view uretir,
+// aksi halde goruntulemeler cift sayilir.
+function ktPageView(path) {
+  if (typeof gtag !== "function") return;
+  try {
+    gtag("event", "page_view", {
+      page_path: path,
+      page_location: window.location.origin + path,
+      page_title: document.title
+    });
+  } catch { /* olcum hatasi akisi bozmasin */ }
+}
+
 async function navigate() {
   await refreshState();
   render();
+  ktPageView("/" + (location.hash || "#/home").replace(/^#\/?/, ""));
 }
 window.addEventListener("hashchange", navigate);
 window.addEventListener("DOMContentLoaded", async () => {

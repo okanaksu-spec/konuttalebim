@@ -1548,11 +1548,13 @@ function legalPage(kind) {
       <p>Üyeliğin ve hizmetin sunulması; alıcı/kiracı taleplerinin satıcı/ev sahibi ilanlarıyla eşleştirilmesi; <strong>Bilgileri Görme Üyeliği</strong> kapsamında iletişim bilgisinin açılması; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi; talep/şikâyet yönetimi ve hizmet kalitesinin artırılması.</p>
       <h3>4. Toplama Yöntemi ve Hukuki Sebepler (KVKK m.5)</h3>
       <p>Veriler; web sitesi, mobil uygulama ve e-posta yoluyla elektronik ortamda toplanır. Hukuki sebepler: sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; ve gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
-      <h3>5. Aktarım (KVKK m.8-9)</h3>
+      <h3>5. Talep ve İlanların Herkese Açık Görünürlüğü</h3>
+      <p>Oluşturduğunuz <strong>talepler ve ilanlar, üyeliği olmayan ziyaretçiler dâhil herkese açık olarak</strong> platformda listelenir. Bu listelemede yalnızca ihtiyaç özeti görünür: şehir/ilçe, konut tipi, oda sayısı, m² aralığı, bütçe veya kira aralığı, zaman tercihi, tercih ettiğiniz özellikler ve yazdığınız açıklama metni. <strong>Adınız, telefonunuz, e-postanız ve kimliğiniz gösterilmez</strong>; açıklama metnine yazılan telefon/e-posta gibi iletişim bilgileri sistem tarafından otomatik olarak maskelenir. İletişim bilgileriniz yalnızca eşleşme sonrası, karşı tarafın <strong>Bilgileri Görme Üyeliği</strong> alması hâlinde paylaşılır. Açıklama alanına kimliğinizi ortaya çıkarabilecek bilgiler yazmamanızı öneririz. Talebinizi panelinizden yayından kaldırdığınızda herkese açık listelemeden de çıkar.</p>
+      <h3>6. Aktarım (KVKK m.8-9)</h3>
       <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Eşleşmede yalnızca ilgili iletişim bilgisi, üyeliği olan tarafa açılır.</p>
-      <h3>6. Saklama Süresi</h3>
+      <h3>7. Saklama Süresi</h3>
       <p>Veriler, işleme amacının gerektirdiği ve mevzuatın öngördüğü süre boyunca saklanır; süre sonunda resen veya talebiniz üzerine silinir, yok edilir ya da anonimleştirilir.</p>
-      <h3>7. Haklarınız (KVKK m.11)</h3>
+      <h3>8. Haklarınız (KVKK m.11)</h3>
       <p>Kişisel veri sahibi olarak; verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını ve amaca uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini, şartlar oluştuğunda silinmesini/yok edilmesini isteme, otomatik analiz sonucu aleyhinize çıkan bir sonuca itiraz etme ve kanuna aykırı işleme nedeniyle zararınızın giderilmesini talep etme haklarına sahipsiniz. Başvurularınız ${C.email} üzerinden en geç <strong>30 gün</strong> içinde ücretsiz sonuçlandırılır.</p>` },
     "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler ve yönetimi hakkında.", h: `
       <p>Konuttalebi, hizmetin çalışması ve kullanıcı deneyiminin iyileştirilmesi için çerez (cookie) kullanır. Aşağıda çerez türleri ve yönetimi açıklanmıştır.</p>
@@ -1761,6 +1763,13 @@ function buyerDemandForm() {
     ${pageHead(rent ? "Yeni Kiralık Talebi" : "Yeni Talep Oluştur", "Satıcı/ev sahiplerinin göreceği anonim talep kartını hazırla.")}
     <div class="wizard-steps">
       <div class="step active">1. Konum</div><div class="step active">2. Özellikler</div><div class="step active">3. ${rent ? "Kira" : "Bütçe"}</div><div class="step active">4. Önizleme</div>
+    </div>
+    <div class="notice" style="margin:0 0 16px">
+      <strong>${icon("lock", 13)} Talebin herkese açık listelenir — ama kimliğin gizli kalır.</strong>
+      Yayına aldığında talebin, üye olmayan ziyaretçilerin de görebildiği <a href="#/ilanlar" target="_blank">Ev Arayanlar</a> listesinde görünür.
+      Görünen bilgiler: şehir/ilçe, konut tipi, oda, m², ${rent ? "kira" : "bütçe"} aralığı, zaman tercihin ve yazdığın açıklama.
+      <strong>Adın, telefonun ve e-postan gösterilmez;</strong> açıklamaya yazılan telefon/e-posta otomatik gizlenir.
+      İletişim bilgin yalnızca eşleşme sonrası, karşı taraf üyelik aldığında paylaşılır.
     </div>
     <form class="panel" onsubmit="KT.createDemand(event)">
       <div class="form-grid">

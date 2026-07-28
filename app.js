@@ -240,19 +240,36 @@ function captureAttribution() {
 }
 function attribution() { return captureAttribution(); }
 // Tek giris noktasi: hem Ads dönüşümü hem adlandirilmis olay gonderir.
+// Donusumler yalnizca canli alan adinda gonderilir; localhost/staging reklam verisini kirletmesin.
+const IS_PROD = typeof location !== "undefined" && /(^|\.)konuttalebi\.com$/i.test(location.hostname);
+// Ayni islem iki kez sayilmasin (ozellikle odeme: kullanici ekrani yenilerse).
+const SENT_CONV_KEY = "kt-sent-conversions-v1";
+function alreadySent(id) {
+  if (!id) return false;
+  try {
+    const list = JSON.parse(localStorage.getItem(SENT_CONV_KEY) || "[]");
+    if (list.includes(id)) return true;
+    list.push(id);
+    localStorage.setItem(SENT_CONV_KEY, JSON.stringify(list.slice(-100)));
+  } catch { /* depolama yoksa yoksay */ }
+  return false;
+}
 function ktTrack(eventName, params) {
   try {
     if (!window.gtag) return;
+    const p = params || {};
     const conv = CONVERSIONS[eventName];
-    if (conv && conv.label) {
-      const payload = { send_to: `${ADS_ID}/${conv.label}` };
-      if (conv.value !== undefined) payload.value = conv.value;
-      if (conv.currency) payload.currency = conv.currency;
-      // Olaydan gelen deger/islem no varsayilanlari ezer (orn. odeme tutari).
-      for (const [k, v] of Object.entries(params || {})) if (v !== undefined) payload[k] = v;
+    if (conv && conv.label && IS_PROD) {
+      // Mukerrer koruma: islem numarasi varsa (odeme) ayni kayit ikinci kez gonderilmez.
+      if (p.transaction_id && alreadySent(`${eventName}:${p.transaction_id}`)) return;
+      // Google Ads'e yalnizca bu dort alan gider; kisisel veri veya ek alan gonderilmez.
+      const payload = { send_to: `${ADS_ID}/${conv.label}`, currency: conv.currency || "TRY" };
+      payload.value = p.value !== undefined ? p.value : (conv.value !== undefined ? conv.value : 1.0);
+      if (p.transaction_id) payload.transaction_id = p.transaction_id;
       gtag("event", "conversion", payload);
     }
-    gtag("event", `kt_${eventName}`, params || {});
+    // Adlandirilmis olay (GA4): baglam bilgisi burada kalir, dönüşüm yukune karismaz.
+    gtag("event", `kt_${eventName}`, p);
   } catch { /* olcum hatasi akisi bozmasin */ }
 }
 

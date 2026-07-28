@@ -3597,15 +3597,21 @@ window.KT = {
 // ZORUNLU. Kaldirmadan once tekrar olc.
 // Ayrica gtag, page_location'i document.location'dan alirken fragment'i (#/...)
 // atiyor; bu yuzden adres acikca geciriliyor, yoksa tum rotalar "/" olarak birikir.
+let ktIlkRotaAtlandi = false;
 function ktPageView() {
   if (typeof gtag !== "function") return;
-  // Ilk cagri da gonderilir: index.html'de GA4 config'i send_page_view:false ile
-  // acildigi icin otomatik page_view yok. Boylece acilis "/" degil "/home" olarak
-  // tek satirda toplanir, cift sayim da olmaz.
+  // Acilista gtag'in kendi otomatik page_view'u zaten gidiyor (Google tarafindaki
+  // Ads-GA4 baglantisi uretiyor; send_page_view:false ile susturulamiyor, denendi).
+  // Router acilista rotayi bir kez ayarladigi icin buraya da ugruyoruz — ilk cagriyi
+  // atla, yoksa acilista 2 page_view olur.
+  if (!ktIlkRotaAtlandi) { ktIlkRotaAtlandi = true; return; }
   try {
     const hash = (location.hash || "").replace(/^#/, "");           // "/ilanlar"
     const base = location.pathname.replace(/\/+$/, "");             // "" (kok icin)
-    const yol = (base + (hash.startsWith("/") ? hash : (hash ? "/" + hash : ""))) || "/";
+    let yol = (base + (hash.startsWith("/") ? hash : (hash ? "/" + hash : ""))) || "/";
+    // Ana sayfa GA4'te tek satirda toplansin: acilis otomatik page_view'u "/" olarak
+    // dusuyor, SPA rotasi ise "/home". Ayni ekran, tek yol.
+    if (yol === "/home") yol = "/";
     gtag("event", "page_view", {
       send_to: [GA4_ID, ADS_ID],
       page_location: location.origin + yol + location.search,

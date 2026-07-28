@@ -69,13 +69,13 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'AW-18335656859');
-      // GA4'un otomatik page_view'u KAPALI — cunku bu sayfa bir SPA kabugu ve gtag
-      // page_location'i alirken fragment'i (#/...) atiyor; otomatik olan "/" olarak
-      // dusuyor, app.js'in rota degisiminde gonderdigi ise "/home". Ayni ekran iki
-      // satira boluniyordu. Tek kaynak: app.js icindeki ktPageView().
-      // NOT: sehir sayfalari ve diger statik HTML'ler kendi gtag blogunu kullanir,
-      // orada otomatik page_view acik kalmali.
-      gtag('config', 'G-LFBWPTNVDE', { send_page_view: false });
+      // NOT: burada send_page_view:false DENENDI, ISE YARAMADI (29 Tem 2026, canlida
+      // olculdu). Otomatik page_view yine gitti — Google tarafindaki Ads-GA4
+      // baglantisi kendi page_view'unu uretiyor ve sayfadaki config ayari onu
+      // susturmuyor. Cozum app.js tarafinda: acilistaki ilk rota cagrisi atlaniyor
+      // ve "/home" yolu "/" olarak normalize ediliyor, boylece ana sayfa GA4'te
+      // tek satirda toplaniyor.
+      gtag('config', 'G-LFBWPTNVDE');
     </script>
   </head>
   <body>

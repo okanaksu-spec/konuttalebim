@@ -3595,8 +3595,13 @@ window.KT = {
 // ZORUNLU. Kaldirmadan once tekrar olc.
 // Ayrica gtag, page_location'i document.location'dan alirken fragment'i (#/...)
 // atiyor; bu yuzden adres acikca geciriliyor, yoksa tum rotalar "/" olarak birikir.
+let ktFirstNavigate = true;
 function ktPageView() {
   if (typeof gtag !== "function") return;
+  // Ilk yuklemede gtag'in kendi otomatik page_view'u zaten gidiyor; router acilista
+  // rotayi (#/home) bir kez ayarladigi icin buraya da ugruyoruz — o ilk cagriyi atla,
+  // yoksa acilista 2 page_view olur.
+  if (ktFirstNavigate) { ktFirstNavigate = false; return; }
   try {
     const hash = (location.hash || "").replace(/^#/, "");           // "/ilanlar"
     const base = location.pathname.replace(/\/+$/, "");             // "" (kok icin)

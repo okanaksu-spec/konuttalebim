@@ -10,6 +10,10 @@ import {
 } from "./db.mjs";
 import { paymentProvider, paymentsAreLive } from "./payment.mjs";
 import { renderCityPage, cityPagePaths, CITIES } from "./seo-pages.mjs";
+import {
+  identityEnabled, identityKeyStatus, encryptSecret, decryptSecret, hashIdentity,
+  isValidTckn, validateBirthDate, maskTckn, maskBirthDate, ageFromBirthDate
+} from "./identity.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
@@ -100,6 +104,49 @@ function addAudit(actorId, action, entityType, entityId, metadata) {
   db.prepare("INSERT INTO audit_logs (id,actorId,action,entityType,entityId,metadata,createdAt) VALUES (?,?,?,?,?,?,?)")
     .run(uid("a"), actorId, action, entityType, entityId, metadata || "", today());
 }
+// Kimlik alanlarini dogrula ve sifreli bicimde don. Anahtar yoksa sessizce atlanir.
+// Donus: { ok, error } | { ok:true, tcknEnc, tcknHash, birthDate, consent }
+function prepareIdentity(body, userIdToSkip) {
+  const tckn = String(body.tckn || "").replace(/\s/g, "");
+  const birth = String(body.birthDate || "").trim();
+  if (!tckn && !birth) return { ok: true, empty: true };
+  if (!identityEnabled())
+    return { ok: false, error: "Kimlik bilgisi şu anda alınamıyor. Lütfen daha sonra tekrar deneyin." };
+  if (!body.identityConsent)
+    return { ok: false, error: "Kimlik bilgilerinin işlenmesi için onay vermen gerekiyor." };
+  const out = { ok: true, consent: 1 };
+  if (tckn) {
+    if (!isValidTckn(tckn)) return { ok: false, error: "Geçerli bir T.C. kimlik numarası girin." };
+    const h = hashIdentity(tckn);
+    const dupe = db.prepare("SELECT id FROM users WHERE tcknHash = ?").get(h);
+    if (dupe && dupe.id !== userIdToSkip)
+      return { ok: false, error: "Bu T.C. kimlik numarası başka bir üyelikte kayıtlı." };
+    out.tcknEnc = encryptSecret(tckn);
+    out.tcknHash = h;
+  }
+  if (birth) {
+    const r = validateBirthDate(birth);
+    if (!r.ok) return { ok: false, error: r.error };
+    out.birthDate = r.value;
+  }
+  return out;
+}
+
+function saveIdentity(userId, prepared) {
+  if (!prepared || !prepared.ok || prepared.empty) return;
+  const sets = [];
+  const vals = [];
+  if (prepared.tcknEnc) { sets.push("tcknEnc=?", "tcknHash=?"); vals.push(prepared.tcknEnc, prepared.tcknHash); }
+  if (prepared.birthDate) { sets.push("birthDate=?"); vals.push(prepared.birthDate); }
+  if (!sets.length) return;
+  sets.push("identityConsent=?", "identityConsentAt=?");
+  vals.push(1, now());
+  vals.push(userId);
+  db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id=?`).run(...vals);
+  addAudit(userId, "IDENTITY_SAVED", "User", userId,
+    `Kimlik verisi kaydedildi (şifreli). Alanlar: ${prepared.tcknEnc ? "TCKN " : ""}${prepared.birthDate ? "doğum tarihi" : ""}`.trim());
+}
+
 function notify(userId, type, title, body, actionUrl) {
   db.prepare("INSERT INTO notifications (id,userId,type,title,body,actionUrl,createdAt) VALUES (?,?,?,?,?,?,?)")
     .run(uid("n"), userId, type, title, body, actionUrl || "", today());
@@ -420,7 +467,15 @@ function buildState(user) {
       acqSource: isAdmin ? (u.acqSource || "") : undefined,
       acqMedium: isAdmin ? (u.acqMedium || "") : undefined,
       acqCampaign: isAdmin ? (u.acqCampaign || "") : undefined,
-      acqGclid: isAdmin ? (u.acqGclid || "") : undefined
+      acqGclid: isAdmin ? (u.acqGclid || "") : undefined,
+      // Kimlik verisi: ADMIN'e bile yalnizca MASKELI doner. Acik deger icin ayri
+      // bir istek (/users/:id/identity) gerekir ve o istek denetim kaydi dusurur.
+      // Kullaniciya kendi TCKN'si de maskeli gosterilir (omuz ustu okumaya karsi).
+      tcknMasked: (isAdmin || self) ? maskTckn(decryptSecret(u.tcknEnc)) : undefined,
+      birthDateMasked: (isAdmin || self) ? maskBirthDate(u.birthDate) : undefined,
+      age: isAdmin ? ageFromBirthDate(u.birthDate) : undefined,
+      identityConsent: isAdmin ? (u.identityConsent ? 1 : 0) : undefined,
+      adminNote: isAdmin ? (u.adminNote || "") : undefined
     };
   });
 
@@ -515,10 +570,14 @@ async function handleApi(req, res, url) {
     if (password.length < 6) return err(res, 400, "Şifre en az 6 karakter olmalı.");
     if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
       return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var.");
+    // Kimlik alanlari: hesap acilmadan ONCE dogrulanir ki yarim kayit olusmasin.
+    const kimlik = prepareIdentity(body, null);
+    if (!kimlik.ok) return err(res, 400, kimlik.error);
     const id = uid("u");
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
     addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    saveIdentity(id, kimlik);
     saveAttribution(id, body.attribution);
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
       .run(id, email, hashPassword(password), 0, today(), today());
@@ -647,10 +706,13 @@ async function handleApi(req, res, url) {
     if (name.length < 3 || phone.length < 10) return err(res, 400, "Ad ve geçerli telefon gerekli.");
     if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
       return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var. Lütfen giriş yapın.");
+    const kimlik = prepareIdentity(body, null);
+    if (!kimlik.ok) return err(res, 400, kimlik.error);
     const id = uid("u");
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
     addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    saveIdentity(id, kimlik);
     saveAttribution(id, body.attribution);
     // Sifre yok: saglayici Google. E-posta Google tarafindan dogrulanmis kabul edilir.
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt,provider) VALUES (?,?,?,?,?,?,?)")
@@ -846,8 +908,17 @@ async function handleApi(req, res, url) {
     if (!name || !email.includes("@") || phone.length < 10 || !city) return err(res, 400, "Tüm alanlar gerekli.");
     const dup = db.prepare("SELECT 1 FROM auth_accounts WHERE email = ? AND userId != ?").get(email, user.id);
     if (dup) return err(res, 409, "Bu e-posta başka üyelikte kullanılıyor.");
+    // Kimlik alanlari: bir kez kaydedildiyse kullanici kendisi degistiremez
+    // (dogrulanmis veriyi kullanicinin serbestce degistirmesi guveni bozar).
+    const mevcut = db.prepare("SELECT tcknEnc, birthDate FROM users WHERE id=?").get(user.id) || {};
+    const kimlikIstegi = String(body.tckn || "").trim() || String(body.birthDate || "").trim();
+    if (kimlikIstegi && (mevcut.tcknEnc || mevcut.birthDate))
+      return err(res, 409, "Kimlik bilgilerin kayıtlı. Değişiklik için destek ile iletişime geç.");
+    const kimlik = prepareIdentity(body, user.id);
+    if (!kimlik.ok) return err(res, 400, kimlik.error);
     db.prepare("UPDATE users SET name=?,email=?,phone=?,city=? WHERE id=?").run(name, email, phone, city, user.id);
     db.prepare("UPDATE auth_accounts SET email=?, emailVerified=0 WHERE userId=?").run(email, user.id);
+    saveIdentity(user.id, kimlik);
     addAudit(user.id, "PROFILE_UPDATED", "User", user.id, "Profil güncellendi.");
     return ok(res);
   }
@@ -1105,6 +1176,146 @@ async function handleApi(req, res, url) {
     notify(doc.userId, `DOCUMENT_${status}`, status === "APPROVED" ? "Belgen onaylandı" : "Belgen reddedildi",
       status === "APPROVED" ? "Doğrulama belgen onaylandı." : "Doğrulama belgen reddedildi, tekrar yükleyebilirsin.", "dashboard/satici/dogrulama");
     addAudit(user.id, `DOCUMENT_${status}`, "VerificationDocument", doc.id, "Belge durumu güncellendi.");
+    return ok(res);
+  }
+
+  // =====================================================================
+  // YONETIM PANELI UCLARI
+  // Hepsi ADMIN yetkisi ister ve hepsi denetim kaydi (audit_logs) dusurur.
+  // =====================================================================
+  const adminOnly = () => user.role === "ADMIN";
+
+  // --- A) Ilan / talep moderasyonu ---
+  // durum: ACTIVE | REMOVED  (kalici silme yok; geri alinabilir olmali)
+  if (seg[0] === "admin" && seg[1] === "moderate" && method === "POST") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const tur = seg[2] === "demand" ? "demand" : seg[2] === "property" ? "property" : "";
+    const kayitId = seg[3] || "";
+    if (!tur || !kayitId) return err(res, 400, "Geçersiz istek.");
+    const tablo = tur === "demand" ? "demands" : "properties";
+    const sahipAlan = tur === "demand" ? "buyerId" : "sellerId";
+    const kayit = db.prepare(`SELECT * FROM ${tablo} WHERE id=?`).get(kayitId);
+    if (!kayit) return err(res, 404, "Kayıt bulunamadı.");
+    const yeni = body.status === "ACTIVE" ? "ACTIVE" : "REMOVED";
+    const gerekce = String(body.reason || "").trim().slice(0, 400);
+    if (yeni === "REMOVED" && gerekce.length < 5)
+      return err(res, 400, "Yayından kaldırma için en az 5 karakterlik gerekçe yaz.");
+    db.prepare(`UPDATE ${tablo} SET status=?, moderationReason=? WHERE id=?`).run(yeni, gerekce, kayitId);
+    addAudit(user.id, yeni === "REMOVED" ? "ADMIN_CONTENT_REMOVED" : "ADMIN_CONTENT_RESTORED",
+      tur === "demand" ? "Demand" : "Property", kayitId, gerekce || "Yayına geri alındı.");
+    const sahip = kayit[sahipAlan];
+    if (sahip) {
+      const baslik = kayit.title || (tur === "demand" ? "Talebin" : "İlanın");
+      if (yeni === "REMOVED") {
+        notify(sahip, "CONTENT_REMOVED", "Bir kaydın yayından kaldırıldı",
+          `${baslik} yayından kaldırıldı. Gerekçe: ${gerekce}`, "");
+        queueEmail(sahip, "Bir kaydın yayından kaldırıldı",
+          `${baslik} adlı kaydın yayından kaldırıldı.\n\nGerekçe: ${gerekce}\n\nDüzenleyip tekrar yayınlayabilirsin.`,
+          "", "İçerik moderasyonu", "Katılmıyorsan bu e-postayı yanıtla, birlikte bakalım.");
+      } else {
+        notify(sahip, "CONTENT_RESTORED", "Kaydın tekrar yayında", `${baslik} yeniden yayına alındı.`, "");
+      }
+    }
+    return ok(res, { status: yeni });
+  }
+
+  // --- A2) Ilan / talep basligini ve aciklamasini duzelt ---
+  if (seg[0] === "admin" && seg[1] === "edit" && method === "PATCH") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const tur = seg[2] === "demand" ? "demands" : seg[2] === "property" ? "properties" : "";
+    const kayitId = seg[3] || "";
+    if (!tur || !kayitId) return err(res, 400, "Geçersiz istek.");
+    const kayit = db.prepare(`SELECT * FROM ${tur} WHERE id=?`).get(kayitId);
+    if (!kayit) return err(res, 404, "Kayıt bulunamadı.");
+    const baslik = String(body.title ?? kayit.title ?? "").trim().slice(0, 160);
+    const aciklama = String(body.description ?? kayit.description ?? "").trim().slice(0, 4000);
+    if (baslik.length < 5) return err(res, 400, "Başlık en az 5 karakter olmalı.");
+    db.prepare(`UPDATE ${tur} SET title=?, description=? WHERE id=?`).run(baslik, aciklama, kayitId);
+    addAudit(user.id, "ADMIN_CONTENT_EDITED", tur === "demands" ? "Demand" : "Property", kayitId,
+      `Başlık/açıklama düzenlendi. Eski başlık: ${kayit.title || ""}`);
+    return ok(res);
+  }
+
+  // --- B) Uye yonetimi: durum, rol, not ---
+  if (seg[0] === "admin" && seg[1] === "users" && seg[3] === "manage" && method === "POST") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const hedef = db.prepare("SELECT * FROM users WHERE id=?").get(seg[2]);
+    if (!hedef) return err(res, 404, "Üye bulunamadı.");
+    if (hedef.id === user.id) return err(res, 400, "Kendi hesabını buradan değiştiremezsin.");
+    const setler = [], degerler = [], notlar = [];
+    if (body.status !== undefined) {
+      const yeni = ["ACTIVE", "SUSPENDED"].includes(body.status) ? body.status : null;
+      if (!yeni) return err(res, 400, "Geçersiz durum.");
+      setler.push("status=?"); degerler.push(yeni); notlar.push(`durum -> ${yeni}`);
+      if (yeni === "SUSPENDED") db.prepare("DELETE FROM sessions WHERE userId=?").run(hedef.id);
+    }
+    if (body.role !== undefined) {
+      const yeni = ["BUYER", "SELLER", "AGENT", "REVIEWER", "ADMIN"].includes(body.role) ? body.role : null;
+      if (!yeni) return err(res, 400, "Geçersiz rol.");
+      setler.push("role=?"); degerler.push(yeni); notlar.push(`rol -> ${yeni}`);
+    }
+    if (body.adminNote !== undefined) {
+      setler.push("adminNote=?"); degerler.push(String(body.adminNote).slice(0, 1000)); notlar.push("not güncellendi");
+    }
+    if (!setler.length) return err(res, 400, "Değiştirilecek alan yok.");
+    degerler.push(hedef.id);
+    db.prepare(`UPDATE users SET ${setler.join(", ")} WHERE id=?`).run(...degerler);
+    addAudit(user.id, "ADMIN_USER_MANAGED", "User", hedef.id, notlar.join(", "));
+    if (body.status === "SUSPENDED")
+      notify(hedef.id, "ACCOUNT_SUSPENDED", "Üyeliğin askıya alındı",
+        String(body.reason || "Hesabın geçici olarak askıya alındı. Destek ile iletişime geçebilirsin."), "");
+    return ok(res);
+  }
+
+  // --- B2) Uyeye ucretsiz uyelik tanimla ---
+  if (seg[0] === "admin" && seg[1] === "users" && seg[3] === "grant" && method === "POST") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const hedef = db.prepare("SELECT * FROM users WHERE id=?").get(seg[2]);
+    if (!hedef) return err(res, 404, "Üye bulunamadı.");
+    const plan = db.prepare("SELECT * FROM plans WHERE id=?").get(String(body.planId || ""));
+    if (!plan) return err(res, 400, "Paket bulunamadı.");
+    const gun = Math.min(Math.max(parseInt(body.days, 10) || 30, 1), 730);
+    const bitis = new Date(Date.now() + gun * 86400000).toISOString().slice(0, 10);
+    db.prepare("INSERT INTO entitlements (id,userId,planId,activeFrom,activeTo) VALUES (?,?,?,?,?)")
+      .run(uid("e"), hedef.id, plan.id, today(), bitis);
+    addAudit(user.id, "ADMIN_MEMBERSHIP_GRANTED", "User", hedef.id, `${plan.name}, ${gun} gün (${bitis} tarihine kadar)`);
+    notify(hedef.id, "MEMBERSHIP_GRANTED", "Üyeliğin tanımlandı",
+      `${plan.name} üyeliğin ${bitis} tarihine kadar aktif.`, "dashboard");
+    return ok(res, { activeTo: bitis });
+  }
+
+  // --- B3) Kimlik verisini acik gormek: AYRI istek + denetim kaydi ---
+  if (seg[0] === "admin" && seg[1] === "users" && seg[3] === "identity" && method === "POST") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const gerekce = String(body.reason || "").trim().slice(0, 300);
+    if (gerekce.length < 5) return err(res, 400, "Görüntüleme gerekçesi yazmalısın (en az 5 karakter).");
+    const hedef = db.prepare("SELECT id,name,tcknEnc,birthDate FROM users WHERE id=?").get(seg[2]);
+    if (!hedef) return err(res, 404, "Üye bulunamadı.");
+    const tckn = decryptSecret(hedef.tcknEnc);
+    addAudit(user.id, "ADMIN_IDENTITY_VIEWED", "User", hedef.id, `Gerekçe: ${gerekce}`);
+    return ok(res, { tckn: tckn || "", birthDate: hedef.birthDate || "" });
+  }
+
+  // --- E) Uye verisini anonimlestir (KVKK silme talebi) ---
+  // Kayitlar silinmez, kisisel veriler geri donusu olmayacak sekilde temizlenir.
+  if (seg[0] === "admin" && seg[1] === "users" && seg[3] === "anonymize" && method === "POST") {
+    if (!adminOnly()) return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const hedef = db.prepare("SELECT * FROM users WHERE id=?").get(seg[2]);
+    if (!hedef) return err(res, 404, "Üye bulunamadı.");
+    if (hedef.role === "ADMIN") return err(res, 400, "Yönetici hesabı anonimleştirilemez.");
+    if (String(body.confirm || "") !== hedef.id) return err(res, 400, "Onay için üye kimliğini doğru yaz.");
+    const takma = `Silinmiş üye ${hedef.id.slice(-4)}`;
+    db.prepare(`UPDATE users SET name=?, email=?, phone='', city='', status='ANONYMIZED',
+      tcknEnc=NULL, tcknHash=NULL, birthDate=NULL, identityConsent=0,
+      acqSource=NULL, acqMedium=NULL, acqCampaign=NULL, acqTerm=NULL, acqGclid=NULL WHERE id=?`)
+      .run(takma, `silinmis-${hedef.id}@konuttalebi.invalid`, hedef.id);
+    db.prepare("UPDATE auth_accounts SET email=?, passwordHash='' WHERE userId=?")
+      .run(`silinmis-${hedef.id}@konuttalebi.invalid`, hedef.id);
+    db.prepare("DELETE FROM sessions WHERE userId=?").run(hedef.id);
+    db.prepare("UPDATE demands SET status='REMOVED' WHERE buyerId=?").run(hedef.id);
+    db.prepare("UPDATE properties SET status='REMOVED' WHERE sellerId=?").run(hedef.id);
+    addAudit(user.id, "ADMIN_USER_ANONYMIZED", "User", hedef.id,
+      `KVKK silme talebi uygulandı. Gerekçe: ${String(body.reason || "").slice(0, 200)}`);
     return ok(res);
   }
 

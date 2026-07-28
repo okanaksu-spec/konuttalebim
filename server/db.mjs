@@ -130,7 +130,18 @@ for (const alter of [
   "ALTER TABLE users ADD COLUMN acqMedium TEXT",
   "ALTER TABLE users ADD COLUMN acqCampaign TEXT",
   "ALTER TABLE users ADD COLUMN acqTerm TEXT",
-  "ALTER TABLE users ADD COLUMN acqGclid TEXT"
+  "ALTER TABLE users ADD COLUMN acqGclid TEXT",
+  // Kimlik verisi: TCKN ACIK METIN TUTULMAZ. tcknEnc = AES-256-GCM sifreli deger,
+  // tcknHash = tekillik kontrolu icin geri cevrilemez HMAC ozeti.
+  "ALTER TABLE users ADD COLUMN tcknEnc TEXT",
+  "ALTER TABLE users ADD COLUMN tcknHash TEXT",
+  "ALTER TABLE users ADD COLUMN birthDate TEXT",
+  "ALTER TABLE users ADD COLUMN identityConsent INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN identityConsentAt TEXT",
+  // Panel: askiya alma gerekcesi ve moderasyon notu
+  "ALTER TABLE users ADD COLUMN adminNote TEXT",
+  "ALTER TABLE demands ADD COLUMN moderationReason TEXT",
+  "ALTER TABLE properties ADD COLUMN moderationReason TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

@@ -3589,14 +3589,32 @@ window.KT = {
   }
 };
 
-// NOT — SPA ici rota degisiminde elle page_view GONDERILMIYOR.
-// GA4'un "gelismis olcum" ozelligi tarayici gecmisi degisimlerini (hash rotalari
-// dahil) zaten tek bir page_view olarak sayiyor; ajansin 28 Tem olcumu bunu
-// dogruladi (ilk yukleme 1, yenileme 1, rota degisimi 1). Buraya elle bir
-// page_view eklemek GA4'te cift sayima yol acar.
+// SPA rota degisiminde GA4 sayfa goruntuleme.
+// NOT: gelismis olcumun "tarayici gecmisi olaylari" ayari bu sitede page_view
+// URETMIYOR — 28 Tem 2026'da canlida olculdu, sonuc 0. Bu yuzden elle gonderim
+// ZORUNLU. Kaldirmadan once tekrar olc.
+// Ayrica gtag, page_location'i document.location'dan alirken fragment'i (#/...)
+// atiyor; bu yuzden adres acikca geciriliyor, yoksa tum rotalar "/" olarak birikir.
+function ktPageView() {
+  if (typeof gtag !== "function") return;
+  try {
+    const hash = (location.hash || "").replace(/^#/, "");           // "/ilanlar"
+    const base = location.pathname.replace(/\/+$/, "");             // "" (kok icin)
+    const yol = (base + (hash.startsWith("/") ? hash : (hash ? "/" + hash : ""))) || "/";
+    gtag("event", "page_view", {
+      send_to: [GA4_ID, ADS_ID],
+      page_location: location.origin + yol + location.search,
+      page_path: yol,
+      page_title: document.title
+    });
+  } catch { /* olcum hatasi akisi bozmasin */ }
+}
+
 async function navigate() {
   await refreshState();
   render();
+  // Yalnizca rota degisiminde; ilk yuklemede gtag'in kendi page_view'u zaten gidiyor.
+  ktPageView();
 }
 window.addEventListener("hashchange", navigate);
 window.addEventListener("DOMContentLoaded", async () => {

@@ -9,6 +9,7 @@ import {
   db, uid, today, now, hashPassword, verifyPassword, seedIfEmpty, ensureAdminFromEnv, purgeDemoData, purgeUsersByIds, syncPlans
 } from "./db.mjs";
 import { paymentProvider, paymentsAreLive } from "./payment.mjs";
+import { renderCityPage, cityPagePaths, CITIES } from "./seo-pages.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
@@ -1134,8 +1135,34 @@ a{display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;fon
   res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
   return res.end(html);
 }
+// --- Sehir bazli SEO sayfalari -------------------------------------------
+// /kiralik-ev-arayan/{il} ve /evine-kiraci-bul/{il}: sunucudan tam HTML.
+// Sondaki slash ve buyuk harf 301 ile normalize edilir; bilinmeyen il 404 doner.
+const CITY_ROUTE = /^\/(kiralik-ev-arayan|evine-kiraci-bul)\/([^/]+)\/?$/i;
+function tryCityPage(req, res, pathname) {
+  const m = pathname.match(CITY_ROUTE);
+  if (!m) return false;
+  const base = m[1].toLowerCase();
+  const slug = m[2].toLowerCase();
+  const canonical = `/${base}/${slug}`;
+  // Buyuk harf veya sondaki slash -> tek dogru adrese 301
+  if (pathname !== canonical) {
+    if (!CITIES[slug]) return false; // bilinmeyen il: 404'e dussun
+    res.writeHead(301, { Location: canonical });
+    res.end();
+    return true;
+  }
+  if (!CITIES[slug]) return false;   // listede olmayan il -> 404
+  const html = renderCityPage(base === "kiralik-ev-arayan" ? "tenant" : "owner", slug);
+  if (!html) return false;
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=600" });
+  res.end(html);
+  return true;
+}
+
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
+  if (tryCityPage(req, res, p)) return;
   if (p === "/") p = "/index.html";
   else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
   else if (p === "/evine-kiraci-bul") p = "/evine-kiraci-bul.html";

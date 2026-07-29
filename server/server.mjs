@@ -424,7 +424,31 @@ const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Bildirim e-postalari icin ortak sablon (marka basligi + metin + tek eylem butonu).
+/**
+ * Mail basligina gore emoji secer. Olumsuz haber tasiyan e-postalarda
+ * (yayindan kaldirildi, askiya alindi, reddedildi) EMOJI KULLANILMAZ —
+ * kotu haberin yanindaki neseli simge kullaniciyi rahatsiz eder.
+ * HTML varlik kodu kullaniyoruz; boylece kodlama sorunlarindan etkilenmez.
+ */
+function mailEmojisi(title) {
+  const t = String(title || "").toLocaleLowerCase("tr");
+  if (/kaldırıld|askıya|reddedild|iptal|başarısız/.test(t)) return "";      // olumsuz: emoji yok
+  if (/hoş geldin/.test(t)) return "&#128075;";                              // el sallama
+  if (/yayında|geri alındı|tekrar yayında/.test(t)) return "&#127881;";      // konfeti
+  // SIRA ONEMLI: "Eşleştiniz — teklifin ilgi gördü" hem "eşleş" hem "teklif"
+  // iceriyor; eslesme daha guclu anlam tasidigi icin once o kontrol edilir.
+  if (/eşleş/.test(t)) return "&#129309;";                                   // tokalasma
+  if (/iletişim açıldı/.test(t)) return "&#128275;";                         // acik kilit
+  if (/sıra sende|onay verdi|bekleniyor/.test(t)) return "&#8987;";          // kum saati
+  if (/teklif/.test(t)) return "&#128236;";                                  // posta kutusu
+  if (/uygun/.test(t)) return "&#127968;";                                   // ev
+  if (/şifre/.test(t)) return "&#128273;";                                   // anahtar
+  if (/paket|üyelik|tanımlandı|onaylandı|aktif/.test(t)) return "&#9989;";   // onay isareti
+  return "";
+}
+
 function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUserId) {
+  const emoji = mailEmojisi(title);
   const clean = String(actionUrl || "").replace(/^#?\/*/, "");
   const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
   const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ye git";
@@ -442,22 +466,24 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
-        <tr><td style="background:#10243a;padding:20px 26px">
-          <span style="color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-.3px">Konuttalebi</span>
-          <span style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.4px;display:block;margin-top:3px">TALEP VE TEKLİF</span>
+        <tr><td style="background:#10243a;padding:30px 26px;text-align:center">
+          <div style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.6px;margin-bottom:10px">KONUTTALEBİ</div>
+          ${emoji ? `<div style="font-size:36px;line-height:1;margin-bottom:10px">${emoji}</div>` : ""}
+          <div style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-.3px;line-height:1.3">${escapeHtmlSrv(title)}</div>
         </td></tr>
         <tr><td style="padding:26px">
           <p style="margin:0 0 14px;font-size:15px;color:#41556d">${merhaba}</p>
-          ${closing ? "" : `<h1 style="margin:0 0 12px;font-size:21px;line-height:1.35">${escapeHtmlSrv(title)}</h1>`}
           ${paragraphs}
-          <a href="${link}" style="display:inline-block;margin-top:8px;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:13px 24px;border-radius:10px">${label}</a>
+          <div style="text-align:center;margin:20px 0 4px">
+            <a href="${link}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:14px 30px;border-radius:10px">${label}</a>
+          </div>
           ${afterCta}
         </td></tr>
         <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
           <p style="margin:0 0 8px;color:#10243a;font-weight:700;font-size:13px">Konuttalebi<br>
             <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
-          Bu e-postayı Konuttalebi üyeliğin nedeniyle aldın. Soru ve talepler için
-          <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a> adresine yazabilirsin.
+          <a href="${APP_URL()}/#/yardim" style="color:#41556d">Yardım</a> ·
+          <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
           ${unsubUserId ? `<br><br>Bu tür bildirimleri almak istemiyorsan
           <a href="${unsubUrl(unsubUserId)}" style="color:#41556d">tek tıkla bırakabilirsin</a>.
           Şifre, ödeme ve hesap güvenliğiyle ilgili e-postalar her hâlükârda gönderilir.` : ""}

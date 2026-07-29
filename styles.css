@@ -1176,6 +1176,29 @@ h3 {
   min-width: 0;
 }
 
+/* Kayit formu adim gostergesi */
+.reg-step {
+  flex: 1;
+  text-align: center;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #7d8ea1;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1px solid #e5eaf0;
+}
+.reg-step-on {
+  background: var(--navy, #10243a);
+  color: #fff;
+  border-color: var(--navy, #10243a);
+}
+.reg-step-done {
+  background: #eef7f0;
+  color: #2f8f4e;
+  border-color: #d3e8d9;
+}
+
 .auth-side {
   display: flex;
   flex-direction: column;

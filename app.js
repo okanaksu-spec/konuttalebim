@@ -1202,63 +1202,131 @@ function authRegisterPage(roleKey = "buyer") {
     ["landlord", "Ev sahibi"],
     ["agent", "Emlak danışmanı"]
   ];
-  return publicShell("Üyelik oluştur", "Alıcı, kiracı, satıcı, ev sahibi veya emlak danışmanı olarak hesabını aç; panelin rolüne göre hazırlanır.", `
+  const smsAcik = Boolean(state.config && state.config.smsVerification);
+  const bugun = new Date().toISOString().slice(0, 10);
+  const illerSecenek = TR_ILLER.length
+    ? TR_ILLER.map((il) => `<option value="${escapeAttr(il.name)}">${escapeHtml(il.name)}</option>`).join("")
+    : ["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa", "Antalya"].map((c) => `<option>${c}</option>`).join("");
+
+  return publicShell("Üyelik oluştur", "İki kısa adımda hesabını aç; panelin rolüne göre hazırlanır.", `
     <div class="auth-layout">
       <form class="panel auth-panel" onsubmit="KT.register(event)">
-        <div class="form-grid">
-          ${field("Ad soyad / firma adı", "r-name", "text", "Ad Soyad")}
-          <div class="field">
-            <label for="r-role">Üyelik tipi</label>
-            <select id="r-role" onchange="KT.onRegRoleChange()">
-              ${roleOptions.map(([value, label]) => `<option value="${value}" ${value === selectedRole ? "selected" : ""}>${label}</option>`).join("")}
-            </select>
-          </div>
-          ${field("E-posta", "r-email", "email", "ornek@eposta.com")}
-          ${field("Telefon", "r-phone", "tel", "05xx xxx xx xx")}
-          <div class="field">
-            <label for="r-city">Şehir</label>
-            <select id="r-city">
-              ${["İstanbul", "Ankara", "İzmir", "Eskişehir", "Bursa", "Antalya"].map((city) => `<option>${city}</option>`).join("")}
-            </select>
-          </div>
-          ${field("Şifre", "r-password", "password", "En az 6 karakter")}
-          ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
-          <div class="field">
-            <label for="r-tckn">T.C. kimlik numarası</label>
-            <input id="r-tckn" type="text" inputmode="numeric" maxlength="11" placeholder="11 hane" autocomplete="off">
-          </div>
-          <div class="field">
-            <label for="r-birth">Doğum tarihi</label>
-            <input id="r-birth" type="date" max="${new Date().toISOString().slice(0, 10)}">
-          </div>
-          <div class="field full">
-            <div class="notice" style="margin:0">
-              <strong>Kimlik bilgin neden isteniyor?</strong> Sahte üyeliği önlemek ve eşleşen tarafların gerçek kişiler olduğundan emin olmak için.
-              Numaran <strong>şifreli</strong> saklanır, panelde bile maskeli görünür (123******01), hiçbir kullanıcıyla paylaşılmaz.
-              Ayrıntı: <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a>.
+
+        <div class="reg-steps" style="display:flex;gap:8px;margin-bottom:18px">
+          <div id="reg-tab-1" class="reg-step reg-step-on">1 · Kimlik ve iletişim</div>
+          <div id="reg-tab-2" class="reg-step">2 · Kısa profil</div>
+        </div>
+
+        <div id="reg-step-1">
+          <div class="form-grid">
+            ${field("Ad soyad / firma adı", "r-name", "text", "Ad Soyad")}
+            <div class="field">
+              <label for="r-role">Üyelik tipi</label>
+              <select id="r-role" onchange="KT.onRegRoleChange()">
+                ${roleOptions.map(([value, label]) => `<option value="${value}" ${value === selectedRole ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="r-tckn">T.C. kimlik numarası</label>
+              <input id="r-tckn" type="text" inputmode="numeric" maxlength="11" placeholder="11 hane"
+                     autocomplete="off" oninput="KT.tcknFormat(this)">
+              <span id="r-tckn-hint" class="muted" style="font-size:12.5px"></span>
+            </div>
+            <div class="field">
+              <label for="r-birth">Doğum tarihi</label>
+              <input id="r-birth" type="date" max="${bugun}">
+            </div>
+            <div class="field">
+              <label for="r-phone">Telefon</label>
+              <div style="display:flex;gap:8px;align-items:stretch">
+                <span style="display:flex;align-items:center;padding:0 12px;background:#f1f5f9;border:1px solid #dde4ec;border-radius:10px;font-weight:600;color:#41556d">+90</span>
+                <input id="r-phone" type="tel" inputmode="numeric" maxlength="13" placeholder="5xx xxx xx xx"
+                       style="flex:1" oninput="KT.phoneFormat(this)">
+              </div>
+            </div>
+            ${smsAcik ? `
+            <div class="field">
+              <label for="r-sms">SMS onay kodu</label>
+              <div style="display:flex;gap:8px">
+                <input id="r-sms" type="text" inputmode="numeric" maxlength="6" placeholder="6 hane" style="flex:1;letter-spacing:.25em;text-align:center">
+                <button type="button" class="btn btn-outline" id="r-sms-btn" onclick="KT.regSendSms()">Kod gönder</button>
+              </div>
+              <span id="r-sms-hint" class="muted" style="font-size:12.5px"></span>
+            </div>` : ""}
+            ${field("E-posta", "r-email", "email", "ornek@eposta.com")}
+            <div class="field">
+              <label for="r-password">Şifre</label>
+              <input id="r-password" type="password" placeholder="En az 8 karakter" oninput="KT.sifreGucu(this)">
+              <span id="r-pw-hint" class="muted" style="font-size:12.5px">En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</span>
+            </div>
+            ${field("Şifre tekrar", "r-password2", "password", "Şifreni tekrar yaz")}
+
+            <div class="field full">
+              <div class="notice" style="margin:0">
+                <strong>Kimlik bilgin neden isteniyor?</strong> Sahte üyeliği önlemek ve eşleşen tarafların gerçek kişiler olduğundan emin olmak için.
+                Numaran <strong>şifreli</strong> saklanır, panelde bile maskeli görünür (123******01), hiçbir kullanıcıyla paylaşılmaz.
+                Ayrıntı: <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a>.
+              </div>
+            </div>
+            <div class="field full">
+              <label class="check"><input id="r-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span class="muted" style="font-weight:400">(Kimlik alanlarını doldurduysan gerekli)</span></span></label>
             </div>
           </div>
-          <div class="field full">
-            <label class="check"><input id="r-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span class="muted" style="font-weight:400">(Kimlik alanlarını doldurduysan gerekli)</span></span></label>
+          <div id="r-error" class="error"></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="KT.regNext()">Devam et ${icon("send", 15)}</button>
+            <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
           </div>
-          <div class="field full">
-            <label class="check"><input id="r-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></span></label>
+          ${googleAuthBlock("Google ile üye ol")}
+        </div>
+
+        <div id="reg-step-2" style="display:none">
+          <div class="form-grid">
+            <div class="field">
+              <label for="r-income">Aylık gelir</label>
+              <select id="r-income">
+                <option value="">Seçiniz</option>
+                ${GELIR_ARALIKLARI.map((g) => `<option>${escapeHtml(g)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="r-occupation">Meslek</label>
+              <select id="r-occupation">
+                <option value="">Seçiniz</option>
+                ${Object.entries(MESLEK_GRUPLARI).map(([grup, liste]) => `
+                  <optgroup label="${escapeAttr(grup)}">${liste.map((m) => `<option>${escapeHtml(m)}</option>`).join("")}</optgroup>`).join("")}
+              </select>
+            </div>
+            <div class="field full">
+              <label for="r-city">Yaşadığın il</label>
+              <select id="r-city">${illerSecenek}</select>
+            </div>
+            <div class="field full">
+              <div class="notice" style="margin:0">
+                Gelir ve meslek beyanın <strong>karşı tarafa gösterilmez</strong>; yalnızca sana uygun konut ve talepleri
+                daha isabetli eşleştirmek için kullanılır. Boş bırakabilirsin.
+              </div>
+            </div>
+            <div class="field full">
+              <label class="check"><input id="r-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></span></label>
+            </div>
+            <div class="field full">
+              <label class="check"><input id="r-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+            </div>
           </div>
-          <div class="field full">
-            <label class="check"><input id="r-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+          <div id="r-error2" class="error"></div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-outline" onclick="KT.regBack()">Geri</button>
+            <button class="btn btn-primary" type="submit">${icon("check", 16)} Üyeliği oluştur</button>
           </div>
         </div>
-        <div id="r-error" class="error"></div>
-        <div class="form-actions">
-          <button class="btn btn-primary" type="submit">${icon("check", 16)} Üyeliği oluştur</button>
-          <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
-        </div>
-        ${googleAuthBlock("Google ile üye ol")}
+
       </form>
       <aside class="auth-side" id="reg-aside">${regAsideHTML(selectedRole)}</aside>
     </div>
   `);
 }
+
 
 // Telefon dogrulama ekrani. Kayit sonrasi ILK islemden once bir kez gorunur.
 function phoneVerifyPage() {
@@ -2580,6 +2648,28 @@ function applyAdminSort(list, valueOf) {
   });
 }
 
+// E-posta dogrulama durumu ve 72 saatlik sure gostergeleri (yalnizca panelde).
+function epostaDurumRozeti(u) {
+  const acc = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
+  if (acc.emailVerified) return `<span class="badge badge-green">doğrulandı</span>`;
+  const kalan = epostaKalanSaat(u);
+  if (kalan === null) return `<span class="badge badge-neutral">bekliyor</span>`;
+  if (kalan <= 0) return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">süresi doldu</span>`;
+  return `<span class="badge badge-blue">${kalan} saat kaldı</span>`;
+}
+function epostaKalanSaat(u) {
+  if (!u || !u.emailVerifyDeadline) return null;
+  const fark = new Date(u.emailVerifyDeadline) - new Date();
+  return Math.ceil(fark / 3600000);
+}
+function epostaSureEtiketi(u) {
+  const kalan = epostaKalanSaat(u);
+  if (kalan === null) return "";
+  return kalan > 0
+    ? ` <span class="muted" style="font-size:12.5px">· ${kalan} saat içinde doğrulamalı</span>`
+    : ` <span class="muted" style="font-size:12.5px;color:#a12727">· süre doldu</span>`;
+}
+
 function statusBadge(u) {
   if (u.status === "SUSPENDED") return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">Askıda</span>`;
   if (u.status === "ANONYMIZED") return `<span class="badge badge-neutral">Anonim</span>`;
@@ -2597,6 +2687,9 @@ function adminUsersTable(list) {
       <td>${escapeHtml(u.city || "—")}</td>
       <td><span class="badge badge-blue">${escapeHtml(userTip(u))}</span></td>
       <td>${u.tcknMasked ? `<code style="font-size:12px">${escapeHtml(u.tcknMasked)}</code>` : `<span class="muted">—</span>`}</td>
+      <td>${epostaDurumRozeti(u)}</td>
+      <td style="font-size:13px">${escapeHtml(u.monthlyIncome || "—")}</td>
+      <td style="font-size:13px">${escapeHtml(u.occupationGroup || "—")}</td>
       <td>${m ? `<span class="badge badge-gold">${escapeHtml(m.name)}</span>` : `<span class="muted">Ücretsiz</span>`}</td>
       <td>${acqLabel(u)}</td>
       <td>${statusBadge(u)}</td>
@@ -2609,8 +2702,8 @@ function adminUsersTable(list) {
       <button class="btn btn-small btn-outline" onclick="KT.adminExportUsers()">${icon("file", 14)} CSV indir</button>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr>${sortableHead("Ad", "name")}<th>Telefon</th><th>E-posta</th>${sortableHead("Şehir", "city")}${sortableHead("Tip", "tip")}<th>TCKN</th><th>Aktif Üyelik</th><th>Kaynak</th>${sortableHead("Durum", "status")}${sortableHead("Kayıt", "createdAt")}<th></th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="11" class="muted">Kayıt yok</td></tr>`}</tbody>
+      <thead><tr>${sortableHead("Ad", "name")}<th>Telefon</th><th>E-posta</th>${sortableHead("Şehir", "city")}${sortableHead("Tip", "tip")}<th>TCKN</th><th>E-posta durumu</th><th>Gelir</th><th>Meslek</th><th>Aktif Üyelik</th><th>Kaynak</th>${sortableHead("Durum", "status")}${sortableHead("Kayıt", "createdAt")}<th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="14" class="muted">Kayıt yok</td></tr>`}</tbody>
     </table></div>`;
 }
 
@@ -2840,12 +2933,24 @@ function notificationsPage(userId) {
 
 function settingsPage(user) {
   const account = (state.authAccounts || []).find((item) => item.userId === user.id);
+  const kalanSaat = epostaKalanSaat(user);
+  const uyari = (account && account.emailVerified) ? "" : `
+    <div class="notice" style="margin-bottom:14px;border-color:#f0e2c8;background:#fbf6ec">
+      <strong>E-postanı doğrula.</strong>
+      ${kalanSaat === null ? "Sana bir doğrulama bağlantısı gönderdik."
+        : kalanSaat > 0 ? `Doğrulama bağlantın <strong>${kalanSaat} saat</strong> daha geçerli.`
+        : "Doğrulama bağlantının süresi doldu; yeni bağlantı isteyebilirsin."}
+      Gelen kutunda bulamazsan spam klasörüne bak.
+      <div style="margin-top:10px"><button class="btn btn-small btn-outline" onclick="KT.epostaTekrarGonder()">Bağlantıyı tekrar gönder</button></div>
+    </div>`;
   return `
     ${pageHead("Profil ve Ayarlar", "Üyelik bilgileri ve gizlilik tercihleri.")}
+    ${uyari}
     <section class="panel">
       <div class="sample-top" style="margin-bottom:14px">
         <span class="badge badge-blue">${roleLabel(user.role)}</span>
         <span class="pill">${account?.emailVerified ? "E-posta doğrulanmış" : "E-posta doğrulama bekliyor"}</span>
+        ${user.phoneVerified ? `<span class="pill">Telefon doğrulanmış</span>` : ""}
       </div>
       <div class="form-grid">
         <div class="field"><label for="s-name">Ad soyad / firma adı</label><input id="s-name" type="text" value="${escapeHtml(user.name)}" /></div>
@@ -3013,6 +3118,24 @@ function locationFields(prefix, multiMahalle) {
     <div class="field"><label for="${prefix}-district">İlçe</label><select id="${prefix}-district" onchange="KT.loadMahalle('${prefix}')"><option value="">Önce il seçin</option></select></div>
     ${mahalle}`;
 }
+
+// --- Kayit formu listeleri. Sunucudaki listelerle BIREBIR ayni olmali. ---
+const GELIR_ARALIKLARI = [
+  "0 – 25.000 TL", "25.001 – 45.000 TL", "45.001 – 70.000 TL", "70.001 – 100.000 TL",
+  "100.001 – 150.000 TL", "150.001 – 250.000 TL", "250.001 TL ve üzeri", "Belirtmek istemiyorum",
+];
+const MESLEK_GRUPLARI = {
+  "Kamu & Kurumsal": ["Kamu Memuru / Devlet Personeli", "Özel Sektör Çalışanı (Büyük Şirket)", "KOBİ / SME Çalışanı"],
+  "Serbest Meslekler": ["Doktor / Hekim", "Avukat / Hukukçu", "Mali Müşavir / Muhasebeci",
+    "Mühendis (İnşaat, Makine, Elektrik, Yazılım vb.)", "Mimar / İç Mimar", "Diğer Serbest Meslek"],
+  "Ticaret & Esnaf": ["Esnaf / Sanatkâr", "Tüccar / İthalat-İhracatçı", "Restoran / Cafe / Otel İşletmecisi", "Perakende Satış"],
+  "Finans & Teknoloji": ["Bankacılık / Finans / Sigorta", "Bilgi Teknolojileri / Yazılım", "Danışmanlık"],
+  "Eğitim & Sağlık & Sosyal": ["Öğretmen / Akademisyen", "Sağlık Personeli (Hemşire, Ebe, Tekniker vb.)", "Sosyal Hizmetler / STK"],
+  "Üretim & Hizmet": ["İnşaat / Taahhüt", "Üretim / Sanayi", "Lojistik / Ulaşım",
+    "Turizm / Otelcilik / Gastronomi", "Medya / İletişim / Reklam", "Tarım / Hayvancılık / Ormancılık"],
+  "Diğer": ["Emekli", "Öğrenci", "Ev Hanımı / Ev Ekonomisine Katkı", "İşveren / Patron (Sektör Belirtmeli)",
+    "Çalışmıyor / İş Arıyor", "Diğer"],
+};
 
 // T.C. kimlik numarasi bicimsel dogrulama (sunucudaki kontrolun aynisi).
 // Istemcide de yapiyoruz ki kullanici hatayi aninda gorsun; asil kontrol sunucuda.
@@ -3391,39 +3514,134 @@ window.KT = {
     reader.onload = () => { el.src = reader.result; el.style.display = "block"; };
     reader.readAsDataURL(file);
   },
-  async register(event) {
-    event.preventDefault();
+  // --- Kayit formu: bicimlendirme ve adim gecisi ---
+  tcknFormat(el) {
+    el.value = el.value.replace(/\D/g, "").slice(0, 11);
+    const h = document.getElementById("r-tckn-hint");
+    if (!h) return;
+    if (!el.value) { h.textContent = ""; h.style.color = ""; return; }
+    if (el.value.length < 11) { h.textContent = `${el.value.length}/11 hane`; h.style.color = ""; return; }
+    const ok = tcknGecerliMi(el.value);
+    h.textContent = ok ? "Numara geçerli görünüyor." : "Bu numara geçersiz, kontrol et.";
+    h.style.color = ok ? "#2f8f4e" : "#c0392b";
+  },
+  phoneFormat(el) {
+    // +90 kutu ayri duruyor; burada yalniz 10 hane tutulur: 5xx xxx xx xx
+    let d = el.value.replace(/\D/g, "");
+    if (d.startsWith("90")) d = d.slice(2);
+    if (d.startsWith("0")) d = d.slice(1);
+    d = d.slice(0, 10);
+    el.value = d.replace(/^(\d{3})(\d{0,3})(\d{0,2})(\d{0,2}).*$/, (m, a, b, c, e) =>
+      [a, b, c, e].filter(Boolean).join(" "));
+  },
+  sifreGucu(el) {
+    const h = document.getElementById("r-pw-hint");
+    if (!h) return;
+    const v = el.value;
+    const eksik = [];
+    if (v.length < 8) eksik.push("en az 8 karakter");
+    if (!/[a-zçğıöşü]/.test(v)) eksik.push("küçük harf");
+    if (!/[A-ZÇĞİÖŞÜ]/.test(v)) eksik.push("büyük harf");
+    if (!/\d/.test(v)) eksik.push("rakam");
+    if (!v) { h.textContent = "En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam."; h.style.color = ""; return; }
+    h.textContent = eksik.length ? `Eksik: ${eksik.join(", ")}` : "Şifre kurallara uygun.";
+    h.style.color = eksik.length ? "#c0392b" : "#2f8f4e";
+  },
+  // Kayit oncesi SMS kodu (yalnizca saglayici acikken gorunur)
+  async regSendSms() {
+    const tel = (document.getElementById("r-phone") || {}).value || "";
+    const btn = document.getElementById("r-sms-btn");
+    const hint = document.getElementById("r-sms-hint");
+    if (btn) btn.disabled = true;
+    const r = await api("/kayit/telefon-kod", "POST", { phone: tel });
+    if (btn) btn.disabled = false;
+    if (!r.ok) { if (hint) { hint.textContent = (r.data && r.data.error) || "Kod gönderilemedi."; hint.style.color = "#c0392b"; } return; }
+    if (hint) { hint.textContent = r.data.testMode ? "Test modu: kod yönetim panelinde." : `${r.data.phoneMasked} numarasına kod gönderildi.`; hint.style.color = "#2f8f4e"; }
+    if (btn) {
+      let kalan = 60; btn.disabled = true;
+      const t = setInterval(() => { kalan -= 1; btn.textContent = kalan > 0 ? `Tekrar (${kalan})` : "Kod gönder";
+        if (kalan <= 0) { clearInterval(t); btn.disabled = false; } }, 1000);
+    }
+  },
+  // 1. adimdan 2. adima gecis: burada TÜM 1. adim alanlari dogrulanir.
+  async regNext() {
+    const g = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
     document.getElementById("r-error").classList.remove("show");
-    const name = document.getElementById("r-name").value.trim();
-    const roleKey = document.getElementById("r-role").value;
-    uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
-    const email = normalizeEmail(document.getElementById("r-email").value);
-    const phone = document.getElementById("r-phone").value.trim();
-    const city = document.getElementById("r-city").value;
-    const password = document.getElementById("r-password").value;
-    const password2 = document.getElementById("r-password2").value;
-    const accepted = document.getElementById("r-terms").checked;
-    const marketingEl = document.getElementById("r-marketing");
-    const marketingConsent = marketingEl ? marketingEl.checked : false;
-    if (!name || name.length < 3 || !email.includes("@") || phone.length < 10)
-      return showFormError("r-error", "Ad, geçerli e-posta ve telefon bilgisi gerekli.");
-    if (password.length < 6 || password !== password2)
-      return showFormError("r-error", "Şifre en az 6 karakter olmalı ve tekrar alanıyla eşleşmeli.");
-    if (!accepted)
-      return showFormError("r-error", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
-    const tckn = (document.getElementById("r-tckn") || {}).value ? document.getElementById("r-tckn").value.replace(/\D/g, "") : "";
-    const birthDate = (document.getElementById("r-birth") || {}).value || "";
+    const name = g("r-name");
+    const email = normalizeEmail(g("r-email"));
+    const phone = g("r-phone").replace(/\D/g, "");
+    const password = (document.getElementById("r-password") || {}).value || "";
+    const password2 = (document.getElementById("r-password2") || {}).value || "";
+    const tckn = g("r-tckn").replace(/\D/g, "");
+    const birthDate = g("r-birth");
     const identityConsent = (document.getElementById("r-identity-consent") || {}).checked || false;
-    if (tckn && !tcknGecerliMi(tckn))
-      return showFormError("r-error", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
+
+    if (name.length < 3) return showFormError("r-error", "Ad soyad en az 3 karakter olmalı.");
+    if (!email.includes("@")) return showFormError("r-error", "Geçerli bir e-posta gir.");
+    if (!/^5\d{9}$/.test(phone)) return showFormError("r-error", "Telefon 5 ile başlayan 10 hane olmalı (5xx xxx xx xx).");
+    const pwEksik = [];
+    if (password.length < 8) pwEksik.push("en az 8 karakter");
+    if (!/[a-zçğıöşü]/.test(password)) pwEksik.push("küçük harf");
+    if (!/[A-ZÇĞİÖŞÜ]/.test(password)) pwEksik.push("büyük harf");
+    if (!/\d/.test(password)) pwEksik.push("rakam");
+    if (pwEksik.length) return showFormError("r-error", `Şifre kuralları: ${pwEksik.join(", ")}.`);
+    if (password !== password2) return showFormError("r-error", "Şifreler eşleşmiyor.");
+    if (tckn && !tcknGecerliMi(tckn)) return showFormError("r-error", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
     if ((tckn || birthDate) && !identityConsent)
       return showFormError("r-error", "Kimlik bilgilerinin işlenmesi için açık rıza kutusunu işaretlemelisin.");
-    const r = await api("/register", "POST", { name, email, phone, city, role: roleForKey(roleKey), password, marketingConsent, tckn, birthDate, identityConsent, attribution: attribution() });
-    if (!r.ok) return showFormError("r-error", r.data.error || "Üyelik oluşturulamadı.");
-    ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "sifre" });
+
+    // SMS acikken kodu burada dogrula; kapaliyken bu adim atlanir.
+    if (state.config && state.config.smsVerification) {
+      const kod = ((document.getElementById("r-sms") || {}).value || "").replace(/\D/g, "");
+      if (kod.length !== 6) return showFormError("r-error", "SMS onay kodunu gir.");
+      const r = await api("/kayit/telefon-dogrula", "POST", { phone, code: kod });
+      if (!r.ok) return showFormError("r-error", (r.data && r.data.error) || "Kod doğrulanamadı.");
+    }
+    KT.regStep(2);
+  },
+  regBack() { KT.regStep(1); },
+  regStep(n) {
+    const s1 = document.getElementById("reg-step-1"), s2 = document.getElementById("reg-step-2");
+    const t1 = document.getElementById("reg-tab-1"), t2 = document.getElementById("reg-tab-2");
+    if (!s1 || !s2) return;
+    s1.style.display = n === 1 ? "" : "none";
+    s2.style.display = n === 2 ? "" : "none";
+    if (t1) t1.className = "reg-step" + (n === 1 ? " reg-step-on" : " reg-step-done");
+    if (t2) t2.className = "reg-step" + (n === 2 ? " reg-step-on" : "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+  async register(event) {
+    event.preventDefault();
+    const g = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
+    document.getElementById("r-error2").classList.remove("show");
+    const roleKey = g("r-role");
+    uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
+    const accepted = (document.getElementById("r-terms") || {}).checked || false;
+    if (!accepted)
+      return showFormError("r-error2", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
+    const payload = {
+      name: g("r-name"),
+      email: normalizeEmail(g("r-email")),
+      phone: "0" + g("r-phone").replace(/\D/g, ""),
+      city: g("r-city"),
+      role: roleForKey(roleKey),
+      password: (document.getElementById("r-password") || {}).value || "",
+      marketingConsent: (document.getElementById("r-marketing") || {}).checked || false,
+      tckn: g("r-tckn").replace(/\D/g, ""),
+      birthDate: g("r-birth"),
+      identityConsent: (document.getElementById("r-identity-consent") || {}).checked || false,
+      monthlyIncome: g("r-income"),
+      occupationGroup: g("r-occupation"),
+      attribution: attribution(),
+    };
+    const btn = event.submitter; if (btn) btn.disabled = true;
+    const r = await api("/register", "POST", payload);
+    if (btn) btn.disabled = false;
+    if (!r.ok) return showFormError("r-error2", (r.data && r.data.error) || "Üyelik oluşturulamadı.");
+    ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: payload.city, yontem: "sifre" });
     await refreshState();
-    toast("Üyelik oluşturuldu ve giriş yapıldı.");
-    setRoute("hosgeldin"); // önce paket öneri ekranı; oradan panele geçilir
+    toast("Üyelik oluşturuldu. E-posta doğrulama bağlantısı gönderildi.");
+    setRoute("hosgeldin");
   },
   skipPackages() {
     const user = currentUser();
@@ -3509,6 +3727,14 @@ window.KT = {
     const hedef = sessionStorage.getItem("kt-dogrulama-sonrasi");
     sessionStorage.removeItem("kt-dogrulama-sonrasi");
     setRoute(hedef || dashboardPathForRole((currentUser() || {}).role));
+  },
+  async epostaTekrarGonder() {
+    const r = await api("/eposta/tekrar-gonder", "POST", {});
+    if (!r.ok) return toast((r.data && r.data.error) || "Gönderilemedi.");
+    if (r.data.alreadyVerified) { await refreshState(); render(); return toast("E-postan zaten doğrulanmış."); }
+    await refreshState();
+    toast("Doğrulama bağlantısı gönderildi. Gelen kutunu kontrol et.");
+    render();
   },
   async saveNotifyPrefs() {
     const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : true; };
@@ -3845,9 +4071,13 @@ window.KT = {
         </div>
 
         <div style="margin-top:14px">
-          ${satir("E-posta", escapeHtml(u.email || "—") + (acc.emailVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
+          ${satir("E-posta", escapeHtml(u.email || "—") + (acc.emailVerified
+            ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>`
+            : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>${epostaSureEtiketi(u)}`))}
           ${satir("Telefon", escapeHtml(u.phone || "—") + (u.phoneVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
           ${satir("Şehir", escapeHtml(u.city || "—"))}
+          ${satir("Aylık gelir", escapeHtml(u.monthlyIncome || "—"))}
+          ${satir("Meslek", escapeHtml(u.occupationGroup || "—"))}
           ${satir("Rol", escapeHtml(u.role || "—"))}
           ${satir("Güven puanı", escapeHtml(String(u.trustScore ?? "—")))}
           ${satir("Kayıt tarihi", escapeHtml(u.createdAt || "—"))}
@@ -3952,8 +4182,12 @@ window.KT = {
   adminExportUsers() {
     const rows = filtreliUyeler().map((u) => {
       const m = activeMembership(u.id);
+      const hesap = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
       return { Ad: u.name, Telefon: u.phone, Eposta: u.email, Sehir: u.city, Tip: userTip(u),
         TCKN_maskeli: u.tcknMasked || "", Dogum_yili: (u.birthDateMasked || "").slice(0, 4),
+        Eposta_dogrulandi: hesap.emailVerified ? "evet" : "hayır",
+        Telefon_dogrulandi: u.phoneVerified ? "evet" : "hayır",
+        Aylik_gelir: u.monthlyIncome || "", Meslek: u.occupationGroup || "",
         Uyelik: m ? m.name : "Ücretsiz", Kaynak: u.acqGclid ? "Google Ads" : (u.acqSource || "Doğrudan"),
         Durum: u.status, Kayit: u.createdAt };
     });

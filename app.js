@@ -1744,7 +1744,8 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici/tekliflerim", "Tekliflerim", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
       ["dashboard/satici/dogrulama", "Satıcı Doğrulama", "shield"],
-      ["dashboard/satici/paketler", "Paketlerim", "card"]
+      ["dashboard/satici/paketler", "Paketlerim", "card"],
+      ["dashboard/satici/ayarlar", "Ayarlar", "user"]
     ],
     agent: [
       ["dashboard/satici", "Genel Bakış", "chart"],
@@ -1753,7 +1754,8 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/satici/talepler", "Talep Havuzu", "key"],
       ["dashboard/satici/tekliflerim", "Teklifler", "card"],
       ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
-      ["dashboard/satici/paketler", "Kurumsal Paket", "card"]
+      ["dashboard/satici/paketler", "Kurumsal Paket", "card"],
+      ["dashboard/satici/ayarlar", "Ayarlar", "user"]
     ],
     admin: [
       ["dashboard/admin", "Dashboard", "chart"],
@@ -1962,6 +1964,9 @@ function renderSeller(path) {
   if (sellerPath.includes("/eslesmeler")) return dashboardLayout(role, matchesPage(role), path);
   if (sellerPath.includes("/dogrulama")) return dashboardLayout(role, sellerVerification(), path);
   if (sellerPath.includes("/paketler")) return dashboardLayout(role, sellerPackages(), path);
+  // Ayarlar ekrani daha once yalnizca alicida vardi; satici ve danisman da
+  // profilini ve bildirim tercihlerini yonetebilmeli.
+  if (sellerPath.includes("/ayarlar")) return dashboardLayout(role, settingsPage(currentUser()), path);
   return dashboardLayout(role, sellerOverview(), path);
 }
 
@@ -2736,6 +2741,27 @@ function settingsPage(user) {
       <div id="s-error" class="error"></div>
       <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveProfileSettings()">${icon("check", 16)} Kaydet</button></div>
     </section>
+
+    <section class="panel">
+      <h3>Bildirim tercihleri</h3>
+      <p class="muted" style="margin:8px 0 14px">Hangi e-postaları almak istediğini buradan seçersin. Ayarını istediğin zaman değiştirebilirsin.</p>
+      <div class="check-grid">
+        <label class="check">
+          <input id="n-match" type="checkbox" ${user.notifyMatch === 0 ? "" : "checked"}>
+          <span><strong>Eşleşme ve iletişim e-postaları</strong><br>
+          <span class="muted" style="font-size:13px">Teklif geldiğinde, eşleştiğinde ve iletişim bilgileri açıldığında anında haber veririz. Kapatırsan gelişmeleri yalnızca panelden takip edersin.</span></span>
+        </label>
+        <label class="check">
+          <input id="n-digest" type="checkbox" ${user.notifyDigest === 0 ? "" : "checked"}>
+          <span><strong>Sana uygun yeni ilan ve talepler</strong><br>
+          <span class="muted" style="font-size:13px">Aramana uyan yeni bir ilan veya talep çıktığında haber veririz. Aynı bildirim 24 saat içinde ikinci kez gönderilmez.</span></span>
+        </label>
+      </div>
+      <div class="notice" style="margin-top:14px">
+        Şifre sıfırlama, ödeme ve hesabınla ilgili zorunlu e-postalar bu ayarlardan etkilenmez; onları her hâlükârda göndeririz.
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveNotifyPrefs()">${icon("check", 16)} Tercihleri kaydet</button></div>
+    </section>
   `;
 }
 
@@ -3308,6 +3334,14 @@ window.KT = {
     if (!r.ok) return showFormError("s-error", r.data.error || "Kaydedilemedi.");
     await refreshState();
     toast("Profil bilgileri kaydedildi.");
+    render();
+  },
+  async saveNotifyPrefs() {
+    const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : true; };
+    const r = await api("/bildirim/tercihler", "PATCH", { notifyMatch: chk("n-match"), notifyDigest: chk("n-digest") });
+    if (!r.ok) return toast((r.data && r.data.error) || "Tercihler kaydedilemedi.");
+    await refreshState();
+    toast("Bildirim tercihlerin kaydedildi.");
     render();
   },
   async loadIlce(prefix) {

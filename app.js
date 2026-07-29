@@ -1335,11 +1335,19 @@ function emailWallPage() {
   const u = currentUser();
   if (!u) { location.hash = "/giris"; return ""; }
   const kalan = epostaKalanSaat(u);
-  return publicShell("E-postanı doğrula", "Üyeliğini kullanmaya başlamadan önce tek bir adım kaldı.", `
+  // Sure dolumu nedeniyle askiya alinmis hesap: durumu acikca yaz, cozumu goster.
+  const askida = Boolean(u.autoSuspendedAt);
+  return publicShell(askida ? "Üyeliğin askıya alındı" : "E-postanı doğrula",
+    askida ? "Askıyı kaldırmak için e-postanı doğrulaman yeterli." : "Üyeliğini kullanmaya başlamadan önce tek bir adım kaldı.", `
     <div class="auth-layout auth-layout-narrow">
       <div class="panel auth-panel" style="text-align:center">
-        <div style="font-size:44px;line-height:1;margin-bottom:10px">&#128231;</div>
-        <h3 style="margin:0 0 10px;font-size:21px">E-postanı doğrulaman gerekiyor</h3>
+        <div style="font-size:44px;line-height:1;margin-bottom:10px">${askida ? "&#9888;&#65039;" : "&#128231;"}</div>
+        <h3 style="margin:0 0 10px;font-size:21px">${askida ? "Üyeliğin askıya alındı" : "E-postanı doğrulaman gerekiyor"}</h3>
+        ${askida ? `<div class="notice" style="text-align:left;margin:0 0 14px;background:#fdf3e3;border-color:#e6c882">
+          E-posta adresini süresi içinde doğrulamadığın için üyeliğin askıya alındı.
+          <strong>Verilerin duruyor</strong> — talep ve tekliflerinin hiçbiri silinmedi.
+          Aşağıdan yeni bağlantı iste ve tıkla; hesabın <strong>anında</strong> yeniden açılır.
+        </div>` : ""}
         <p class="muted" style="margin:0 0 6px;line-height:1.6">
           <strong>${escapeHtml(u.email || "")}</strong> adresine bir doğrulama bağlantısı gönderdik.
           Bağlantıya tıkladığında hesabın açılır.
@@ -2461,6 +2469,10 @@ const AUDIT_ETIKET = {
   ADMIN_MEMBERSHIP_GRANTED: "Üyelik tanımlandı", ADMIN_USER_ANONYMIZED: "Üye verisi silindi",
   PAYMENT_STARTED: "Ödeme başlatıldı", DOCUMENT_SUBMITTED: "Belge gönderildi",
   DOCUMENT_APPROVED: "Belge onaylandı", DOCUMENT_REJECTED: "Belge reddedildi",
+  EMAIL_VERIFIED: "E-posta doğrulandı", EMAIL_VERIFY_RESENT: "Doğrulama bağlantısı yeniden gönderildi",
+  EMAIL_VERIFY_REMINDER: "Doğrulama hatırlatması gönderildi",
+  ACCOUNT_AUTO_SUSPENDED: "Süre doldu, hesap askıya alındı",
+  ACCOUNT_AUTO_REACTIVATED: "Doğrulandı, askı kalktı",
 };
 // Dikkat cekmesi gereken islemler kirmizi gorunsun.
 const AUDIT_KRITIK = new Set(["ADMIN_IDENTITY_VIEWED", "ADMIN_USER_ANONYMIZED", "ADMIN_USER_MANAGED", "ADMIN_CONTENT_REMOVED"]);
@@ -2530,7 +2542,7 @@ function adminSms() {
 }
 
 function adminEmails() {
-  const bekleyen = (state.users || []).filter((u) => !u.emailVerified && u.emailVerifyDeadline);
+  const bekleyen = (state.users || []).filter((u) => !u.emailVerified && !u.epostaMuaf && u.emailVerifyDeadline);
   const yakin = bekleyen.filter((u) => { const k = epostaKalanSaat(u); return k !== null && k > 0 && k <= 24; });
   return `
     ${pageHead("E-posta Outbox", "Uygun alıcı talebi veya satıcı ilanı girildiğinde hazırlanan anlık e-postalar.")}
@@ -2696,6 +2708,9 @@ function applyAdminSort(list, valueOf) {
 // E-posta dogrulama durumu ve 72 saatlik sure gostergeleri (yalnizca panelde).
 function epostaDurumRozeti(u) {
   if (u.emailVerified) return `<span class="badge badge-green">doğrulandı</span>`;
+  // Duvar oncesi hesaplar: dogrulama zorunlu degil, aski uygulanmaz.
+  if (u.epostaMuaf) return `<span class="badge badge-neutral" title="Doğrulama duvarı öncesi kayıtlı hesap — zorunlu değil">muaf</span>`;
+  if (u.autoSuspendedAt) return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">askıya alındı</span>`;
   const kalan = epostaKalanSaat(u);
   if (kalan === null) return `<span class="badge badge-neutral">bekliyor</span>`;
   if (kalan <= 0) return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">süresi doldu</span>`;
@@ -2978,7 +2993,8 @@ function notificationsPage(userId) {
 function settingsPage(user) {
   const account = (state.authAccounts || []).find((item) => item.userId === user.id);
   const kalanSaat = epostaKalanSaat(user);
-  const uyari = user.emailVerified ? "" : `
+  // Muaf hesaplarda dogrulama zorunlu degil; uyariyla rahatsiz etme.
+  const uyari = (user.emailVerified || user.epostaMuaf) ? "" : `
     <div class="notice" style="margin-bottom:14px;border-color:#f0e2c8;background:#fbf6ec">
       <strong>E-postanı doğrula.</strong>
       ${kalanSaat === null ? "Sana bir doğrulama bağlantısı gönderdik."
@@ -2993,7 +3009,7 @@ function settingsPage(user) {
     <section class="panel">
       <div class="sample-top" style="margin-bottom:14px">
         <span class="badge badge-blue">${roleLabel(user.role)}</span>
-        <span class="pill">${user.emailVerified ? "E-posta doğrulanmış" : "E-posta doğrulama bekliyor"}</span>
+        <span class="pill">${user.emailVerified ? "E-posta doğrulanmış" : (user.epostaMuaf ? "E-posta doğrulaması gerekmiyor" : "E-posta doğrulama bekliyor")}</span>
         ${user.phoneVerified ? `<span class="pill">Telefon doğrulanmış</span>` : ""}
       </div>
       <div class="form-grid">
@@ -3397,7 +3413,8 @@ function render() {
   const oturumAcik = isSignedIn();
   const kul = oturumAcik ? currentUser() : null;
   const duvarAcikSayfalar = ["eposta-dogrula", "kvkk", "kullanim-sartlari", "cerez-politikasi", "yardim"];
-  if (kul && kul.role !== "ADMIN" && kul.emailVerified === 0 && !duvarAcikSayfalar.includes(path)) {
+  // epostaMuaf: duvar devreye girmeden once kayitli olan hesaplar kapsam disi.
+  if (kul && kul.role !== "ADMIN" && !kul.epostaMuaf && kul.emailVerified === 0 && !duvarAcikSayfalar.includes(path)) {
     document.getElementById("app").innerHTML = `<div class="app">${header()}${emailWallPage()}${footer()}</div>`;
     updatePageTitle("eposta-dogrula");
     return;
@@ -4176,8 +4193,15 @@ window.KT = {
             </select>
             <button class="btn btn-small btn-outline" onclick="KT.adminUserManage('${escapeAttr(u.id)}','role',document.getElementById('kt-role-sel').value)">Rolü değiştir</button>
             <button class="btn btn-small btn-outline" onclick="KT.adminGrant('${escapeAttr(u.id)}')">Üyelik tanımla</button>
+            ${u.epostaMuaf
+              ? `<button class="btn btn-small btn-outline" onclick="KT.adminUserManage('${escapeAttr(u.id)}','epostaMuaf',0)">Doğrulama muafiyetini kaldır</button>`
+              : `<button class="btn btn-small btn-outline" onclick="KT.adminUserManage('${escapeAttr(u.id)}','epostaMuaf',1)">Doğrulamadan muaf tut</button>`}
             <button class="btn btn-small btn-outline" style="border-color:#e0b4b4;color:#a12727" onclick="KT.adminAnonymize('${escapeAttr(u.id)}')">KVKK: verilerini sil</button>
           </div>
+          ${u.autoSuspendedAt ? `<div class="muted" style="margin-top:8px;font-size:12.5px">
+            Bu hesap <strong>e-posta doğrulanmadığı için otomatik</strong> askıya alındı (${escapeHtml(u.autoSuspendedAt)}).
+            Kullanıcı e-postasını doğruladığı anda askı kendiliğinden kalkar.
+          </div>` : ""}
           <div style="margin-top:10px">
             <label style="font-size:12.5px;color:#7a8a99">Yönetici notu (yalnızca panelde görünür)</label>
             <textarea id="kt-admin-note" rows="2" style="width:100%;margin-top:4px;padding:8px;border:1px solid #dde4ec;border-radius:8px;font-family:inherit;font-size:13.5px">${escapeHtml(u.adminNote || "")}</textarea>
@@ -4252,7 +4276,7 @@ window.KT = {
       const m = activeMembership(u.id);
       return { Ad: u.name, Telefon: u.phone, Eposta: u.email, Sehir: u.city, Tip: userTip(u),
         TCKN_maskeli: u.tcknMasked || "", Dogum_yili: (u.birthDateMasked || "").slice(0, 4),
-        Eposta_dogrulandi: u.emailVerified ? "evet" : "hayır",
+        Eposta_dogrulandi: u.emailVerified ? "evet" : (u.epostaMuaf ? "muaf" : "hayır"),
         Telefon_dogrulandi: u.phoneVerified ? "evet" : "hayır",
         Aylik_gelir: u.monthlyIncome || "", Meslek: u.occupationGroup || "",
         Uyelik: m ? m.name : "Ücretsiz", Kaynak: u.acqGclid ? "Google Ads" : (u.acqSource || "Doğrudan"),

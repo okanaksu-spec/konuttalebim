@@ -14,6 +14,7 @@ import {
   identityEnabled, identityKeyStatus, encryptSecret, decryptSecret, hashIdentity,
   isValidTckn, validateBirthDate, maskTckn, maskBirthDate, ageFromBirthDate
 } from "./identity.mjs";
+import { smsEnabled, smsDurumu, normalizePhone, maskPhone, sendSms, verificationMessage } from "./sms.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
@@ -185,6 +186,30 @@ function welcomeBody() {
 // Bildirim e-postasi: panel ici bildirimle ayni anda uyeye e-posta da gider.
 // Gonderim deliverEmail uzerinden (Resend); anahtar yoksa outbox'a MOCK_SENT yazilir.
 // Bilerek "atesle ve bekleme" (fire-and-forget): e-posta gecikmesi API yanitini bekletmesin.
+// ---------- Telefon dogrulama ----------
+// Kod veritabaninda ACIK TUTULMAZ; SHA-256 ozeti saklanir. Test modunda
+// (Netgsm bilgileri yokken) kod ayrica testCode alanina yazilir ve YALNIZCA
+// yonetim panelinden gorunur — istemciye hicbir kosulda donulmez.
+const KOD_GECERLILIK_DK = 5;
+const KOD_MAX_DENEME = 5;
+
+function hashCode(code) {
+  const secret = process.env.KT_ENC_KEY || process.env.RESEND_API_KEY || "konuttalebi-otp";
+  return createHash("sha256").update(`${secret}:${code}`).digest("hex");
+}
+
+function phoneVerified(userId) {
+  const u = db.prepare("SELECT phoneVerified FROM users WHERE id=?").get(userId);
+  return Boolean(u && u.phoneVerified);
+}
+
+/** Dogrulanmamis kullaniciya 403 doner; cagiran yer return eder. */
+function requirePhone(res, user) {
+  if (phoneVerified(user.id)) return false;
+  err(res, 403, "Devam etmek için telefon numaranı doğrulaman gerekiyor.");
+  return true;
+}
+
 // ---------- Bildirim tercihleri ve abonelikten cikma ----------
 // Tek tikla birakma linki icin kullaniciya ozel imza. Anahtar yoksa oturum
 // sirri yerine sabit bir yedek kullanilir; amac tahmin edilemez olmasi.
@@ -705,7 +730,11 @@ function buildState(user) {
       // Bildirim tercihleri: kullanici kendisinin, admin herkesinkini gorur.
       // NULL = hic dokunulmamis = acik kabul edilir.
       notifyMatch: (self || isAdmin) ? (u.notifyMatch === 0 ? 0 : 1) : undefined,
-      notifyDigest: (self || isAdmin) ? (u.notifyDigest === 0 ? 0 : 1) : undefined
+      notifyDigest: (self || isAdmin) ? (u.notifyDigest === 0 ? 0 : 1) : undefined,
+      // Telefon dogrulama durumu: kendisi ve admin gorur. Karsi tarafa
+      // "dogrulanmis uye" bilgisi guven sinyali olarak da gosterilebilir.
+      phoneVerified: u.phoneVerified ? 1 : 0,
+      phoneVerifiedAt: (self || isAdmin) ? (u.phoneVerifiedAt || "") : undefined
     };
   });
 
@@ -758,6 +787,11 @@ function buildState(user) {
         : all("verification_documents").filter((d) => d.userId === user.id)),
     notifications: myNotifications,
     emailOutbox: isAdmin ? all("email_outbox") : [],
+    // Telefon dogrulama kayitlari yalnizca admin panelinde gorunur.
+    // TEST MODUNDA kod burada gorunur ki hesap acilmadan akis denenebilsin;
+    // gercek gonderimde testCode NULL kalir.
+    phoneCodes: isAdmin ? db.prepare("SELECT id,userId,phone,attempts,sentAt,expiresAt,usedAt,testCode,mode FROM phone_verifications ORDER BY sentAt DESC LIMIT 50").all() : [],
+    smsConfig: isAdmin ? { enabled: smsEnabled(), durum: smsDurumu() } : undefined,
     complaints: [],
     abuseSignals: [],
     auditLogs: isAdmin ? all("audit_logs") : [],
@@ -1168,6 +1202,66 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
 
   if (!user) return err(res, 401, "Giriş gerekli.");
 
+  // --- telefon dogrulama: kod gonder ---
+  if (seg[0] === "phone" && seg[1] === "send-code" && method === "POST") {
+    if (phoneVerified(user.id)) return ok(res, { alreadyVerified: true });
+    // Kullanici numarasini duzeltebilsin (kayitta yanlis yazmis olabilir).
+    const istenen = body.phone ? normalizePhone(body.phone) : null;
+    const mevcut = db.prepare("SELECT phone FROM users WHERE id=?").get(user.id);
+    const p = istenen || normalizePhone(mevcut && mevcut.phone);
+    if (!p) return err(res, 400, "Geçerli bir cep telefonu numarası gir (5xx xxx xx xx).");
+    // Ayni numara baska bir dogrulanmis hesapta kullanilamaz.
+    const baskasinda = db.prepare("SELECT id FROM users WHERE phone LIKE ? AND phoneVerified=1 AND id<>?").get(`%${p}`, user.id);
+    if (baskasinda) return err(res, 409, "Bu numara başka bir üyelikte doğrulanmış.");
+    // Hiz sinirlari: kullanici basina 60 sn'de 1, gunde 5; IP basina saatte 10.
+    if (!rateLimit(`otp-user:${user.id}`, 1, 60 * 1000))
+      return err(res, 429, "Yeni kod için 1 dakika bekle.");
+    if (!rateLimit(`otp-user-day:${user.id}`, 5, 24 * 3600 * 1000))
+      return err(res, 429, "Günlük kod sınırına ulaştın. Yarın tekrar dene veya destekle iletişime geç.");
+    if (!rateLimit(`otp-ip:${clientIp(req)}`, 10, 3600 * 1000))
+      return err(res, 429, "Çok fazla deneme. Bir süre sonra tekrar dene.");
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const now2 = new Date();
+    const expires = new Date(now2.getTime() + KOD_GECERLILIK_DK * 60 * 1000).toISOString();
+    // Bekleyen eski kodlari gecersiz kil.
+    db.prepare("UPDATE phone_verifications SET usedAt=? WHERE userId=? AND usedAt IS NULL").run(now(), user.id);
+    const sonuc = await sendSms(p, verificationMessage(code));
+    if (!sonuc.ok) return err(res, 502, sonuc.error || "SMS gönderilemedi.");
+    db.prepare("INSERT INTO phone_verifications (id,userId,phone,codeHash,attempts,sentAt,expiresAt,usedAt,testCode,mode) VALUES (?,?,?,?,?,?,?,NULL,?,?)")
+      .run(uid("otp"), user.id, p, hashCode(code), 0, now2.toISOString(), expires,
+        sonuc.mode === "test" ? code : null, sonuc.mode || "live");
+    // Kullanici numarasini duzelttiyse profiline de yaz.
+    if (istenen && (!mevcut || normalizePhone(mevcut.phone) !== istenen))
+      db.prepare("UPDATE users SET phone=? WHERE id=?").run("0" + p, user.id);
+    addAudit(user.id, "PHONE_CODE_SENT", "User", user.id, `${maskPhone(p)} · ${sonuc.mode === "test" ? "TEST MODU" : "SMS"}`);
+    return ok(res, { sent: true, phoneMasked: maskPhone(p), testMode: sonuc.mode === "test", expiresInSec: KOD_GECERLILIK_DK * 60 });
+  }
+
+  // --- telefon dogrulama: kodu dogrula ---
+  if (seg[0] === "phone" && seg[1] === "verify" && method === "POST") {
+    if (phoneVerified(user.id)) return ok(res, { alreadyVerified: true });
+    const code = String(body.code || "").replace(/\D/g, "");
+    if (code.length !== 6) return err(res, 400, "6 haneli kodu gir.");
+    const kayit = db.prepare("SELECT * FROM phone_verifications WHERE userId=? AND usedAt IS NULL ORDER BY sentAt DESC LIMIT 1").get(user.id);
+    if (!kayit) return err(res, 400, "Önce kod iste.");
+    if (new Date(kayit.expiresAt) < new Date()) return err(res, 400, "Kodun süresi doldu. Yeni kod iste.");
+    if (kayit.attempts >= KOD_MAX_DENEME) {
+      db.prepare("UPDATE phone_verifications SET usedAt=? WHERE id=?").run(now(), kayit.id);
+      return err(res, 429, "Çok fazla hatalı deneme. Yeni kod iste.");
+    }
+    if (hashCode(code) !== kayit.codeHash) {
+      db.prepare("UPDATE phone_verifications SET attempts=attempts+1 WHERE id=?").run(kayit.id);
+      const kalan = KOD_MAX_DENEME - (kayit.attempts + 1);
+      return err(res, 400, kalan > 0 ? `Kod hatalı. ${kalan} deneme hakkın kaldı.` : "Kod hatalı. Yeni kod iste.");
+    }
+    db.prepare("UPDATE phone_verifications SET usedAt=? WHERE id=?").run(now(), kayit.id);
+    db.prepare("UPDATE users SET phoneVerified=1, phoneVerifiedAt=?, phone=? WHERE id=?").run(now(), "0" + kayit.phone, user.id);
+    addAudit(user.id, "PHONE_VERIFIED", "User", user.id, maskPhone(kayit.phone));
+    notify(user.id, "PHONE_VERIFIED", "Telefonun doğrulandı", "Artık talep oluşturabilir ve teklif gönderebilirsin.", "");
+    return ok(res, { verified: true });
+  }
+
   // --- bildirim tercihleri (giris gerekli) ---
   if (seg[0] === "bildirim" && seg[1] === "tercihler" && method === "PATCH") {
     const match = body.notifyMatch ? 1 : 0;
@@ -1202,6 +1296,8 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   // --- talep olustur ---
   if (seg[0] === "demands" && method === "POST") {
     if (user.role !== "BUYER") return err(res, 403, "Sadece alıcı talep oluşturabilir.");
+    // Telefon dogrulamasi: kayit sonrasi ILK islemde istenir.
+    if (requirePhone(res, user)) return;
     const id = uid("d");
     const d = {
       id, buyerId: user.id, title: (body.title || "").trim(), city: body.city || "İstanbul",
@@ -1269,6 +1365,7 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   // --- ilan olustur ---
   if (seg[0] === "properties" && method === "POST") {
     if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı ilan ekleyebilir.");
+    if (requirePhone(res, user)) return;
     const id = uid("p");
     const p = {
       id, sellerId: user.id, title: (body.title || "").trim(), city: body.city || "İstanbul",
@@ -1321,6 +1418,7 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   // --- teklif gonder ---
   if (seg[0] === "offers" && method === "POST" && seg.length === 1) {
     if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı teklif gönderebilir.");
+    if (requirePhone(res, user)) return;
     const demand = db.prepare("SELECT * FROM demands WHERE id = ?").get(body.demandId);
     const property = db.prepare("SELECT * FROM properties WHERE id = ?").get(body.propertyId);
     if (!demand || !property) return err(res, 404, "Talep veya ilan bulunamadı.");

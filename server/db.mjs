@@ -93,6 +93,11 @@ CREATE TABLE IF NOT EXISTS verification_documents (
   id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
   riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT
 );
+CREATE TABLE IF NOT EXISTS phone_verifications (
+  id TEXT PRIMARY KEY, userId TEXT, phone TEXT, codeHash TEXT,
+  attempts INTEGER DEFAULT 0, sentAt TEXT, expiresAt TEXT, usedAt TEXT,
+  testCode TEXT, mode TEXT
+);
 CREATE TABLE IF NOT EXISTS digest_queue (
   id TEXT PRIMARY KEY, userId TEXT, kind TEXT, title TEXT, line TEXT,
   actionUrl TEXT, createdAt TEXT, sentAt TEXT
@@ -150,7 +155,10 @@ for (const alter of [
   // Islem e-postalari (sifre sifirlama, odeme, moderasyon) bu ayarlardan etkilenmez.
   "ALTER TABLE users ADD COLUMN notifyMatch INTEGER DEFAULT 1",
   "ALTER TABLE users ADD COLUMN notifyDigest INTEGER DEFAULT 1",
-  "ALTER TABLE users ADD COLUMN unsubscribedAt TEXT"
+  "ALTER TABLE users ADD COLUMN unsubscribedAt TEXT",
+  // Telefon dogrulama: kayit sonrasi ilk islemden once istenir.
+  "ALTER TABLE users ADD COLUMN phoneVerified INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN phoneVerifiedAt TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

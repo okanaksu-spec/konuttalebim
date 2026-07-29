@@ -3232,7 +3232,8 @@ function render() {
     // Sunucu da ayni kontrolu yapiyor; bu yalnizca kullaniciyi bos form doldurmaktan kurtarir.
     const dogrulamaGerektiren = ["/talep-olustur", "/ev-ekle", "/teklif-gonder"];
     const u = currentUser();
-    if (u && !u.phoneVerified && dogrulamaGerektiren.some((x) => path.includes(x))) {
+    const smsAcik = Boolean(state.config && state.config.smsVerification);
+    if (smsAcik && u && !u.phoneVerified && dogrulamaGerektiren.some((x) => path.includes(x))) {
       try { sessionStorage.setItem("kt-dogrulama-sonrasi", path); } catch { /* onemli degil */ }
       location.hash = "/telefon-dogrula";
       return;

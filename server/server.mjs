@@ -186,6 +186,59 @@ function welcomeBody() {
 // Bildirim e-postasi: panel ici bildirimle ayni anda uyeye e-posta da gider.
 // Gonderim deliverEmail uzerinden (Resend); anahtar yoksa outbox'a MOCK_SENT yazilir.
 // Bilerek "atesle ve bekleme" (fire-and-forget): e-posta gecikmesi API yanitini bekletmesin.
+// ---------- Kayit formu sabitleri ----------
+// Bu listeler istemcideki listelerle AYNI olmali; sunucu gelen degeri dogrular.
+const GELIR_ARALIKLARI = [
+  "0 – 25.000 TL", "25.001 – 45.000 TL", "45.001 – 70.000 TL", "70.001 – 100.000 TL",
+  "100.001 – 150.000 TL", "150.001 – 250.000 TL", "250.001 TL ve üzeri", "Belirtmek istemiyorum",
+];
+const MESLEK_GRUPLARI = [
+  "Kamu Memuru / Devlet Personeli", "Özel Sektör Çalışanı (Büyük Şirket)", "KOBİ / SME Çalışanı",
+  "Doktor / Hekim", "Avukat / Hukukçu", "Mali Müşavir / Muhasebeci",
+  "Mühendis (İnşaat, Makine, Elektrik, Yazılım vb.)", "Mimar / İç Mimar", "Diğer Serbest Meslek",
+  "Esnaf / Sanatkâr", "Tüccar / İthalat-İhracatçı", "Restoran / Cafe / Otel İşletmecisi", "Perakende Satış",
+  "Bankacılık / Finans / Sigorta", "Bilgi Teknolojileri / Yazılım", "Danışmanlık",
+  "Öğretmen / Akademisyen", "Sağlık Personeli (Hemşire, Ebe, Tekniker vb.)", "Sosyal Hizmetler / STK",
+  "İnşaat / Taahhüt", "Üretim / Sanayi", "Lojistik / Ulaşım", "Turizm / Otelcilik / Gastronomi",
+  "Medya / İletişim / Reklam", "Tarım / Hayvancılık / Ormancılık",
+  "Emekli", "Öğrenci", "Ev Hanımı / Ev Ekonomisine Katkı", "İşveren / Patron (Sektör Belirtmeli)",
+  "Çalışmıyor / İş Arıyor", "Diğer",
+];
+
+/** Sifre kurali: en az 8 karakter, buyuk + kucuk harf ve rakam. */
+function sifreGecerliMi(pw) {
+  const s = String(pw || "");
+  if (s.length < 8) return "Şifre en az 8 karakter olmalı.";
+  if (!/[a-zçğıöşü]/.test(s)) return "Şifre en az bir küçük harf içermeli.";
+  if (!/[A-ZÇĞİÖŞÜ]/.test(s)) return "Şifre en az bir büyük harf içermeli.";
+  if (!/\d/.test(s)) return "Şifre en az bir rakam içermeli.";
+  return "";
+}
+
+// ---------- E-posta dogrulama (72 saat) ----------
+const EPOSTA_SURE_SAAT = 72;
+
+function epostaDogrulamaBaslat(userId, email, isim) {
+  const token = randomBytes(24).toString("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const expires = new Date(Date.now() + EPOSTA_SURE_SAAT * 3600 * 1000).toISOString();
+  db.prepare("INSERT INTO email_verifications (tokenHash,userId,email,createdAt,expiresAt,usedAt,sentCount) VALUES (?,?,?,?,?,NULL,1)")
+    .run(tokenHash, userId, email, now(), expires);
+  db.prepare("UPDATE users SET emailVerifyDeadline=? WHERE id=?").run(expires, userId);
+  const link = `${BASE_URL}/api/eposta/dogrula?t=${token}`;
+  const html = notificationEmailHtml(isim, "E-postanı doğrula",
+    [`Üyeliğini tamamlamak için e-posta adresini doğrulaman gerekiyor.`,
+      `Aşağıdaki butona tıkladığında işlem tamamlanır. Bağlantı ${EPOSTA_SURE_SAAT} saat geçerlidir.`,
+      `Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.`].join("\n\n"),
+    "", null, userId);
+  // Butonun dogru adrese gitmesi icin baglantiyi HTML icinde degistiriyoruz.
+  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#d6a94a)/, `href="${link}"$1`);
+  Promise.resolve()
+    .then(() => deliverEmail(userId, email, isim, "Konuttalebi — E-postanı doğrula", htmlLinkli, "E-posta doğrulama"))
+    .catch((e) => console.error("[mail] eposta dogrulama gonderilemedi:", e && e.message));
+  return expires;
+}
+
 // ---------- Telefon dogrulama ----------
 // Kod veritabaninda ACIK TUTULMAZ; SHA-256 ozeti saklanir. Test modunda
 // (Netgsm bilgileri yokken) kod ayrica testCode alanina yazilir ve YALNIZCA
@@ -742,7 +795,11 @@ function buildState(user) {
       // Telefon dogrulama durumu: kendisi ve admin gorur. Karsi tarafa
       // "dogrulanmis uye" bilgisi guven sinyali olarak da gosterilebilir.
       phoneVerified: u.phoneVerified ? 1 : 0,
-      phoneVerifiedAt: (self || isAdmin) ? (u.phoneVerifiedAt || "") : undefined
+      phoneVerifiedAt: (self || isAdmin) ? (u.phoneVerifiedAt || "") : undefined,
+      // Kayit formu 2. adim beyanlari + e-posta dogrulama suresi: kendisi ve admin gorur.
+      monthlyIncome: (self || isAdmin) ? (u.monthlyIncome || "") : undefined,
+      occupationGroup: (self || isAdmin) ? (u.occupationGroup || "") : undefined,
+      emailVerifyDeadline: (self || isAdmin) ? (u.emailVerifyDeadline || "") : undefined
     };
   });
 
@@ -774,7 +831,7 @@ function buildState(user) {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
     // smsVerification: SMS saglayicisi bagli mi? Istemci bu bayrak acikken
     // dogrulama ekranina yonlendirir; kapaliyken ozellik uykudadir.
-    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled, smsVerification: smsEnabled() },
+    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled, smsVerification: smsEnabled(), emailVerifyHours: EPOSTA_SURE_SAAT },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
     // Gizlilik: misafir (giris yapmamis) istekte kisisel/ters-pazar verisi donmez.
@@ -839,17 +896,30 @@ async function handleApi(req, res, url) {
     const role = ["BUYER", "SELLER", "AGENT"].includes(body.role) ? body.role : "BUYER";
     const password = body.password || "";
     const marketingConsent = body.marketingConsent ? 1 : 0;
+    // 2. adim alanlari (istege bagli beyan) — listede yoksa bos birakilir.
+    const monthlyIncome = GELIR_ARALIKLARI.includes(body.monthlyIncome) ? body.monthlyIncome : "";
+    const occupationGroup = MESLEK_GRUPLARI.includes(body.occupationGroup) ? body.occupationGroup : "";
     if (name.length < 3 || !email.includes("@") || phone.length < 10)
       return err(res, 400, "Ad, geçerli e-posta ve telefon gerekli.");
-    if (password.length < 6) return err(res, 400, "Şifre en az 6 karakter olmalı.");
+    if (!normalizePhone(phone)) return err(res, 400, "Geçerli bir cep telefonu numarası gir (5xx xxx xx xx).");
+    const sifreHata = sifreGecerliMi(password);
+    if (sifreHata) return err(res, 400, sifreHata);
     if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
       return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var.");
+    // SMS acikken: kayittan once telefonun dogrulanmis olmasi gerekir.
+    if (smsEnabled()) {
+      const p = normalizePhone(phone);
+      const yarimSaat = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const dogrulanmis = db.prepare("SELECT 1 FROM phone_verifications WHERE userId IS NULL AND phone=? AND usedAt IS NOT NULL AND mode='verified' AND usedAt > ?").get(p, yarimSaat);
+      if (!dogrulanmis) return err(res, 400, "Telefonunu doğrulaman gerekiyor. Kod iste ve onayla.");
+    }
     // Kimlik alanlari: hesap acilmadan ONCE dogrulanir ki yarim kayit olusmasin.
     const kimlik = prepareIdentity(body, null);
     if (!kimlik.ok) return err(res, 400, kimlik.error);
     const id = uid("u");
-    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
+    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent,monthlyIncome,occupationGroup,phoneVerified,phoneVerifiedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent,
+        monthlyIncome, occupationGroup, smsEnabled() ? 1 : 0, smsEnabled() ? now() : null);
     addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
     saveIdentity(id, kimlik);
     saveAttribution(id, body.attribution);
@@ -861,6 +931,8 @@ async function handleApi(req, res, url) {
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
     queueEmail(id, "Konuttalebi'ye hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği oluşturuldu.`);
+    // E-posta dogrulama baglantisi: 72 saat gecerli.
+    epostaDogrulamaBaslat(id, email, name);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
     return ok(res, { userId: id, role }, sessionCookie(token));
@@ -1174,6 +1246,83 @@ async function handleApi(req, res, url) {
     return ok(res, { items });
   }
 
+  // --- KAYIT FORMU: telefon dogrulama (giris gerektirmez) ---
+  // Hesap acilmadan once telefonu dogrularz; kayit sirasinda bu kayda bakilir.
+  if (seg[0] === "kayit" && seg[1] === "telefon-kod" && method === "POST") {
+    if (!smsEnabled()) return err(res, 503, "SMS doğrulama şu anda kapalı.");
+    const p = normalizePhone(body.phone);
+    if (!p) return err(res, 400, "Geçerli bir cep telefonu numarası gir (5xx xxx xx xx).");
+    if (db.prepare("SELECT 1 FROM users WHERE phone LIKE ? AND phoneVerified=1").get(`%${p}`))
+      return err(res, 409, "Bu numara başka bir üyelikte kayıtlı.");
+    if (!rateLimit(`kayit-otp:${p}`, 1, 60 * 1000)) return err(res, 429, "Yeni kod için 1 dakika bekle.");
+    if (!rateLimit(`kayit-otp-gun:${p}`, 5, 24 * 3600 * 1000)) return err(res, 429, "Bu numara için günlük kod sınırına ulaşıldı.");
+    if (!rateLimit(`kayit-otp-ip:${clientIp(req)}`, 10, 3600 * 1000)) return err(res, 429, "Çok fazla deneme. Bir süre sonra tekrar dene.");
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expires = new Date(Date.now() + KOD_GECERLILIK_DK * 60 * 1000).toISOString();
+    db.prepare("UPDATE phone_verifications SET usedAt=? WHERE userId IS NULL AND phone=? AND usedAt IS NULL").run(now(), p);
+    const sonuc = await sendSms(p, verificationMessage(code));
+    if (!sonuc.ok) return err(res, 502, sonuc.error || "SMS gönderilemedi.");
+    db.prepare("INSERT INTO phone_verifications (id,userId,phone,codeHash,attempts,sentAt,expiresAt,usedAt,testCode,mode) VALUES (?,NULL,?,?,0,?,?,NULL,?,?)")
+      .run(uid("otp"), p, hashCode(code), now(), expires, sonuc.mode === "test" ? code : null, "kayit");
+    return ok(res, { sent: true, phoneMasked: maskPhone(p), testMode: sonuc.mode === "test" });
+  }
+
+  if (seg[0] === "kayit" && seg[1] === "telefon-dogrula" && method === "POST") {
+    if (!smsEnabled()) return err(res, 503, "SMS doğrulama şu anda kapalı.");
+    const p = normalizePhone(body.phone);
+    const code = String(body.code || "").replace(/\D/g, "");
+    if (!p || code.length !== 6) return err(res, 400, "Telefon ve 6 haneli kod gerekli.");
+    const kayit = db.prepare("SELECT * FROM phone_verifications WHERE userId IS NULL AND phone=? AND usedAt IS NULL ORDER BY sentAt DESC LIMIT 1").get(p);
+    if (!kayit) return err(res, 400, "Önce kod iste.");
+    if (new Date(kayit.expiresAt) < new Date()) return err(res, 400, "Kodun süresi doldu. Yeni kod iste.");
+    if (kayit.attempts >= KOD_MAX_DENEME) {
+      db.prepare("UPDATE phone_verifications SET usedAt=? WHERE id=?").run(now(), kayit.id);
+      return err(res, 429, "Çok fazla hatalı deneme. Yeni kod iste.");
+    }
+    if (hashCode(code) !== kayit.codeHash) {
+      db.prepare("UPDATE phone_verifications SET attempts=attempts+1 WHERE id=?").run(kayit.id);
+      const kalan = KOD_MAX_DENEME - (kayit.attempts + 1);
+      return err(res, 400, kalan > 0 ? `Kod hatalı. ${kalan} deneme hakkın kaldı.` : "Kod hatalı. Yeni kod iste.");
+    }
+    // mode='verified' isareti kayit ucunun aradigi kanit.
+    db.prepare("UPDATE phone_verifications SET usedAt=?, mode='verified' WHERE id=?").run(now(), kayit.id);
+    return ok(res, { verified: true });
+  }
+
+  // --- e-posta dogrulama baglantisi (giris gerektirmez) ---
+  if (seg[0] === "eposta" && seg[1] === "dogrula" && method === "GET") {
+    const t = url.searchParams.get("t") || "";
+    const tokenHash = createHash("sha256").update(t).digest("hex");
+    const kayit = t ? db.prepare("SELECT * FROM email_verifications WHERE tokenHash=?").get(tokenHash) : null;
+    const suresiDolmus = kayit && new Date(kayit.expiresAt) < new Date();
+    const gecerli = Boolean(kayit) && !kayit.usedAt && !suresiDolmus;
+    if (gecerli) {
+      db.prepare("UPDATE email_verifications SET usedAt=? WHERE tokenHash=?").run(now(), tokenHash);
+      db.prepare("UPDATE auth_accounts SET emailVerified=1 WHERE userId=?").run(kayit.userId);
+      addAudit(kayit.userId, "EMAIL_VERIFIED", "User", kayit.userId, kayit.email || "");
+      notify(kayit.userId, "EMAIL_VERIFIED", "E-postan doğrulandı", "Üyeliğin tamamlandı.", "");
+    }
+    const govde = gecerli
+      ? `<h1>E-postan doğrulandı</h1><p>Üyeliğin tamamlandı. Panelinden devam edebilirsin.</p>`
+      : kayit && kayit.usedAt
+        ? `<h1>Zaten doğrulanmış</h1><p>Bu bağlantı daha önce kullanılmış. Giriş yapabilirsin.</p>`
+        : suresiDolmus
+          ? `<h1>Bağlantının süresi doldu</h1><p>Doğrulama bağlantısı ${EPOSTA_SURE_SAAT} saat geçerlidir.</p>
+             <p class="small">Giriş yapıp panelindeki uyarıdan yeni bağlantı isteyebilirsin.</p>`
+          : `<h1>Bağlantı geçersiz</h1><p>Bu bağlantı tanınmadı.</p>`;
+    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | E-posta doğrulama</title>
+<meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
+.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
+.small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
+text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style></head>
+<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/#/giris">Giriş yap</a></div></body></html>`;
+    res.writeHead(gecerli || kayit ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(html);
+  }
+
   // --- abonelikten cikma: giris gerektirmez, imzali baglanti ile calisir ---
   // GET: kullanici e-postadaki baglantiya tiklar, onay sayfasi doner.
   // POST: posta kutusunun "One-Click" butonu; govdesiz cagirir, kisa yanit doner.
@@ -1270,6 +1419,19 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     addAudit(user.id, "PHONE_VERIFIED", "User", user.id, maskPhone(kayit.phone));
     notify(user.id, "PHONE_VERIFIED", "Telefonun doğrulandı", "Artık talep oluşturabilir ve teklif gönderebilirsin.", "");
     return ok(res, { verified: true });
+  }
+
+  // --- e-posta dogrulama baglantisini tekrar gonder (giris gerekli) ---
+  if (seg[0] === "eposta" && seg[1] === "tekrar-gonder" && method === "POST") {
+    const acc = db.prepare("SELECT emailVerified FROM auth_accounts WHERE userId=?").get(user.id);
+    if (acc && acc.emailVerified) return ok(res, { alreadyVerified: true });
+    if (!rateLimit(`eposta-dogrula:${user.id}`, 3, 3600 * 1000))
+      return err(res, 429, "Saatte en fazla 3 doğrulama bağlantısı gönderilebilir.");
+    const u = db.prepare("SELECT name,email FROM users WHERE id=?").get(user.id);
+    if (!u || !u.email) return err(res, 400, "E-posta adresi bulunamadı.");
+    const bitis = epostaDogrulamaBaslat(user.id, u.email, u.name);
+    addAudit(user.id, "EMAIL_VERIFY_RESENT", "User", user.id, u.email);
+    return ok(res, { sent: true, expiresAt: bitis });
   }
 
   // --- bildirim tercihleri (giris gerekli) ---

@@ -93,6 +93,10 @@ CREATE TABLE IF NOT EXISTS verification_documents (
   id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
   riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT
 );
+CREATE TABLE IF NOT EXISTS email_verifications (
+  tokenHash TEXT PRIMARY KEY, userId TEXT, email TEXT,
+  createdAt TEXT, expiresAt TEXT, usedAt TEXT, sentCount INTEGER DEFAULT 1
+);
 CREATE TABLE IF NOT EXISTS phone_verifications (
   id TEXT PRIMARY KEY, userId TEXT, phone TEXT, codeHash TEXT,
   attempts INTEGER DEFAULT 0, sentAt TEXT, expiresAt TEXT, usedAt TEXT,
@@ -158,7 +162,12 @@ for (const alter of [
   "ALTER TABLE users ADD COLUMN unsubscribedAt TEXT",
   // Telefon dogrulama: kayit sonrasi ilk islemden once istenir.
   "ALTER TABLE users ADD COLUMN phoneVerified INTEGER DEFAULT 0",
-  "ALTER TABLE users ADD COLUMN phoneVerifiedAt TEXT"
+  "ALTER TABLE users ADD COLUMN phoneVerifiedAt TEXT",
+  // Kayit formu 2. adim: gelir araligi ve meslek grubu (istege bagli beyan).
+  "ALTER TABLE users ADD COLUMN monthlyIncome TEXT",
+  "ALTER TABLE users ADD COLUMN occupationGroup TEXT",
+  // E-posta dogrulama takibi: 72 saatlik sure bu tarihten sayilir.
+  "ALTER TABLE users ADD COLUMN emailVerifyDeadline TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

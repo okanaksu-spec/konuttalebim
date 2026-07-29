@@ -2499,8 +2499,25 @@ function adminSms() {
 }
 
 function adminEmails() {
+  const bekleyen = (state.users || []).filter((u) => {
+    const acc = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
+    return !acc.emailVerified && u.emailVerifyDeadline;
+  });
+  const yakin = bekleyen.filter((u) => { const k = epostaKalanSaat(u); return k !== null && k > 0 && k <= 24; });
   return `
     ${pageHead("E-posta Outbox", "Uygun alıcı talebi veya satıcı ilanı girildiğinde hazırlanan anlık e-postalar.")}
+    <section class="panel" style="margin-bottom:14px">
+      <h3>E-posta doğrulama hatırlatması</h3>
+      <p class="muted" style="margin:8px 0 12px">
+        Doğrulamayan üyelere, süre dolmasına <strong>24 saatten az</strong> kaldığında otomatik hatırlatma gider —
+        kişi başına bir kez. Sunucu bunu saatte bir kontrol eder; aşağıdaki düğme aynı taramayı hemen çalıştırır.
+      </p>
+      <div class="stat-grid" style="margin-bottom:12px">
+        ${stat("Doğrulama bekleyen", bekleyen.length)}
+        ${stat("Süresi 24 saatten az", yakin.length)}
+      </div>
+      <button class="btn btn-outline" onclick="KT.epostaHatirlatmaCalistir()">${icon("mail", 15)} Hatırlatma taramasını çalıştır</button>
+    </section>
     <div class="notice" style="margin-bottom:14px"><strong>E-posta bildirimleri:</strong> Kullanıcılara giden bildirimler burada kayıt altında tutulur.</div>
     <div class="list">${state.emailOutbox.map(emailRow).join("") || empty("Henüz e-posta yok", "Yeni talep veya ev eklendiğinde uygun kullanıcılara e-posta kaydı oluşur.")}</div>
   `;
@@ -3727,6 +3744,13 @@ window.KT = {
     const hedef = sessionStorage.getItem("kt-dogrulama-sonrasi");
     sessionStorage.removeItem("kt-dogrulama-sonrasi");
     setRoute(hedef || dashboardPathForRole((currentUser() || {}).role));
+  },
+  async epostaHatirlatmaCalistir() {
+    const r = await api("/admin/eposta-hatirlat", "POST", {});
+    if (!r.ok) return toast((r.data && r.data.error) || "Çalıştırılamadı.");
+    await refreshState();
+    toast(r.data.sent > 0 ? `${r.data.sent} kişiye hatırlatma gönderildi.` : "Şu an hatırlatma gerektiren üye yok.");
+    render();
   },
   async epostaTekrarGonder() {
     const r = await api("/eposta/tekrar-gonder", "POST", {});

@@ -268,11 +268,66 @@ function epostaHatirlatmaGonder(u) {
   return deliverEmail(u.id, u.email, u.name, "Konuttalebi — E-postanı doğrulamayı unutma", htmlLinkli, "E-posta doğrulama hatırlatması");
 }
 
+/**
+ * Suresi dolan dogrulanmamis hesaplari askiya alir.
+ *
+ * - Yalnizca `epostaMuaf = 0` hesaplara isler. Duvar oncesi kayitli uyeler
+ *   kapsam disidir, hicbir kosulda askiya alinmazlar.
+ * - `autoSuspendedAt` doldurulur; boylece bu askinin sebebinin sure dolumu
+ *   oldugu bellidir ve e-posta dogrulandiginda kendiliginden kalkar.
+ *   Yoneticinin elle askiya aldigi hesaplarda bu alan bostur ve dokunulmaz.
+ * - Oturum KAPATILMAZ: kullanici girip dogrulama ekranini gorebilmelidir.
+ */
+async function epostaSureDolduTara() {
+  const dolanlar = db.prepare(`
+    SELECT u.id, u.name, u.email
+    FROM users u JOIN auth_accounts a ON a.userId = u.id
+    WHERE a.emailVerified = 0 AND u.status = 'ACTIVE'
+      AND COALESCE(u.epostaMuaf,0) = 0 AND u.role <> 'ADMIN'
+      AND u.emailVerifyDeadline IS NOT NULL
+      AND u.emailVerifyDeadline < ?`).all(new Date().toISOString());
+  let askiya = 0;
+  for (const u of dolanlar) {
+    db.prepare("UPDATE users SET status='SUSPENDED', autoSuspendedAt=? WHERE id=?").run(now(), u.id);
+    addAudit(u.id, "ACCOUNT_AUTO_SUSPENDED", "User", u.id,
+      `E-posta ${EPOSTA_SURE_SAAT} saat içinde doğrulanmadı, hesap otomatik askıya alındı.`);
+    notify(u.id, "ACCOUNT_SUSPENDED", "Üyeliğin askıya alındı",
+      "E-posta adresini doğrulamadığın için üyeliğin askıya alındı.", "");
+    askiya++;
+    if (u.email) {
+      try {
+        await deliverEmail(u.id, u.email, u.name, "Konuttalebi — Üyeliğin askıya alındı",
+          notificationEmailHtml(u.name, "Üyeliğin askıya alındı",
+            [`E-posta adresini ${EPOSTA_SURE_SAAT} saat içinde doğrulamadığın için üyeliğin askıya alındı.`,
+              "Askıyı kaldırmak için tek yapman gereken e-postanı doğrulamak. Giriş yap, çıkan uyarı ekranından yeni doğrulama bağlantısı iste ve bağlantıya tıkla — hesabın anında yeniden açılır.",
+              "Verilerin duruyor, hiçbir talebin veya teklifin silinmedi."
+            ].join("\n\n"), `${BASE_URL}/#/giris`, "Konuttalebi'ne git", u.id),
+          "Hesap askıya alma bildirimi");
+      } catch (e) { console.error("[mail] aski bildirimi gonderilemedi:", e && e.message); }
+    }
+  }
+  return askiya;
+}
+
+/**
+ * Otomatik askiyi kaldirir. Yalnizca `autoSuspendedAt` dolu hesaplarda calisir —
+ * yoneticinin elle verdigi aski karari kendiliginden geri alinmaz.
+ */
+function otomatikAskiyiKaldir(userId) {
+  const u = db.prepare("SELECT status, autoSuspendedAt FROM users WHERE id=?").get(userId);
+  if (!u || !u.autoSuspendedAt) return false;
+  db.prepare("UPDATE users SET status='ACTIVE', autoSuspendedAt=NULL WHERE id=?").run(userId);
+  addAudit(userId, "ACCOUNT_AUTO_REACTIVATED", "User", userId,
+    "E-posta doğrulandı, otomatik askı kaldırıldı.");
+  return true;
+}
+
 async function epostaHatirlatmaTara() {
   const bekleyenler = db.prepare(`
     SELECT u.id, u.name, u.email, u.emailVerifyDeadline
     FROM users u JOIN auth_accounts a ON a.userId = u.id
     WHERE a.emailVerified = 0 AND u.status = 'ACTIVE'
+      AND COALESCE(u.epostaMuaf,0) = 0
       AND u.emailVerifyDeadline IS NOT NULL AND u.emailReminderSentAt IS NULL
       AND u.email IS NOT NULL AND u.email <> ''`).all();
   let gonderilen = 0;
@@ -287,12 +342,20 @@ async function epostaHatirlatmaTara() {
 }
 
 // Saatte bir kontrol; ilk kontrol sunucu acildiktan 1 dk sonra.
-setInterval(() => {
-  epostaHatirlatmaTara()
-    .then((n) => { if (n) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${n} kisi`); })
-    .catch((e) => console.error("[mail] hatirlatma taramasi hatasi:", e && e.message));
-}, 60 * 60 * 1000).unref?.();
-setTimeout(() => { epostaHatirlatmaTara().catch(() => {}); }, 60 * 1000).unref?.();
+// Once hatirlatma (sure dolmadan once), sonra aski (sure dolduktan sonra).
+async function epostaTaramasi() {
+  const hatirlatilan = await epostaHatirlatmaTara().catch((e) => {
+    console.error("[mail] hatirlatma taramasi hatasi:", e && e.message); return 0;
+  });
+  const askiyaAlinan = await epostaSureDolduTara().catch((e) => {
+    console.error("[mail] aski taramasi hatasi:", e && e.message); return 0;
+  });
+  if (hatirlatilan) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${hatirlatilan} kisi`);
+  if (askiyaAlinan) console.log(`[uyelik] sure dolumu nedeniyle askiya alinan: ${askiyaAlinan} hesap`);
+  return { hatirlatilan, askiyaAlinan };
+}
+setInterval(() => { epostaTaramasi().catch(() => {}); }, 60 * 60 * 1000).unref?.();
+setTimeout(() => { epostaTaramasi().catch(() => {}); }, 60 * 1000).unref?.();
 
 // ---------- Telefon dogrulama ----------
 // Kod veritabaninda ACIK TUTULMAZ; SHA-256 ozeti saklanir. Test modunda
@@ -860,7 +923,11 @@ function buildState(user) {
       monthlyIncome: (self || isAdmin) ? (u.monthlyIncome || "") : undefined,
       occupationGroup: (self || isAdmin) ? (u.occupationGroup || "") : undefined,
       emailVerifyDeadline: (self || isAdmin) ? (u.emailVerifyDeadline || "") : undefined,
-      emailVerified: (self || isAdmin) ? (dogrulanmisMap.get(u.id) || 0) : undefined
+      emailVerified: (self || isAdmin) ? (dogrulanmisMap.get(u.id) || 0) : undefined,
+      // Duvar oncesi kayitli hesaplar: dogrulama zorunlulugu ve aski disinda.
+      epostaMuaf: (self || isAdmin) ? (u.epostaMuaf ? 1 : 0) : undefined,
+      // Dolu ise aski sebebi sure dolumudur (yonetici karari degil).
+      autoSuspendedAt: (self || isAdmin) ? (u.autoSuspendedAt || "") : undefined
     };
   });
 
@@ -1011,12 +1078,17 @@ async function handleApi(req, res, url) {
     if (!acc || !acc.passwordHash || !verifyPassword(body.password || "", acc.passwordHash))
       return err(res, 401, "E-posta veya şifre hatalı.");
     const u = db.prepare("SELECT * FROM users WHERE id = ?").get(acc.userId);
-    if (!u || u.status !== "ACTIVE") return err(res, 403, "Bu üyelik aktif değil.");
+    // Sure dolumu nedeniyle OTOMATIK askiya alinanlar giris yapabilir: aksi halde
+    // dogrulama ekranina ulasip kendi kendine cozemezler. Yoneticinin elle
+    // askiya aldigi hesaplar (autoSuspendedAt bos) giremez.
+    if (!u) return err(res, 401, "E-posta veya şifre hatalı.");
+    if (u.status !== "ACTIVE" && !u.autoSuspendedAt) return err(res, 403, "Bu üyelik aktif değil.");
     db.prepare("UPDATE auth_accounts SET lastLoginAt = ? WHERE userId = ?").run(today(), u.id);
     addAudit(u.id, "USER_LOGGED_IN", "User", u.id, "Giriş yapıldı.");
     // E-postasi dogrulanmamis ve hic baglanti almamis eski uyeler: girise
     // calistigi anda baglanti gonderilir ki duvarda kilitli kalmasin.
-    if (!acc.emailVerified && !db.prepare("SELECT emailVerifyDeadline FROM users WHERE id=?").get(u.id).emailVerifyDeadline) {
+    // Muaf hesaplara dokunulmaz.
+    if (!acc.emailVerified && !u.epostaMuaf && !db.prepare("SELECT emailVerifyDeadline FROM users WHERE id=?").get(u.id).emailVerifyDeadline) {
       try { epostaDogrulamaBaslat(u.id, u.email || acc.email, u.name); } catch { /* giris akisini bozma */ }
     }
     const token = randomUUID();
@@ -1362,14 +1434,22 @@ async function handleApi(req, res, url) {
     const kayit = t ? db.prepare("SELECT * FROM email_verifications WHERE tokenHash=?").get(tokenHash) : null;
     const suresiDolmus = kayit && new Date(kayit.expiresAt) < new Date();
     const gecerli = Boolean(kayit) && !kayit.usedAt && !suresiDolmus;
+    let askiKalkti = false;
     if (gecerli) {
       db.prepare("UPDATE email_verifications SET usedAt=? WHERE tokenHash=?").run(now(), tokenHash);
       db.prepare("UPDATE auth_accounts SET emailVerified=1 WHERE userId=?").run(kayit.userId);
       addAudit(kayit.userId, "EMAIL_VERIFIED", "User", kayit.userId, kayit.email || "");
       notify(kayit.userId, "EMAIL_VERIFIED", "E-postan doğrulandı", "Üyeliğin tamamlandı.", "");
+      // Sure dolumu nedeniyle askidaysa aski burada kendiliginden kalkar.
+      askiKalkti = otomatikAskiyiKaldir(kayit.userId);
+      if (askiKalkti)
+        notify(kayit.userId, "ACCOUNT_REACTIVATED", "Üyeliğin yeniden aktif",
+          "E-postanı doğruladın, hesabın yeniden kullanıma açıldı.", "");
     }
     const govde = gecerli
-      ? `<h1>E-postan doğrulandı</h1><p>Üyeliğin tamamlandı. Panelinden devam edebilirsin.</p>`
+      ? `<h1>E-postan doğrulandı</h1><p>${askiKalkti
+        ? "Üyeliğinin askısı kalktı, hesabın yeniden kullanıma açıldı."
+        : "Üyeliğin tamamlandı. Panelinden devam edebilirsin."}</p>`
       : kayit && kayit.usedAt
         ? `<h1>Zaten doğrulanmış</h1><p>Bu bağlantı daha önce kullanılmış. Giriş yapabilirsin.</p>`
         : suresiDolmus
@@ -1490,19 +1570,22 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   // --- admin: e-posta hatirlatma taramasini elle calistir ---
   if (seg[0] === "admin" && seg[1] === "eposta-hatirlat" && method === "POST") {
     if (user.role !== "ADMIN") return err(res, 403, "Bu işlem için yetkiniz yok.");
-    const n = await epostaHatirlatmaTara();
-    addAudit(user.id, "ADMIN_EMAIL_REMINDER_RUN", "User", user.id, `${n} kişiye hatırlatma gönderildi.`);
-    return ok(res, { sent: n });
+    const { hatirlatilan, askiyaAlinan } = await epostaTaramasi();
+    addAudit(user.id, "ADMIN_EMAIL_REMINDER_RUN", "User", user.id,
+      `${hatirlatilan} kişiye hatırlatma gönderildi, ${askiyaAlinan} hesap askıya alındı.`);
+    return ok(res, { sent: hatirlatilan, suspended: askiyaAlinan });
   }
 
   // --- E-POSTA DOGRULAMA DUVARI ---
   // Dogrulamayan kullanici sitede hicbir islem yapamaz. Okuma (GET) serbesttir ki
   // dogrulama ekrani ve kendi durumu gorunebilsin; e-posta uclari ve cikis her
   // zaman aciktir. ADMIN muaftir — yonetici kendini disarida birakmasin.
+  // Duvar devreye girmeden once kayitli olan hesaplar muaftir (users.epostaMuaf).
   const epostaMuaf = user.role === "ADMIN"
     || method === "GET"
     || seg[0] === "eposta"
-    || seg[0] === "logout";
+    || seg[0] === "logout"
+    || Boolean(user.epostaMuaf);
   if (!epostaMuaf) {
     const hesap = db.prepare("SELECT emailVerified FROM auth_accounts WHERE userId=?").get(user.id);
     if (hesap && !hesap.emailVerified)
@@ -1945,7 +2028,16 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
       const yeni = ["ACTIVE", "SUSPENDED"].includes(body.status) ? body.status : null;
       if (!yeni) return err(res, 400, "Geçersiz durum.");
       setler.push("status=?"); degerler.push(yeni); notlar.push(`durum -> ${yeni}`);
+      // Elle askiya alma oturumlari kapatir; elle aktiflestirme otomatik aski
+      // isaretini de temizler ki sonraki taramada tekrar askiya alinmasin.
       if (yeni === "SUSPENDED") db.prepare("DELETE FROM sessions WHERE userId=?").run(hedef.id);
+      if (yeni === "ACTIVE") { setler.push("autoSuspendedAt=NULL"); }
+    }
+    // Duvar muafiyeti: yonetici tek tek verebilir veya kaldirabilir.
+    if (body.epostaMuaf !== undefined) {
+      const yeni = body.epostaMuaf ? 1 : 0;
+      setler.push("epostaMuaf=?"); degerler.push(yeni);
+      notlar.push(yeni ? "e-posta doğrulama muafiyeti verildi" : "e-posta doğrulama muafiyeti kaldırıldı");
     }
     if (body.role !== undefined) {
       const yeni = ["BUYER", "SELLER", "AGENT", "REVIEWER", "ADMIN"].includes(body.role) ? body.role : null;

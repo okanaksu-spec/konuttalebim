@@ -169,10 +169,26 @@ for (const alter of [
   // E-posta dogrulama takibi: 72 saatlik sure bu tarihten sayilir.
   "ALTER TABLE users ADD COLUMN emailVerifyDeadline TEXT",
   // Hatirlatma bir kez gonderilir; bu alan dolu ise tekrar gonderilmez.
-  "ALTER TABLE users ADD COLUMN emailReminderSentAt TEXT"
+  "ALTER TABLE users ADD COLUMN emailReminderSentAt TEXT",
+  // Otomatik (sure dolumu) askiya alma zamani. YONETICININ elle askiya
+  // aldigi hesaplarda BOSTUR — bu ayrim onemli: e-posta dogrulanınca yalnizca
+  // otomatik aski kalkar, yonetici karari kendiliginden geri alinmaz.
+  "ALTER TABLE users ADD COLUMN autoSuspendedAt TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }
+
+// E-posta dogrulama duvarindan MUAF hesaplar.
+// Kural geriye donuk isletilmez: duvar devreye girdiginde sistemde kayitli olan
+// herkes muaf sayilir; muafiyet yalnizca bu tek seferlik gecis sirasinda verilir,
+// sonradan acilan hesaplar 0 ile baslar. ALTER yalnizca ilk calismada basarili
+// oldugu icin UPDATE de yalnizca bir kez calisir.
+try {
+  db.exec("ALTER TABLE users ADD COLUMN epostaMuaf INTEGER DEFAULT 0");
+  const n = db.prepare("SELECT COUNT(*) c FROM users").get().c;
+  db.exec("UPDATE users SET epostaMuaf=1");
+  console.log(`[db] E-posta dogrulama duvari: mevcut ${n} hesap muaf isaretlendi.`);
+} catch { /* sutun zaten var - gecis daha once yapildi, dokunma */ }
 
 // ---------- Kullanici verisi temizligi ----------
 // Verilen kullanicilara ait TUM kayitlari siler. Ortak yardimci.

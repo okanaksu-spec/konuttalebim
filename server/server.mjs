@@ -175,7 +175,7 @@ function dashboardPathForRole(role) {
 // Karsilama metni her uyelik tipi icin ayni (genel). Yalnizca yeni kayitlarda gonderilir.
 function welcomeBody() {
   return [
-    "Konut aramanın yeni yolu Konuttalebi'ye hoş geldin.",
+    "Konut aramanın yeni yolu Konuttalebi'ne hoş geldin.",
     "Burada ilanların arasında kaybolmazsın. Ne aradığını söylersin, sana uygun talepler ve teklifler doğrudan karşına gelir.",
     "Hemen paneline girerek talebini oluşturabilir veya mevcut talepleri inceleyebilirsin.",
     "İletişim bilgilerin gizli tutulur ve yalnızca karşılıklı eşleşme sonrasında paylaşılır.",
@@ -592,7 +592,7 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
   const emoji = mailEmojisi(title);
   const clean = String(actionUrl || "").replace(/^#?\/*/, "");
   const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
-  const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ye git";
+  const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ne git";
   const merhaba = toName ? `Merhaba ${escapeHtmlSrv(String(toName).split(" ")[0])},` : "Merhaba,";
   // Bos satirla ayrilmis metni paragraflara cevir.
   const paragraphs = String(body || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
@@ -821,6 +821,11 @@ function buildState(user) {
       if (viewerHasMembership || m.status === "CONTACT_UNLOCKED") unlockedWith.add(other);
     }
   }
+  // E-posta dogrulama durumu users listesine islenir; authAccounts disariya
+  // hic verilmiyor (gizlilik), o yuzden bu bilgi burada tasinir.
+  const dogrulanmisMap = new Map(
+    db.prepare("SELECT userId, emailVerified FROM auth_accounts").all().map((a) => [a.userId, a.emailVerified ? 1 : 0])
+  );
   const users = all("users").map((u) => {
     const self = user && u.id === user.id;
     const canSeeContact = self || (user && unlockedWith.has(u.id)) || (user && user.role === "ADMIN");
@@ -854,7 +859,8 @@ function buildState(user) {
       // Kayit formu 2. adim beyanlari + e-posta dogrulama suresi: kendisi ve admin gorur.
       monthlyIncome: (self || isAdmin) ? (u.monthlyIncome || "") : undefined,
       occupationGroup: (self || isAdmin) ? (u.occupationGroup || "") : undefined,
-      emailVerifyDeadline: (self || isAdmin) ? (u.emailVerifyDeadline || "") : undefined
+      emailVerifyDeadline: (self || isAdmin) ? (u.emailVerifyDeadline || "") : undefined,
+      emailVerified: (self || isAdmin) ? (dogrulanmisMap.get(u.id) || 0) : undefined
     };
   });
 
@@ -984,7 +990,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
-    queueEmail(id, "Konuttalebi'ye hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
+    queueEmail(id, "Konuttalebi'ne hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği oluşturuldu.`);
     // E-posta dogrulama baglantisi: 72 saat gecerli.
     epostaDogrulamaBaslat(id, email, name);
@@ -1008,6 +1014,11 @@ async function handleApi(req, res, url) {
     if (!u || u.status !== "ACTIVE") return err(res, 403, "Bu üyelik aktif değil.");
     db.prepare("UPDATE auth_accounts SET lastLoginAt = ? WHERE userId = ?").run(today(), u.id);
     addAudit(u.id, "USER_LOGGED_IN", "User", u.id, "Giriş yapıldı.");
+    // E-postasi dogrulanmamis ve hic baglanti almamis eski uyeler: girise
+    // calistigi anda baglanti gonderilir ki duvarda kilitli kalmasin.
+    if (!acc.emailVerified && !db.prepare("SELECT emailVerifyDeadline FROM users WHERE id=?").get(u.id).emailVerifyDeadline) {
+      try { epostaDogrulamaBaslat(u.id, u.email || acc.email, u.name); } catch { /* giris akisini bozma */ }
+    }
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, u.id, new Date().toISOString());
     return ok(res, { userId: u.id, role: u.role }, sessionCookie(token));
@@ -1122,7 +1133,7 @@ async function handleApi(req, res, url) {
       db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
         .run(id, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, 0, 0, 0, 0, 0);
     notify(id, "WELCOME", "Üyeliğin oluşturuldu", "Panelin hazır.", "");
-    queueEmail(id, "Konuttalebi'ye hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
+    queueEmail(id, "Konuttalebi'ne hoş geldin", welcomeBody(), dashboardPathForRole(role), "Yeni üyelik karşılama", "Bir sorunda bu e-postayı yanıtlaman yeterli. Yanındayız.");
     addAudit(id, "USER_REGISTERED", "User", id, `${role} üyeliği Google ile oluşturuldu.`);
     const token = randomUUID();
     db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(token, id, new Date().toISOString());
@@ -1409,7 +1420,7 @@ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,s
 .box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
 .small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
 text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style></head>
-<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/">Konuttalebi'ye dön</a></div></body></html>`;
+<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/">Konuttalebi'ne dön</a></div></body></html>`;
     res.writeHead(gecerli ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
     return res.end(html);
   }
@@ -1482,6 +1493,20 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     const n = await epostaHatirlatmaTara();
     addAudit(user.id, "ADMIN_EMAIL_REMINDER_RUN", "User", user.id, `${n} kişiye hatırlatma gönderildi.`);
     return ok(res, { sent: n });
+  }
+
+  // --- E-POSTA DOGRULAMA DUVARI ---
+  // Dogrulamayan kullanici sitede hicbir islem yapamaz. Okuma (GET) serbesttir ki
+  // dogrulama ekrani ve kendi durumu gorunebilsin; e-posta uclari ve cikis her
+  // zaman aciktir. ADMIN muaftir — yonetici kendini disarida birakmasin.
+  const epostaMuaf = user.role === "ADMIN"
+    || method === "GET"
+    || seg[0] === "eposta"
+    || seg[0] === "logout";
+  if (!epostaMuaf) {
+    const hesap = db.prepare("SELECT emailVerified FROM auth_accounts WHERE userId=?").get(user.id);
+    if (hesap && !hesap.emailVerified)
+      return err(res, 403, "Devam etmek için e-posta adresini doğrulaman gerekiyor. Gelen kutunu kontrol et.");
   }
 
   // --- e-posta dogrulama baglantisini tekrar gonder (giris gerekli) ---

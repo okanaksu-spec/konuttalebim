@@ -93,6 +93,10 @@ CREATE TABLE IF NOT EXISTS verification_documents (
   id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
   riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT
 );
+CREATE TABLE IF NOT EXISTS digest_queue (
+  id TEXT PRIMARY KEY, userId TEXT, kind TEXT, title TEXT, line TEXT,
+  actionUrl TEXT, createdAt TEXT, sentAt TEXT
+);
 CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY, actorId TEXT, action TEXT, entityType TEXT, entityId TEXT,
   metadata TEXT, createdAt TEXT
@@ -141,7 +145,12 @@ for (const alter of [
   // Panel: askiya alma gerekcesi ve moderasyon notu
   "ALTER TABLE users ADD COLUMN adminNote TEXT",
   "ALTER TABLE demands ADD COLUMN moderationReason TEXT",
-  "ALTER TABLE properties ADD COLUMN moderationReason TEXT"
+  "ALTER TABLE properties ADD COLUMN moderationReason TEXT",
+  // Bildirim tercihleri. Varsayilan ACIK; kullanici diledigi zaman kapatabilir.
+  // Islem e-postalari (sifre sifirlama, odeme, moderasyon) bu ayarlardan etkilenmez.
+  "ALTER TABLE users ADD COLUMN notifyMatch INTEGER DEFAULT 1",
+  "ALTER TABLE users ADD COLUMN notifyDigest INTEGER DEFAULT 1",
+  "ALTER TABLE users ADD COLUMN unsubscribedAt TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

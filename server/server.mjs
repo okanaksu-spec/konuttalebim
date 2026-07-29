@@ -185,14 +185,205 @@ function welcomeBody() {
 // Bildirim e-postasi: panel ici bildirimle ayni anda uyeye e-posta da gider.
 // Gonderim deliverEmail uzerinden (Resend); anahtar yoksa outbox'a MOCK_SENT yazilir.
 // Bilerek "atesle ve bekleme" (fire-and-forget): e-posta gecikmesi API yanitini bekletmesin.
-function queueEmail(userId, subject, body, actionUrl, reason, closing) {
+// ---------- Bildirim tercihleri ve abonelikten cikma ----------
+// Tek tikla birakma linki icin kullaniciya ozel imza. Anahtar yoksa oturum
+// sirri yerine sabit bir yedek kullanilir; amac tahmin edilemez olmasi.
+function unsubToken(userId) {
+  const secret = process.env.KT_ENC_KEY || process.env.RESEND_API_KEY || "konuttalebi-unsub";
+  return createHash("sha256").update(`${secret}:${userId}`).digest("hex").slice(0, 24);
+}
+function unsubUrl(userId) {
+  return `${BASE_URL}/api/bildirim/birak?u=${encodeURIComponent(userId)}&t=${unsubToken(userId)}`;
+}
+/**
+ * Bu kullaniciya bu turden e-posta gonderilebilir mi?
+ * tur: "match"   -> eslesme/iletisim bildirimleri (notifyMatch)
+ *      "digest"  -> gunluk ozet (notifyDigest)
+ *      "tx"      -> islem e-postasi (sifre, odeme, moderasyon): HER ZAMAN gonderilir
+ */
+function mailIzniVar(userId, tur) {
+  if (tur === "tx") return true;
+  const u = db.prepare("SELECT notifyMatch, notifyDigest FROM users WHERE id=?").get(userId);
+  if (!u) return false;
+  if (tur === "digest") return u.notifyDigest === null || u.notifyDigest === undefined ? true : Boolean(u.notifyDigest);
+  return u.notifyMatch === null || u.notifyMatch === undefined ? true : Boolean(u.notifyMatch);
+}
+
+/**
+ * "Sana uygun yeni ilan/talep" bildirimi. Okan'in karari (29 Tem 2026):
+ * takvime bagli gunluk ozet YOK, aksiyon aninda gonderilir.
+ *
+ * Tekrar korumasi: ayni kullaniciya ayni satir 24 saat icinde ikinci kez
+ * gonderilmez. Kayit digest_queue tablosunda tutulur (gecmis + tekrar kontrolu).
+ */
+function queueDigest(userId, kind, title, line, actionUrl) {
+  if (!mailIzniVar(userId, "digest")) return;
+  const sinir = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const ayni = db.prepare("SELECT 1 FROM digest_queue WHERE userId=? AND line=? AND createdAt > ?").get(userId, line, sinir);
+  if (ayni) return;
+  db.prepare("INSERT INTO digest_queue (id,userId,kind,title,line,actionUrl,createdAt,sentAt) VALUES (?,?,?,?,?,?,?,?)")
+    .run(uid("dg"), userId, kind, title, line, actionUrl || "", now(), now());
+  queueEmail(userId, title, [line, "Panelinden inceleyip harekete geçebilirsin."].join("\n\n"),
+    actionUrl || "dashboard", "Uygun ilan/talep bildirimi", null, "digest");
+}
+
+// Eski kayitlari temizle: digest_queue artik yalnizca "ayni bildirimi 24 saat
+// icinde iki kez gonderme" kontrolu icin tutuluyor; 30 gunden eskisi gereksiz.
+function digestCleanup() {
+  try {
+    const sinir = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    db.prepare("DELETE FROM digest_queue WHERE createdAt < ?").run(sinir);
+  } catch { /* temizlik hatasi sunucuyu etkilemesin */ }
+}
+setInterval(digestCleanup, 24 * 3600 * 1000).unref?.();
+
+/**
+ * "Talebin yayında" e-postasi. Duz metin sablonundan farkli, kartli tasarim.
+ *
+ * DIKKAT — buradaki her sayi GERCEK veriden gelir:
+ *  - uygunSayi: talep olusturulurken hesaplanan gercek eslesme sayisi.
+ *  - Uydurma istatistik (ornegin "ortalama ilk teklif suresi") KOYULMAZ;
+ *    elimizde o veri yok, tahmini rakam yaziyi guvenilmez yapar.
+ */
+function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
+  const kira = (d.transactionType || "SALE") === "RENT";
+  const ad = toName ? escapeHtmlSrv(String(toName).split(" ")[0]) : "";
+  const konum = [d.city, d.district].filter(Boolean).join(" / ") || "Belirtilmedi";
+  const butce = `${paraTR(d.minBudget)} – ${paraTR(d.maxBudget)}${kira ? " / ay" : ""}`;
+  const tur = `${d.roomCount || ""} ${kira ? "kiralık" : "satılık"} ${String(d.propertyType || "konut").toLowerCase()}`.trim();
+  const panelUrl = `${APP_URL()}/#/dashboard/alici/taleplerim`;
+  const yardimUrl = `${APP_URL()}/#/yardim`;
+
+  const satir = (etiket, deger) => `
+    <td style="padding:0 8px 14px 0;vertical-align:top;width:50%">
+      <div style="font-size:12.5px;color:#8496a8;margin-bottom:3px">${escapeHtmlSrv(etiket)}</div>
+      <div style="font-size:15px;font-weight:700;color:#10243a">${escapeHtmlSrv(deger)}</div>
+    </td>`;
+
+  // Eslesme kutusu: sayi varsa yesil, yoksa durust bir bekleme mesaji.
+  const kutu = uygunSayi > 0
+    ? `<div style="background:#eef7f0;border:1px solid #d3e8d9;border-radius:12px;padding:22px;text-align:center;margin:18px 0">
+         <div style="font-size:40px;font-weight:800;color:#10243a;line-height:1.1">${uygunSayi}</div>
+         <div style="font-size:14.5px;color:#41556d;margin-top:6px">
+           ${kira ? "ev sahibinin" : "satıcının"} yayındaki konutu talebinle uyuşuyor; talebin onlara bildirildi.
+         </div>
+       </div>`
+    : `<div style="background:#fbf6ec;border:1px solid #f0e2c8;border-radius:12px;padding:20px;margin:18px 0">
+         <div style="font-size:14.5px;color:#41556d;line-height:1.6">
+           Talebin aktif. Kriterlerine uyan bir konut yayınlandığı anda
+           ${kira ? "ev sahibine" : "satıcıya"} bildirilir ve sana haber veririz.
+         </div>
+       </div>`;
+
+  const sss = [
+    ["Teklifi kim gönderir?", `Talebini gören ${kira ? "ev sahipleri ve emlak danışmanları" : "satıcılar ve emlak danışmanları"} sana özel teklif gönderir. Sen aramazsın.`],
+    ["İletişim bilgilerim güvende mi?", "Evet. Talebinde adın, telefonun ve e-postan görünmez. İletişim bilgisi yalnızca eşleşme sonrası, iki taraf da onay verdiğinde paylaşılır."],
+    ["Teklif gelmezse ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; daha fazla konutla eşleşirsin."]
+  ].map(([s, c]) => `
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#41556d">
+      <strong style="color:#10243a">${escapeHtmlSrv(s)}</strong><br>${escapeHtmlSrv(c)}
+    </p>`).join("");
+
+  return `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10243a">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
+
+        <tr><td style="background:#10243a;padding:30px 26px;text-align:center">
+          <div style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.6px;margin-bottom:10px">KONUTTALEBİ</div>
+          <div style="font-size:36px;line-height:1;margin-bottom:10px">&#127881;</div>
+          <div style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-.3px">Talebin yayında</div>
+          <div style="color:#a8bcd0;font-size:14px;margin-top:6px">Artık teklifler sana gelecek</div>
+        </td></tr>
+
+        <tr><td style="padding:26px">
+          <p style="margin:0 0 6px;font-size:15px;color:#41556d">Merhaba${ad ? " " + ad : ""},</p>
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#41556d">
+            Talebin başarıyla yayınlandı. <strong style="color:#10243a">${escapeHtmlSrv(konum)}</strong> için
+            <strong style="color:#10243a">${escapeHtmlSrv(tur)}</strong> talebin aktif.
+          </p>
+
+          <div style="background:#f5f8fb;border-radius:12px;padding:18px 18px 4px">
+            <div style="font-size:11.5px;font-weight:700;letter-spacing:.06em;color:#8496a8;margin-bottom:12px">TALEP DETAYLARIN</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>${satir("Lokasyon", konum)}${satir(kira ? "Aylık kira" : "Bütçe", butce)}</tr>
+              <tr>${satir("Oda", d.roomCount || "Belirtilmedi")}${satir(kira ? "Taşınma" : "Alım zamanı", d.purchaseTimeline || "Belirtilmedi")}</tr>
+            </table>
+          </div>
+
+          ${kutu}
+
+          <div style="text-align:center;margin:22px 0 6px">
+            <a href="${panelUrl}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:14px 30px;border-radius:10px">Talebimi görüntüle</a>
+          </div>
+
+          <div style="border-top:1px solid #e8edf3;margin-top:24px;padding-top:20px">
+            <div style="font-size:15px;font-weight:700;color:#10243a;margin-bottom:12px">Sıkça sorulanlar</div>
+            ${sss}
+          </div>
+        </td></tr>
+
+        <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
+          <p style="margin:0 0 8px;color:#10243a;font-weight:700;font-size:13px">Konuttalebi<br>
+            <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
+          <a href="${panelUrl}" style="color:#41556d">Talebimi düzenle</a> ·
+          <a href="${yardimUrl}" style="color:#41556d">Yardım</a> ·
+          <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
+          ${userId ? `<br><br>Bu tür bildirimleri almak istemiyorsan
+          <a href="${unsubUrl(userId)}" style="color:#41556d">tek tıkla bırakabilirsin</a>.` : ""}
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+// ---------- Eslesme e-postalari icin ozet metinleri ----------
+// Kimlik, telefon veya e-posta ASLA girmez. Yalnizca ilan/talep ozeti.
+const paraTR = (n) => Number(n || 0).toLocaleString("tr-TR") + " TL";
+
+function ilanOzeti(propertyId) {
+  const p = db.prepare("SELECT * FROM properties WHERE id=?").get(propertyId);
+  if (!p) return "";
+  const kira = (p.transactionType || "SALE") === "RENT";
+  const parcalar = [
+    [p.city, p.district].filter(Boolean).join(" / "),
+    [p.mainCategory, p.propertyType].filter(Boolean).join(" "),
+    p.roomCount,
+    p.netSqm ? `${p.netSqm} m²` : "",
+    p.price ? paraTR(p.price) + (kira ? " / ay" : "") : ""
+  ].filter(Boolean);
+  return `${p.title}\n${parcalar.join(" · ")}`;
+}
+
+function talepOzeti(demandId) {
+  const d = db.prepare("SELECT * FROM demands WHERE id=?").get(demandId);
+  if (!d) return "";
+  const kira = (d.transactionType || "SALE") === "RENT";
+  const butce = d.minBudget || d.maxBudget
+    ? `${paraTR(d.minBudget)} – ${paraTR(d.maxBudget)}${kira ? " / ay" : ""}`
+    : "";
+  const parcalar = [
+    [d.city, d.district].filter(Boolean).join(" / "),
+    [d.mainCategory, d.propertyType].filter(Boolean).join(" "),
+    d.roomCount,
+    butce
+  ].filter(Boolean);
+  return `${d.title}\n${parcalar.join(" · ")}`;
+}
+
+function queueEmail(userId, subject, body, actionUrl, reason, closing, tur) {
   const u = db.prepare("SELECT name,email FROM users WHERE id = ?").get(userId);
   if (!u || !u.email) return;
-  const html = notificationEmailHtml(u.name, subject, body, actionUrl, closing);
+  if (!mailIzniVar(userId, tur || "tx")) return;
+  const html = notificationEmailHtml(u.name, subject, body, actionUrl, closing, userId);
   // Konu zaten marka adiyla basliyorsa tekrar on ek koyma.
   const subj = /^konuttalebi/i.test(subject) ? subject : `Konuttalebi — ${subject}`;
   Promise.resolve()
-    .then(() => deliverEmail(userId, u.email, u.name, subj, html, reason))
+    .then(() => deliverEmail(userId, u.email, u.name, subj, html, reason, userId))
     .catch((e) => console.error("[mail] bildirim gonderilemedi:", e && e.message));
 }
 
@@ -233,7 +424,7 @@ const sha256hex = (s) => createHash("sha256").update(String(s)).digest("hex");
 const escapeHtmlSrv = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Bildirim e-postalari icin ortak sablon (marka basligi + metin + tek eylem butonu).
-function notificationEmailHtml(toName, title, body, actionUrl, closing) {
+function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUserId) {
   const clean = String(actionUrl || "").replace(/^#?\/*/, "");
   const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
   const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ye git";
@@ -267,6 +458,9 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing) {
             <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
           Bu e-postayı Konuttalebi üyeliğin nedeniyle aldın. Soru ve talepler için
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a> adresine yazabilirsin.
+          ${unsubUserId ? `<br><br>Bu tür bildirimleri almak istemiyorsan
+          <a href="${unsubUrl(unsubUserId)}" style="color:#41556d">tek tıkla bırakabilirsin</a>.
+          Şifre, ödeme ve hesap güvenliğiyle ilgili e-postalar her hâlükârda gönderilir.` : ""}
         </td></tr>
       </table>
     </td></tr>
@@ -274,15 +468,21 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing) {
 </body></html>`;
 }
 
-async function deliverEmail(userId, toEmail, toName, subject, html, reason) {
+async function deliverEmail(userId, toEmail, toName, subject, html, reason, unsubUserId) {
   const key = (process.env.RESEND_API_KEY || "").trim();
   let status = "MOCK_SENT";
   if (key && toEmail) {
     try {
+      // List-Unsubscribe: posta kutularinin (Gmail/Outlook) kendi "abonelikten cik"
+      // butonunu gostermesini saglar; spam sikayetini dusurur.
+      const headers = unsubUserId ? {
+        "List-Unsubscribe": `<${unsubUrl(unsubUserId)}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+      } : undefined;
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], reply_to: MAIL_REPLY_TO(), subject, html })
+        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], reply_to: MAIL_REPLY_TO(), subject, html, ...(headers ? { headers } : {}) })
       });
       status = resp.ok ? "SENT" : "FAILED";
       if (!resp.ok) console.error("[mail] Resend hata:", resp.status, await resp.text().catch(() => ""));
@@ -475,7 +675,11 @@ function buildState(user) {
       birthDateMasked: (isAdmin || self) ? maskBirthDate(u.birthDate) : undefined,
       age: isAdmin ? ageFromBirthDate(u.birthDate) : undefined,
       identityConsent: isAdmin ? (u.identityConsent ? 1 : 0) : undefined,
-      adminNote: isAdmin ? (u.adminNote || "") : undefined
+      adminNote: isAdmin ? (u.adminNote || "") : undefined,
+      // Bildirim tercihleri: kullanici kendisinin, admin herkesinkini gorur.
+      // NULL = hic dokunulmamis = acik kabul edilir.
+      notifyMatch: (self || isAdmin) ? (u.notifyMatch === 0 ? 0 : 1) : undefined,
+      notifyDigest: (self || isAdmin) ? (u.notifyDigest === 0 ? 0 : 1) : undefined
     };
   });
 
@@ -900,7 +1104,53 @@ async function handleApi(req, res, url) {
     return ok(res, { items });
   }
 
+  // --- abonelikten cikma: giris gerektirmez, imzali baglanti ile calisir ---
+  // GET: kullanici e-postadaki baglantiya tiklar, onay sayfasi doner.
+  // POST: posta kutusunun "One-Click" butonu; govdesiz cagirir, kisa yanit doner.
+  if (seg[0] === "bildirim" && seg[1] === "birak" && (method === "GET" || method === "POST")) {
+    const uId = url.searchParams.get("u") || "";
+    const t = url.searchParams.get("t") || "";
+    const gecerli = uId && t && t === unsubToken(uId);
+    if (gecerli) {
+      db.prepare("UPDATE users SET notifyMatch=0, notifyDigest=0, unsubscribedAt=? WHERE id=?").run(now(), uId);
+      addAudit(uId, "EMAIL_UNSUBSCRIBED", "User", uId, "E-posta bildirimleri kapatıldı (bağlantıyla).");
+    }
+    if (method === "POST") {
+      res.writeHead(gecerli ? 200 : 400, { "Content-Type": "text/plain; charset=utf-8" });
+      return res.end(gecerli ? "ok" : "gecersiz baglanti");
+    }
+    const govde = gecerli
+      ? `<h1>Bildirimler kapatıldı</h1>
+         <p>Bundan sonra eşleşme ve özet e-postaları göndermeyeceğiz.</p>
+         <p class="small">Şifre sıfırlama, ödeme ve hesap güvenliğiyle ilgili e-postalar göndermeye devam ederiz; bunlar üyeliğin işleyişi için zorunludur.</p>
+         <p class="small">Fikrini değiştirirsen panelindeki <strong>Bildirim tercihleri</strong> ekranından tekrar açabilirsin.</p>`
+      : `<h1>Bağlantı geçersiz</h1>
+         <p>Bu bağlantı geçersiz veya süresi dolmuş görünüyor.</p>
+         <p class="small">Bildirimleri panelindeki <strong>Bildirim tercihleri</strong> ekranından kapatabilirsin.</p>`;
+    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | Bildirim tercihi</title>
+<meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
+.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
+.small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
+text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style></head>
+<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/">Konuttalebi'ye dön</a></div></body></html>`;
+    res.writeHead(gecerli ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(html);
+  }
+
   if (!user) return err(res, 401, "Giriş gerekli.");
+
+  // --- bildirim tercihleri (giris gerekli) ---
+  if (seg[0] === "bildirim" && seg[1] === "tercihler" && method === "PATCH") {
+    const match = body.notifyMatch ? 1 : 0;
+    const digest = body.notifyDigest ? 1 : 0;
+    db.prepare("UPDATE users SET notifyMatch=?, notifyDigest=?, unsubscribedAt=? WHERE id=?")
+      .run(match, digest, (match || digest) ? null : now(), user.id);
+    addAudit(user.id, "EMAIL_PREFS_UPDATED", "User", user.id, `eşleşme: ${match ? "açık" : "kapalı"}, özet: ${digest ? "açık" : "kapalı"}`);
+    return ok(res);
+  }
 
   // --- profil ---
   if (seg[0] === "profile" && method === "PATCH") {
@@ -967,13 +1217,24 @@ async function handleApi(req, res, url) {
             ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
             : `${d.title} talebi ilanınıza uyuyor.`;
           notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", body, "dashboard/satici/alici-talepleri");
-          queueEmail(p.sellerId, "Sana uygun yeni talep var", body, "dashboard/satici/alici-talepleri", "Uygun talep bildirimi");
+          // Aninda mail yerine gunluk ozete: yogun donemde ayni kisiye
+          // arka arkaya mail gitmesin diye.
+          queueDigest(p.sellerId, "demand", "Sana uygun yeni talep", body, "dashboard/satici/alici-talepleri");
         }
       }
     }
     if (matchCount > 0) {
       notify(d.buyerId, "MATCH_FOUND", "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan var. İlgili ${d.transactionType === "RENT" ? "ev sahipleri" : "satıcılar"} sana teklif gönderebilir; tekliflerini takip et.`, "dashboard/alici/teklifler");
-      queueEmail(d.buyerId, "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan bulundu. Panelinden teklifleri takip edebilirsin.`, "dashboard/alici/teklifler", "Eşleşme bildirimi");
+    }
+    // "Talebin yayında" e-postasi: her talepte bir kez, uygun ilan sayisi
+    // gercek deger olarak icine yazilir. Ayri sablon kullanir.
+    const talepSahibi = db.prepare("SELECT name,email FROM users WHERE id=?").get(d.buyerId);
+    if (talepSahibi && talepSahibi.email && mailIzniVar(d.buyerId, "match")) {
+      const html = demandPublishedEmailHtml(talepSahibi.name, d, matchCount, d.buyerId);
+      Promise.resolve()
+        .then(() => deliverEmail(d.buyerId, talepSahibi.email, talepSahibi.name,
+          "Konuttalebi — Talebin yayında", html, "Talep yayınlandı bildirimi", d.buyerId))
+        .catch((e) => console.error("[mail] talep yayinda gonderilemedi:", e && e.message));
     }
     addAudit(user.id, "DEMAND_CREATED", "Demand", id, d.title);
     return ok(res, { id });
@@ -1019,13 +1280,13 @@ async function handleApi(req, res, url) {
             ? `${p.title} — ${where} konumundaki talebinize uyuyor.`
             : `${p.title} talebinize uyuyor.`;
           notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", body, "dashboard/alici/teklifler");
-          queueEmail(d.buyerId, "Talebine uygun yeni ev", body, "dashboard/alici/teklifler", "Uygun ilan bildirimi");
+          queueDigest(d.buyerId, "property", "Talebine uygun yeni ev", body, "dashboard/alici/teklifler");
         }
       }
     }
     if (matchCount > 0) {
       notify(p.sellerId, "MATCH_FOUND", "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} ${p.transactionType === "RENT" ? "kiracı" : "alıcı"} talebi var. Uygun talepleri görüp özel teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri");
-      queueEmail(p.sellerId, "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} talep bulundu. Panelinden görüp teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri", "Eşleşme bildirimi");
+      queueDigest(p.sellerId, "match", "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} talep bulundu; görüp teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri");
     }
     addAudit(user.id, "PROPERTY_CREATED", "Property", id, p.title);
     return ok(res, { id });
@@ -1044,7 +1305,12 @@ async function handleApi(req, res, url) {
       .run(id, demand.id, property.id, user.id, demand.buyerId, +body.price || property.price, (body.message || "").trim(), score, "SENT", today());
     db.prepare("UPDATE demands SET offerCount = offerCount + 1 WHERE id = ?").run(demand.id);
     notify(demand.buyerId, "NEW_OFFER", "Yeni teklif geldi", `${demand.title} talebinize teklif var.`, "dashboard/alici/teklifler");
-    queueEmail(demand.buyerId, "Talebine yeni teklif geldi", `"${demand.title}" talebine bir mülk sahibi teklif gönderdi. Teklifi panelinden inceleyip ilgilendiğini belirtebilirsin.`, "dashboard/alici/teklifler", "Yeni teklif bildirimi");
+    queueEmail(demand.buyerId, "Talebine yeni teklif geldi",
+      [`"${demand.title}" talebine bir mülk sahibi teklif gönderdi.`,
+        ilanOzeti(body.propertyId) ? `Teklif edilen konut:\n${ilanOzeti(body.propertyId)}` : "",
+        "Teklifi panelinden inceleyip ilgilendiğini belirtebilirsin; ilgilendiğinde eşleşme oluşur."
+      ].filter(Boolean).join("\n\n"),
+      "dashboard/alici/teklifler", "Yeni teklif bildirimi", null, "match");
     addAudit(user.id, "OFFER_SENT", "Offer", id, `Skor ${score}`);
     return ok(res, { id, matchScore: score });
   }
@@ -1064,8 +1330,27 @@ async function handleApi(req, res, url) {
         const mid = uid("m");
         db.prepare("INSERT INTO matches (id,offerId,buyerId,sellerId,status,createdAt) VALUES (?,?,?,?,?,?)")
           .run(mid, offer.id, offer.buyerId, offer.sellerId, "MATCHED", today());
-        notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Alıcı teklifinizle ilgilendi. Üyelikle iletişim bilgisine ulaşabilirsiniz.", "dashboard/satici/eslesmeler");
-        queueEmail(offer.sellerId, "Teklifin ilgi gördü — yeni eşleşme", "Gönderdiğin teklifle ilgilenildi. Panelindeki Eşleşmeler bölümünden karşı tarafın iletişim bilgisine üyelikle ulaşıp doğrudan görüşebilirsin.", "dashboard/satici/eslesmeler", "Yeni eşleşme bildirimi");
+        const dem = db.prepare("SELECT * FROM demands WHERE id=?").get(offer.demandId) || {};
+        const kira = (dem.transactionType || "SALE") === "RENT";
+        const konut = ilanOzeti(offer.propertyId);
+        const talep = talepOzeti(offer.demandId);
+        const adim = "Sıradaki adım: iletişim bilgilerinin paylaşılmasını onayla. İki taraf da onay verdiğinde telefon ve e-posta karşılıklı açılır; siz iletişime geçersiniz.";
+
+        // --- Satici / ev sahibi tarafi ---
+        notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Teklifinle ilgilenildi. İletişim onayını verebilirsin.", "dashboard/satici/eslesmeler");
+        queueEmail(offer.sellerId, "Eşleştiniz — teklifin ilgi gördü",
+          [`Gönderdiğin teklifle ilgilenildi. ${kira ? "Kiracı" : "Alıcı"} tarafı teklifini beğendi ve eşleştiniz.`,
+            talep ? `Eşleştiğin talep:\n${talep}` : "",
+            adim].filter(Boolean).join("\n\n"),
+          "dashboard/satici/eslesmeler", "Yeni eşleşme bildirimi", null, "match");
+
+        // --- Alici / kiraci tarafi ---
+        notify(offer.buyerId, "NEW_MATCH", "Yeni eşleşme", "İlgilendiğini belirttin, eşleşme oluştu.", "dashboard/alici/eslesmeler");
+        queueEmail(offer.buyerId, "Eşleştiniz — ilgilendiğin teklif",
+          [`İlgilendiğini belirttiğin teklif için eşleşme oluştu.`,
+            konut ? `Eşleştiğin ${kira ? "kiralık" : "satılık"} konut:\n${konut}` : "",
+            adim].filter(Boolean).join("\n\n"),
+          "dashboard/alici/eslesmeler", "Yeni eşleşme bildirimi", null, "match");
       }
     }
     addAudit(user.id, "OFFER_RESPONDED", "Offer", offer.id, response);
@@ -1105,6 +1390,35 @@ async function handleApi(req, res, url) {
       unlocked = true;
     } else {
       db.prepare("UPDATE matches SET status=? WHERE id=?").run(isBuyer ? "WAITING_SELLER_APPROVAL" : "WAITING_BUYER_APPROVAL", m.id);
+    }
+
+    // --- Bildirimler: akisin burada durmamasi icin karsi tarafa haber ver ---
+    const teklif = db.prepare("SELECT * FROM offers WHERE id=?").get(m.offerId) || {};
+    const alicidir = (id) => id === m.buyerId;
+    const panel = (id) => alicidir(id) ? "dashboard/alici/eslesmeler" : "dashboard/satici/eslesmeler";
+    if (unlocked) {
+      // Iki tarafa da: artik gorusebilirsiniz.
+      for (const uid2 of [m.buyerId, m.sellerId]) {
+        const ozet = alicidir(uid2) ? ilanOzeti(teklif.propertyId) : talepOzeti(teklif.demandId);
+        notify(uid2, "CONTACT_UNLOCKED", "İletişim açıldı", "Karşı tarafın telefon ve e-postası panelinde görünür.", panel(uid2));
+        queueEmail(uid2, "İletişim açıldı — artık doğrudan görüşebilirsiniz",
+          ["İki taraf da onay verdi. Karşı tarafın telefon ve e-posta bilgisi panelindeki Eşleşmeler bölümünde açıldı.",
+            ozet ? `Eşleşme:\n${ozet}` : "",
+            "Fiyat, pazarlık ve sözleşme için iletişime geçiniz. Kaporayı ve tapu işlemlerini yalnızca resmi kanallardan yürüt."
+          ].filter(Boolean).join("\n\n"),
+          panel(uid2), "İletişim açıldı bildirimi", null, "match");
+      }
+    } else {
+      // Tek taraf onayladi: sira karsi tarafta.
+      const bekleyen = isBuyer ? m.sellerId : m.buyerId;
+      const ozet = alicidir(bekleyen) ? ilanOzeti(teklif.propertyId) : talepOzeti(teklif.demandId);
+      notify(bekleyen, "CONTACT_WAITING", "Onayın bekleniyor", "Karşı taraf iletişim paylaşımını onayladı; sıra sende.", panel(bekleyen));
+      queueEmail(bekleyen, "Karşı taraf onay verdi — sıra sende",
+        ["Eşleştiğin taraf iletişim bilgilerinin paylaşılmasını onayladı. Sen de onay verdiğinde telefon ve e-posta karşılıklı açılır.",
+          ozet ? `Eşleşme:\n${ozet}` : "",
+          "Onaylamadığın sürece iletişim bilgilerin karşı tarafa gösterilmez."
+        ].filter(Boolean).join("\n\n"),
+        panel(bekleyen), "İletişim onayı bekleniyor", null, "match");
     }
     addAudit(user.id, "CONTACT_APPROVED", "Match", m.id, unlocked ? "İletişim açıldı" : "Onay verildi");
     return ok(res, { unlocked });

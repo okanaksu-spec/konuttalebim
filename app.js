@@ -890,6 +890,19 @@ function homePage() {
         <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/ilanlar">${icon("search", 15)} Tüm konutları gör</a></div>
       </div>
     </section>
+    <section class="band band-soft">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-title">
+            <div class="kicker">Ev arayanlar</div>
+            <h2>Ne aradığını söyleyenler burada; sen teklifi doğrudan onlara götür.</h2>
+            <p class="lead">Yayındaki gerçek talepler. Kimlik bilgileri gizli kalır; ihtiyaç özetini görüp panelinden teklif gönderirsin.</p>
+          </div>
+        </div>
+        <div id="home-demands" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>Talepler yükleniyor…</b><span class="muted">Yayındaki talepler birazdan görünecek.</span></div></div>
+        <div class="section-actions" style="margin-top:16px"><button class="btn btn-outline" onclick="KT.tumTalepler()">${icon("key", 15)} Tüm talepleri gör</button></div>
+      </div>
+    </section>
     <section class="trust-strip">
       <div class="container trust-grid">
         <div class="trust-item">${icon("card", 19)}<div><strong>Bütçe beyanı</strong><span>Alıcı sadece bütçe aralığını ve alım niyetini beyan eder.</span></div></div>
@@ -2873,7 +2886,7 @@ function publicDemandCard(d) {
       <div class="lc-media">
         <div class="lc-ph">${icon("key", 40)}</div>
         <span class="lc-badge">${escapeHtml(d.propertyType || d.mainCategory || "Konut")}</span>
-        <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiracı arıyor" : "Alıcı arıyor"}</span>
+        <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık ev arıyor" : "Satılık ev arıyor"}</span>
         ${isBoosted(d) ? `<span class="lc-boost">Üste taşındı</span>` : ""}
       </div>
       <div class="lc-body">
@@ -3424,6 +3437,12 @@ window.KT = {
     KT.searchRun();
   },
   // Konutlar <-> Ev arayanlar (talepler) sekmesi
+  // Ana sayfadaki "Tüm talepleri gör": arama sayfasini dogrudan "Ev arayanlar"
+  // sekmesinde acar.
+  tumTalepler() {
+    searchState.mode = "demands";
+    setRoute("ilanlar");
+  },
   searchMode(mode) {
     searchState.mode = mode === "demands" ? "demands" : "properties";
     render();
@@ -3474,18 +3493,34 @@ window.KT = {
   // Ana sayfada yayındaki en yeni gerçek ilanları göster (giriş gerekmez).
   async loadHomeListings() {
     const box = document.getElementById("home-listings");
-    if (!box) return;
-    const r = await api("/properties/search?");
-    const items = (r.ok && r.data && r.data.items) ? r.data.items.slice(0, 8) : [];
-    _searchItems = items;
-    box.innerHTML = items.length
-      ? items.map(listingCard).join("")
-      : `<div class="empty" style="grid-column:1/-1"><b>Henüz konut yok</b><span class="muted">İlk konutlar eklendiğinde burada görünür.</span></div>`;
+    if (box) {
+      const r = await api("/properties/search?");
+      const items = (r.ok && r.data && r.data.items) ? r.data.items.slice(0, 8) : [];
+      _searchItems = items;
+      box.innerHTML = items.length
+        ? items.map(listingCard).join("")
+        : `<div class="empty" style="grid-column:1/-1"><b>Henüz konut yok</b><span class="muted">İlk konutlar eklendiğinde burada görünür.</span></div>`;
+    }
+    // Ana sayfadaki "Ev arayanlar" bolumu: yayindaki gercek talepler.
+    // Sunucu kimlik alanlarini hic gondermez, aciklamadaki iletisim bilgisi maskelidir.
+    const dBox = document.getElementById("home-demands");
+    if (dBox) {
+      const rd = await api("/demands/search?");
+      const talepler = (rd.ok && rd.data && rd.data.items) ? rd.data.items.slice(0, 8) : [];
+      // Karta tiklandiginda detay modali _searchItems icinden okur; ikisini birlestir.
+      _searchItems = (_searchItems || []).concat(talepler);
+      dBox.innerHTML = talepler.length
+        ? talepler.map(publicDemandCard).join("")
+        : `<div class="empty" style="grid-column:1/-1"><b>Henüz talep yok</b><span class="muted">İlk talepler oluşturulduğunda burada görünür.</span></div>`;
+    }
   },
   searchDetail(id) {
     const p = _searchItems.find((x) => x.id === id);
     if (!p) return;
-    if (searchState.mode === "demands") return KT.demandDetail(p);
+    // Hangi modal acilacak? Arama sayfasinda sekmeye, ana sayfada kaydin kendisine
+    // bakariz: talepte fiyat yerine butce araligi vardir.
+    const talepMi = p.price === undefined && (p.minBudget !== undefined || p.maxBudget !== undefined);
+    if (searchState.mode === "demands" || talepMi) return KT.demandDetail(p);
     const u = currentUser();
     const rent = p.transactionType === "RENT";
     const loc = [p.city, p.district, p.neighborhood].filter(Boolean).join(", ") || "Konum belirtilmedi";
@@ -3545,7 +3580,7 @@ window.KT = {
     ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
     ov.onclick = (e) => { if (e.target === ov) KT.closeSearchDetail(); };
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(8,18,30,.35)">
-        <div class="lc-media" style="height:150px;border-radius:14px 14px 0 0"><div class="lc-ph">${icon("key", 46)}</div><span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiracı arıyor" : "Alıcı arıyor"}</span></div>
+        <div class="lc-media" style="height:150px;border-radius:14px 14px 0 0"><div class="lc-ph">${icon("key", 46)}</div><span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık ev arıyor" : "Satılık ev arıyor"}</span></div>
         <div style="padding:20px">
           <h3 style="margin:0 0 6px;font-size:20px;color:#10243a">${escapeHtml(d.title || "")}</h3>
           <p style="margin:0 0 4px;color:#5b6b7d;font-size:14px">${icon("map", 13)} ${escapeHtml(loc)}</p>

@@ -167,7 +167,9 @@ for (const alter of [
   "ALTER TABLE users ADD COLUMN monthlyIncome TEXT",
   "ALTER TABLE users ADD COLUMN occupationGroup TEXT",
   // E-posta dogrulama takibi: 72 saatlik sure bu tarihten sayilir.
-  "ALTER TABLE users ADD COLUMN emailVerifyDeadline TEXT"
+  "ALTER TABLE users ADD COLUMN emailVerifyDeadline TEXT",
+  // Hatirlatma bir kez gonderilir; bu alan dolu ise tekrar gonderilmez.
+  "ALTER TABLE users ADD COLUMN emailReminderSentAt TEXT"
 ]) {
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }

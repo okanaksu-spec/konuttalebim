@@ -239,6 +239,61 @@ function epostaDogrulamaBaslat(userId, email, isim) {
   return expires;
 }
 
+/**
+ * E-posta dogrulama hatirlatmasi.
+ *
+ * Ne zaman: sure dolmasina 24 saatten az kaldiginda, kullanici basina BIR KEZ.
+ * Yeni bir baglanti uretir ama SURE UZATMAZ — token, ilk kayittaki bitis aninda
+ * gecersiz olur. Aksi halde hatirlatma sureyi surekli oteler, 72 saat kurali
+ * anlamsizlasirdi.
+ *
+ * Bu bir islem e-postasidir (hesabin isleyisi), pazarlama degildir; bildirim
+ * tercihlerinden etkilenmez.
+ */
+function epostaHatirlatmaGonder(u) {
+  const token = randomBytes(24).toString("hex");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  db.prepare("INSERT INTO email_verifications (tokenHash,userId,email,createdAt,expiresAt,usedAt,sentCount) VALUES (?,?,?,?,?,NULL,1)")
+    .run(tokenHash, u.id, u.email, now(), u.emailVerifyDeadline);
+  db.prepare("UPDATE users SET emailReminderSentAt=? WHERE id=?").run(now(), u.id);
+  const kalanSaat = Math.max(1, Math.round((new Date(u.emailVerifyDeadline) - Date.now()) / 3600000));
+  const link = `${BASE_URL}/api/eposta/dogrula?t=${token}`;
+  const html = notificationEmailHtml(u.name, "E-postanı doğrulamayı unutma",
+    ["Üyeliğini açtın ama e-posta adresini henüz doğrulamadın.",
+      `Doğrulama bağlantın yaklaşık ${kalanSaat} saat sonra geçersiz olacak. Aşağıdaki butona tıklaman yeterli.`,
+      "Doğrulamadığında talep ve tekliflerinle ilgili bildirimleri kaçırabilirsin."
+    ].join("\n\n"), "", null, u.id);
+  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#d6a94a)/, `href="${link}"$1`);
+  addAudit(u.id, "EMAIL_VERIFY_REMINDER", "User", u.id, `${kalanSaat} saat kala hatırlatma gönderildi.`);
+  return deliverEmail(u.id, u.email, u.name, "Konuttalebi — E-postanı doğrulamayı unutma", htmlLinkli, "E-posta doğrulama hatırlatması");
+}
+
+async function epostaHatirlatmaTara() {
+  const bekleyenler = db.prepare(`
+    SELECT u.id, u.name, u.email, u.emailVerifyDeadline
+    FROM users u JOIN auth_accounts a ON a.userId = u.id
+    WHERE a.emailVerified = 0 AND u.status = 'ACTIVE'
+      AND u.emailVerifyDeadline IS NOT NULL AND u.emailReminderSentAt IS NULL
+      AND u.email IS NOT NULL AND u.email <> ''`).all();
+  let gonderilen = 0;
+  for (const u of bekleyenler) {
+    const kalanSaat = (new Date(u.emailVerifyDeadline) - Date.now()) / 3600000;
+    if (kalanSaat > 0 && kalanSaat <= 24) {
+      try { await epostaHatirlatmaGonder(u); gonderilen++; }
+      catch (e) { console.error("[mail] hatirlatma gonderilemedi:", e && e.message); }
+    }
+  }
+  return gonderilen;
+}
+
+// Saatte bir kontrol; ilk kontrol sunucu acildiktan 1 dk sonra.
+setInterval(() => {
+  epostaHatirlatmaTara()
+    .then((n) => { if (n) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${n} kisi`); })
+    .catch((e) => console.error("[mail] hatirlatma taramasi hatasi:", e && e.message));
+}, 60 * 60 * 1000).unref?.();
+setTimeout(() => { epostaHatirlatmaTara().catch(() => {}); }, 60 * 1000).unref?.();
+
 // ---------- Telefon dogrulama ----------
 // Kod veritabaninda ACIK TUTULMAZ; SHA-256 ozeti saklanir. Test modunda
 // (Netgsm bilgileri yokken) kod ayrica testCode alanina yazilir ve YALNIZCA
@@ -1419,6 +1474,14 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     addAudit(user.id, "PHONE_VERIFIED", "User", user.id, maskPhone(kayit.phone));
     notify(user.id, "PHONE_VERIFIED", "Telefonun doğrulandı", "Artık talep oluşturabilir ve teklif gönderebilirsin.", "");
     return ok(res, { verified: true });
+  }
+
+  // --- admin: e-posta hatirlatma taramasini elle calistir ---
+  if (seg[0] === "admin" && seg[1] === "eposta-hatirlat" && method === "POST") {
+    if (user.role !== "ADMIN") return err(res, 403, "Bu işlem için yetkiniz yok.");
+    const n = await epostaHatirlatmaTara();
+    addAudit(user.id, "ADMIN_EMAIL_REMINDER_RUN", "User", user.id, `${n} kişiye hatırlatma gönderildi.`);
+    return ok(res, { sent: n });
   }
 
   // --- e-posta dogrulama baglantisini tekrar gonder (giris gerekli) ---

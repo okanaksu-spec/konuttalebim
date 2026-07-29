@@ -1260,6 +1260,74 @@ function authRegisterPage(roleKey = "buyer") {
   `);
 }
 
+// Telefon dogrulama ekrani. Kayit sonrasi ILK islemden once bir kez gorunur.
+function phoneVerifyPage() {
+  const u = currentUser();
+  if (!u) { location.hash = "/giris"; return ""; }
+  if (u.phoneVerified) {
+    return publicShell("Telefonun doğrulandı", "Bu adımı tamamladın.", `
+      <div class="auth-layout auth-layout-narrow">
+        <div class="panel auth-panel" style="text-align:center">
+          <div style="font-size:44px;line-height:1;margin-bottom:10px">✅</div>
+          <h3 style="margin:0 0 8px">Telefonun doğrulandı</h3>
+          <p class="muted" style="margin:0 0 18px">Artık talep oluşturabilir ve teklif gönderebilirsin.</p>
+          <a class="btn btn-primary" href="#/${escapeAttr(dashboardPathForRole(u.role))}">Panele git</a>
+        </div>
+      </div>`);
+  }
+  const tel = (u.phone || "").trim();
+  return publicShell("Telefonunu doğrula", "Sahte üyeliği önlemek için tek seferlik bir kod gönderiyoruz.", `
+    <div class="auth-layout auth-layout-narrow">
+      <div class="panel auth-panel">
+        <div class="notice" style="margin:0 0 16px">
+          Numaranı doğrulamak <strong>bir kez</strong> yapılır ve ücretsizdir. Numaran ilanında veya talebinde
+          <strong>görünmez</strong>; yalnızca eşleşme sonrası, iki taraf da onay verdiğinde paylaşılır.
+        </div>
+
+        <div id="pv-step1">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="pv-phone">Cep telefonun</label>
+              <input id="pv-phone" type="tel" inputmode="numeric" placeholder="5xx xxx xx xx" value="${escapeAttr(tel)}">
+            </div>
+          </div>
+          <div id="pv-error" class="error"></div>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="KT.phoneSendCode()">${icon("send", 16)} Kodu gönder</button>
+          </div>
+        </div>
+
+        <div id="pv-step2" style="display:none">
+          <p style="margin:0 0 12px;font-size:14.5px;color:#41556d">
+            <strong id="pv-target"></strong> numarasına 6 haneli kod gönderildi. Kod 5 dakika geçerli.
+          </p>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="pv-code">Doğrulama kodu</label>
+              <input id="pv-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 hane"
+                     style="letter-spacing:.35em;font-size:20px;text-align:center" autocomplete="one-time-code">
+            </div>
+          </div>
+          <div id="pv-error2" class="error"></div>
+          <div class="form-actions" style="gap:10px">
+            <button class="btn btn-primary" onclick="KT.phoneVerify()">${icon("check", 16)} Doğrula</button>
+            <button class="btn btn-outline" id="pv-resend" onclick="KT.phoneSendCode(true)">Kodu tekrar gönder</button>
+          </div>
+          <p class="muted" style="margin:10px 0 0;font-size:13px">Kod gelmediyse numarayı kontrol et; yanlışsa yukarıdan düzeltip tekrar gönder.</p>
+        </div>
+      </div>
+      <aside class="auth-side">
+        <span class="badge badge-blue">${icon("shield", 13)} Neden isteniyor?</span>
+        <h3>Gerçek kişilerle eşleşmen için</h3>
+        <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">1</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Sahte üyelik ve boş teklif trafiği azalır.</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">2</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Karşı taraf gerçek biriyle konuştuğunu bilir.</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">3</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Numaran gizli kalır; yalnızca iki taraf da onay verdiğinde paylaşılır.</span></li>
+        </ol>
+      </aside>
+    </div>`);
+}
+
 // "Google ile devam et" butonu — yalnizca sunucuda GOOGLE_CLIENT_ID/SECRET tanimliysa gorunur.
 function googleAuthBlock(label = "Google ile devam et") {
   if (!(state.config && state.config.googleAuth)) return "";
@@ -1417,6 +1485,9 @@ function publicPage(kind) {
   }
   if (kind === "hosgeldin") {
     return packageOfferPage();
+  }
+  if (kind === "telefon-dogrula") {
+    return phoneVerifyPage();
   }
   if (kind === "nasil-calisir") {
     return publicShell("Nasıl Çalışır", "Talep ve teklif eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
@@ -1782,6 +1853,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/admin/sikayetler", "Şikayetler", "alert"],
       ["dashboard/admin/risk", "Risk Paneli", "shield"],
       ["dashboard/admin/odemeler", "Ödemeler", "card"],
+      ["dashboard/admin/sms", "SMS Doğrulama", "shield"],
       ["dashboard/admin/audit", "Denetim Kaydı", "shield"]
     ]
   };
@@ -2191,6 +2263,7 @@ function renderAdmin(path) {
   if (path.includes("/risk")) content = adminTable("Risk Paneli", state.abuseSignals, ["userId", "type", "score", "metadata", "createdAt"]);
   if (path.includes("/odemeler")) content = adminTable("Ödemeler", state.payments, ["userId", "planId", "provider", "amount", "currency", "status"]);
   if (path.includes("/audit")) content = adminAudit();
+  if (path.includes("/sms")) content = adminSms();
   return dashboardLayout("admin", content, path);
 }
 
@@ -2325,6 +2398,36 @@ function adminAuditTable(list, kisi) {
       <thead><tr><th>Tarih</th><th>Kim</th><th>İşlem</th><th>Kayıt</th><th>Açıklama</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="5" class="muted">Kayıt yok</td></tr>`}</tbody>
     </table></div>`;
+}
+
+// Telefon dogrulama kayitlari. Test modunda kod burada gorunur; gercek
+// gonderimde kod hicbir yerde saklanmaz, yalnizca ozeti tutulur.
+function adminSms() {
+  const cfg = state.smsConfig || {};
+  const rows = (state.phoneCodes || []).map((k) => {
+    const u = (state.users || []).find((x) => x.id === k.userId) || {};
+    const suresiDolmus = k.expiresAt && new Date(k.expiresAt) < new Date();
+    const durum = k.usedAt ? "kullanıldı" : suresiDolmus ? "süresi doldu" : "bekliyor";
+    return `<tr>
+      <td>${escapeHtml(k.sentAt || "")}</td>
+      <td>${escapeHtml(u.name || k.userId || "")}</td>
+      <td>${escapeHtml(k.phone || "")}</td>
+      <td>${k.testCode ? `<code style="font-size:15px;font-weight:700;letter-spacing:.08em">${escapeHtml(k.testCode)}</code>` : `<span class="muted">SMS ile gönderildi</span>`}</td>
+      <td>${escapeHtml(String(k.attempts || 0))}</td>
+      <td><span class="badge ${durum === "kullanıldı" ? "badge-green" : durum === "bekliyor" ? "badge-blue" : "badge-neutral"}">${durum}</span></td>
+    </tr>`;
+  }).join("");
+  return `
+    ${pageHead("SMS Doğrulama", "Telefon doğrulama kodları ve sağlayıcı durumu.")}
+    <div class="notice" style="margin-bottom:14px">
+      <strong>${cfg.enabled ? "Gerçek gönderim açık." : "Test modu."}</strong> ${escapeHtml(cfg.durum || "")}
+      ${cfg.enabled ? "" : `<br><span class="muted">Netgsm hesabı açılıp NETGSM_USERCODE, NETGSM_PASSWORD ve NETGSM_HEADER değişkenleri girildiğinde gerçek SMS'e geçer.</span>`}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Gönderim</th><th>Üye</th><th>Telefon</th><th>Kod</th><th>Deneme</th><th>Durum</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" class="muted">Henüz doğrulama isteği yok</td></tr>`}</tbody>
+    </table></div>
+  `;
 }
 
 function adminEmails() {
@@ -2489,7 +2592,7 @@ function adminUsersTable(list) {
     const m = activeMembership(u.id);
     return `<tr>
       <td>${escapeHtml(u.name || "")}</td>
-      <td>${escapeHtml(u.phone || "—")}</td>
+      <td>${escapeHtml(u.phone || "—")}${u.phoneVerified ? ` <span title="Telefon doğrulandı" style="color:#2f8f4e;font-weight:700">✓</span>` : ""}</td>
       <td>${escapeHtml(u.email || "—")}</td>
       <td>${escapeHtml(u.city || "—")}</td>
       <td><span class="badge badge-blue">${escapeHtml(userTip(u))}</span></td>
@@ -3125,6 +3228,15 @@ function render() {
   if (path.startsWith("dashboard")) {
     if (!isSignedIn()) { location.hash = "/giris"; return; }
     if (path.startsWith("dashboard/admin") && currentUser().role !== "ADMIN") { location.hash = "/home"; return; }
+    // Telefon dogrulamasi: talep/ilan/teklif olusturma ekranlari once dogrulama ister.
+    // Sunucu da ayni kontrolu yapiyor; bu yalnizca kullaniciyi bos form doldurmaktan kurtarir.
+    const dogrulamaGerektiren = ["/talep-olustur", "/ev-ekle", "/teklif-gonder"];
+    const u = currentUser();
+    if (u && !u.phoneVerified && dogrulamaGerektiren.some((x) => path.includes(x))) {
+      try { sessionStorage.setItem("kt-dogrulama-sonrasi", path); } catch { /* onemli degil */ }
+      location.hash = "/telefon-dogrula";
+      return;
+    }
   }
   const roleKey = (() => { const r = ((currentUser() || {}).role || "").toUpperCase(); return r === "ADMIN" ? "admin" : r === "SELLER" ? "seller" : r === "AGENT" ? "agent" : "buyer"; })();
   const content = path.startsWith("dashboard/ara")
@@ -3348,6 +3460,54 @@ window.KT = {
     await refreshState();
     toast("Profil bilgileri kaydedildi.");
     render();
+  },
+  // --- Telefon dogrulama ---
+  async phoneSendCode(tekrar) {
+    const el = document.getElementById("pv-phone");
+    const phone = el ? el.value.trim() : "";
+    const hedefHata = tekrar ? "pv-error2" : "pv-error";
+    const btn = event && event.target ? event.target : null;
+    if (btn) btn.disabled = true;
+    const r = await api("/phone/send-code", "POST", { phone });
+    if (btn) btn.disabled = false;
+    if (!r.ok) return showFormError(hedefHata, (r.data && r.data.error) || "Kod gönderilemedi.");
+    if (r.data.alreadyVerified) { await refreshState(); return render(); }
+    const t = document.getElementById("pv-target");
+    if (t) t.textContent = r.data.phoneMasked || phone;
+    const s1 = document.getElementById("pv-step1"), s2 = document.getElementById("pv-step2");
+    if (s1) s1.style.display = "none";
+    if (s2) s2.style.display = "";
+    const kod = document.getElementById("pv-code");
+    if (kod) kod.focus();
+    toast(r.data.testMode
+      ? "Test modu: SMS gönderilmedi, kod yönetim panelinde görünüyor."
+      : "Kod gönderildi.");
+    // Tekrar gonder butonunu 60 sn kilitle (sunucu da ayni siniri uyguluyor).
+    const rb = document.getElementById("pv-resend");
+    if (rb) {
+      let kalan = 60;
+      rb.disabled = true;
+      const eskiMetin = "Kodu tekrar gönder";
+      const sayac = setInterval(() => {
+        kalan -= 1;
+        rb.textContent = kalan > 0 ? `Tekrar gönder (${kalan})` : eskiMetin;
+        if (kalan <= 0) { clearInterval(sayac); rb.disabled = false; }
+      }, 1000);
+    }
+  },
+  async phoneVerify() {
+    const el = document.getElementById("pv-code");
+    const code = el ? el.value.replace(/\D/g, "") : "";
+    if (code.length !== 6) return showFormError("pv-error2", "6 haneli kodu gir.");
+    const r = await api("/phone/verify", "POST", { code });
+    if (!r.ok) return showFormError("pv-error2", (r.data && r.data.error) || "Doğrulanamadı.");
+    await refreshState();
+    ktTrack("telefon_dogrulandi", {});
+    toast("Telefonun doğrulandı.");
+    // Doğrulamadan önce gitmek istediği yer varsa oraya dön.
+    const hedef = sessionStorage.getItem("kt-dogrulama-sonrasi");
+    sessionStorage.removeItem("kt-dogrulama-sonrasi");
+    setRoute(hedef || dashboardPathForRole((currentUser() || {}).role));
   },
   async saveNotifyPrefs() {
     const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : true; };
@@ -3685,7 +3845,7 @@ window.KT = {
 
         <div style="margin-top:14px">
           ${satir("E-posta", escapeHtml(u.email || "—") + (acc.emailVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
-          ${satir("Telefon", escapeHtml(u.phone || "—"))}
+          ${satir("Telefon", escapeHtml(u.phone || "—") + (u.phoneVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
           ${satir("Şehir", escapeHtml(u.city || "—"))}
           ${satir("Rol", escapeHtml(u.role || "—"))}
           ${satir("Güven puanı", escapeHtml(String(u.trustScore ?? "—")))}

@@ -203,8 +203,16 @@ function phoneVerified(userId) {
   return Boolean(u && u.phoneVerified);
 }
 
-/** Dogrulanmamis kullaniciya 403 doner; cagiran yer return eder. */
+/**
+ * Dogrulanmamis kullaniciya 403 doner; cagiran yer return eder.
+ *
+ * KRITIK: SMS saglayicisi yapilandirilmamissa kapi ACILMAZ. Aksi halde
+ * kullanici kod isteyebilir ama SMS almadigi icin asla dogrulayamaz ve
+ * talep/ilan/teklif akisi tamamen kilitlenir. Netgsm bilgileri girilene
+ * kadar ozellik uykuda bekler.
+ */
 function requirePhone(res, user) {
+  if (!smsEnabled()) return false;
   if (phoneVerified(user.id)) return false;
   err(res, 403, "Devam etmek için telefon numaranı doğrulaman gerekiyor.");
   return true;
@@ -764,7 +772,9 @@ function buildState(user) {
 
   return {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
-    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled },
+    // smsVerification: SMS saglayicisi bagli mi? Istemci bu bayrak acikken
+    // dogrulama ekranina yonlendirir; kapaliyken ozellik uykudadir.
+    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled, smsVerification: smsEnabled() },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
     // Gizlilik: misafir (giris yapmamis) istekte kisisel/ters-pazar verisi donmez.

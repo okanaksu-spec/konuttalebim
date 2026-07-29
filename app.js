@@ -915,7 +915,7 @@ function homePage() {
         <div class="color-copy">
           <div class="kicker">Canlı talep piyasası</div>
           <h2>Aradığını açıkça söyle; sana uygun mülk sahibinin iletişim bilgisine ulaş, gerisini doğrudan konuş.</h2>
-          <p>Konuttalebi'de belge istenmez. Bütçe/kira aralığını ve tercihlerini beyan edersin; sistem seni uygun konutlarla eşleştirir. Üyelikle mülk sahibinin iletişim bilgisine ulaşır, fiyata ve pazarlığa karışmadan doğrudan anlaşırsın.</p>
+          <p>Konuttalebi'nde belge istenmez. Bütçe/kira aralığını ve tercihlerini beyan edersin; sistem seni uygun konutlarla eşleştirir. Üyelikle mülk sahibinin iletişim bilgisine ulaşır, fiyata ve pazarlığa karışmadan doğrudan anlaşırsın.</p>
           <div class="color-chip-row">
             <span class="color-chip chip-coral">Talep beyanı</span>
             <span class="color-chip chip-teal">Talebe özel eşleşme</span>
@@ -1329,6 +1329,37 @@ function authRegisterPage(roleKey = "buyer") {
 
 
 // Telefon dogrulama ekrani. Kayit sonrasi ILK islemden once bir kez gorunur.
+// E-posta dogrulanmadan panele girilemez. Duvar ekrani: cikis ve tekrar
+// gonderme disinda bir sey yapilamaz. ADMIN muaftir (yonetici kilitlenmesin).
+function emailWallPage() {
+  const u = currentUser();
+  if (!u) { location.hash = "/giris"; return ""; }
+  const kalan = epostaKalanSaat(u);
+  return publicShell("E-postanı doğrula", "Üyeliğini kullanmaya başlamadan önce tek bir adım kaldı.", `
+    <div class="auth-layout auth-layout-narrow">
+      <div class="panel auth-panel" style="text-align:center">
+        <div style="font-size:44px;line-height:1;margin-bottom:10px">&#128231;</div>
+        <h3 style="margin:0 0 10px;font-size:21px">E-postanı doğrulaman gerekiyor</h3>
+        <p class="muted" style="margin:0 0 6px;line-height:1.6">
+          <strong>${escapeHtml(u.email || "")}</strong> adresine bir doğrulama bağlantısı gönderdik.
+          Bağlantıya tıkladığında hesabın açılır.
+        </p>
+        ${kalan !== null ? `<p class="muted" style="margin:0 0 16px;font-size:13.5px">
+          ${kalan > 0 ? `Bağlantı <strong>${kalan} saat</strong> daha geçerli.` : "Bağlantının süresi doldu; aşağıdan yenisini iste."}
+        </p>` : ""}
+        <div class="notice" style="text-align:left;margin:0 0 16px">
+          Gelen kutunda göremiyorsan <strong>spam / gereksiz</strong> klasörüne bak.
+          Adresin yanlışsa çıkış yapıp doğru adresle yeniden üye olabilirsin.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="KT.epostaTekrarGonder()">${icon("mail", 16)} Bağlantıyı tekrar gönder</button>
+          <button class="btn btn-outline" onclick="KT.checkVerified()">Doğruladım, kontrol et</button>
+          <button class="btn btn-outline" onclick="KT.logout()">Çıkış yap</button>
+        </div>
+      </div>
+    </div>`);
+}
+
 function phoneVerifyPage() {
   const u = currentUser();
   if (!u) { location.hash = "/giris"; return ""; }
@@ -1703,7 +1734,7 @@ function legalPage(kind) {
       <li><strong>Web:</strong> https://konuttalebi.com</li>
     </ul>`;
   const docs = {
-    "iletisim": { t: "İletişim ve Firma Bilgileri", s: "Konuttalebi'yi işleten şirket ve iletişim bilgileri.", h: `
+    "iletisim": { t: "İletişim ve Firma Bilgileri", s: "Konuttalebi'ni işleten şirket ve iletişim bilgileri.", h: `
       <h3>Firma Bilgileri</h3>${firmaList}
       <h3>İletişim</h3>
       <p>Her türlü soru, öneri, talep ve şikâyetiniz için <strong>${C.email}</strong> adresine e-posta gönderebilir veya <strong>${C.tel}</strong> numaralı telefondan bize ulaşabilirsiniz. Başvurularınız en kısa sürede yanıtlanır.</p>
@@ -1712,7 +1743,7 @@ function legalPage(kind) {
       <p>Bu form, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği uyarınca, siparişinizi onaylamadan önce sizi bilgilendirmek için sunulur.</p>
       <h3>1. Hizmet Sağlayıcı</h3>${firmaList}
       <h3>2. Hizmetin Konusu</h3>
-      <p>Konuttalebi'de sunulan dijital hizmet paketleri: (a) <strong>Bilgileri Görme Üyeliği</strong> — eşleştiğiniz karşı tarafın iletişim bilgisini (telefon/e-posta) görüntüleme hakkı; (b) <strong>Öne Çıkarma (Üste Taşı) Paketleri</strong> — talep veya ilanın listelerde belirli süre üstte gösterilmesi. Paketin adı, kapsamı, süresi ve KDV dâhil fiyatı satın alma ekranında açıkça belirtilir.</p>
+      <p>Konuttalebi'nde sunulan dijital hizmet paketleri: (a) <strong>Bilgileri Görme Üyeliği</strong> — eşleştiğiniz karşı tarafın iletişim bilgisini (telefon/e-posta) görüntüleme hakkı; (b) <strong>Öne Çıkarma (Üste Taşı) Paketleri</strong> — talep veya ilanın listelerde belirli süre üstte gösterilmesi. Paketin adı, kapsamı, süresi ve KDV dâhil fiyatı satın alma ekranında açıkça belirtilir.</p>
       <h3>3. Fiyat ve Ödeme</h3>
       <p>Satın alma anında ekranda gösterilen, tüm vergiler dâhil tutar geçerlidir. Ödemeler ${C.odeme} sanal POS altyapısı ve 3D Secure ile alınır; kart bilgileriniz Konuttalebi tarafından görülmez ve saklanmaz.</p>
       <h3>4. İfa / Teslim</h3>
@@ -1747,7 +1778,7 @@ function legalPage(kind) {
       <h3>4. İade Süresi ve Başvuru</h3>
       <p>Onaylanan iadeler, ilgili banka/ödeme kuruluşu süreçlerine bağlı olarak genellikle birkaç iş günü içinde kart hesabınıza yansır. Talepleriniz için işlem no ve tarih ile ${C.email} adresine yazınız.</p>` },
     "teslimat": { t: "Teslimat ve İfa Koşulları", s: "Dijital hizmet; fiziksel teslimat/kargo yoktur.", h: `
-      <p>Konuttalebi'de satılan tüm paketler <strong>dijital hizmettir</strong>; fiziksel ürün gönderimi, kargo veya teslimat söz konusu değildir.</p>
+      <p>Konuttalebi'nde satılan tüm paketler <strong>dijital hizmettir</strong>; fiziksel ürün gönderimi, kargo veya teslimat söz konusu değildir.</p>
       <h3>İfa Şekli ve Süresi</h3>
       <p>Ödeme 3D Secure ile onaylandığı anda hizmet (üyelik / öne çıkarma) hesabınızda <strong>anında</strong> aktifleşir; ayrıca bir teslimat süresi yoktur. Üyelik, ilgili paketin açıklamasında belirtilen süre boyunca geçerlidir.</p>
       <h3>Kargo / Teslimat Ücreti</h3>
@@ -2499,10 +2530,7 @@ function adminSms() {
 }
 
 function adminEmails() {
-  const bekleyen = (state.users || []).filter((u) => {
-    const acc = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
-    return !acc.emailVerified && u.emailVerifyDeadline;
-  });
+  const bekleyen = (state.users || []).filter((u) => !u.emailVerified && u.emailVerifyDeadline);
   const yakin = bekleyen.filter((u) => { const k = epostaKalanSaat(u); return k !== null && k > 0 && k <= 24; });
   return `
     ${pageHead("E-posta Outbox", "Uygun alıcı talebi veya satıcı ilanı girildiğinde hazırlanan anlık e-postalar.")}
@@ -2667,8 +2695,7 @@ function applyAdminSort(list, valueOf) {
 
 // E-posta dogrulama durumu ve 72 saatlik sure gostergeleri (yalnizca panelde).
 function epostaDurumRozeti(u) {
-  const acc = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
-  if (acc.emailVerified) return `<span class="badge badge-green">doğrulandı</span>`;
+  if (u.emailVerified) return `<span class="badge badge-green">doğrulandı</span>`;
   const kalan = epostaKalanSaat(u);
   if (kalan === null) return `<span class="badge badge-neutral">bekliyor</span>`;
   if (kalan <= 0) return `<span class="badge badge-neutral" style="background:#fde8e8;color:#a12727">süresi doldu</span>`;
@@ -2951,7 +2978,7 @@ function notificationsPage(userId) {
 function settingsPage(user) {
   const account = (state.authAccounts || []).find((item) => item.userId === user.id);
   const kalanSaat = epostaKalanSaat(user);
-  const uyari = (account && account.emailVerified) ? "" : `
+  const uyari = user.emailVerified ? "" : `
     <div class="notice" style="margin-bottom:14px;border-color:#f0e2c8;background:#fbf6ec">
       <strong>E-postanı doğrula.</strong>
       ${kalanSaat === null ? "Sana bir doğrulama bağlantısı gönderdik."
@@ -2966,7 +2993,7 @@ function settingsPage(user) {
     <section class="panel">
       <div class="sample-top" style="margin-bottom:14px">
         <span class="badge badge-blue">${roleLabel(user.role)}</span>
-        <span class="pill">${account?.emailVerified ? "E-posta doğrulanmış" : "E-posta doğrulama bekliyor"}</span>
+        <span class="pill">${user.emailVerified ? "E-posta doğrulanmış" : "E-posta doğrulama bekliyor"}</span>
         ${user.phoneVerified ? `<span class="pill">Telefon doğrulanmış</span>` : ""}
       </div>
       <div class="form-grid">
@@ -3365,6 +3392,16 @@ function updatePageTitle(path) {
 function render() {
   const path = route();
   // Panel sayfalari giris gerektirir; admin paneli sadece ADMIN rolune acik.
+  // E-posta dogrulama duvari: giris yapmis ama dogrulamamis kullanici panele
+  // giremez. Yalnizca duvar ekrani ve hukuki sayfalar acik kalir.
+  const oturumAcik = isSignedIn();
+  const kul = oturumAcik ? currentUser() : null;
+  const duvarAcikSayfalar = ["eposta-dogrula", "kvkk", "kullanim-sartlari", "cerez-politikasi", "yardim"];
+  if (kul && kul.role !== "ADMIN" && kul.emailVerified === 0 && !duvarAcikSayfalar.includes(path)) {
+    document.getElementById("app").innerHTML = `<div class="app">${header()}${emailWallPage()}${footer()}</div>`;
+    updatePageTitle("eposta-dogrula");
+    return;
+  }
   if (path.startsWith("dashboard")) {
     if (!isSignedIn()) { location.hash = "/giris"; return; }
     if (path.startsWith("dashboard/admin") && currentUser().role !== "ADMIN") { location.hash = "/home"; return; }
@@ -3752,6 +3789,13 @@ window.KT = {
     toast(r.data.sent > 0 ? `${r.data.sent} kişiye hatırlatma gönderildi.` : "Şu an hatırlatma gerektiren üye yok.");
     render();
   },
+  async checkVerified() {
+    await refreshState();
+    const u = currentUser();
+    if (u && u.emailVerified) { toast("E-postan doğrulandı, hoş geldin."); setRoute(dashboardPathForRole(u.role)); }
+    else toast("Henüz doğrulanmamış görünüyor. Bağlantıya tıkladığından emin ol.");
+    render();
+  },
   async epostaTekrarGonder() {
     const r = await api("/eposta/tekrar-gonder", "POST", {});
     if (!r.ok) return toast((r.data && r.data.error) || "Gönderilemedi.");
@@ -4095,7 +4139,7 @@ window.KT = {
         </div>
 
         <div style="margin-top:14px">
-          ${satir("E-posta", escapeHtml(u.email || "—") + (acc.emailVerified
+          ${satir("E-posta", escapeHtml(u.email || "—") + (u.emailVerified
             ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>`
             : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>${epostaSureEtiketi(u)}`))}
           ${satir("Telefon", escapeHtml(u.phone || "—") + (u.phoneVerified ? ` <span class="badge badge-green" style="margin-left:6px">doğrulandı</span>` : ` <span class="badge badge-neutral" style="margin-left:6px">doğrulanmadı</span>`))}
@@ -4206,10 +4250,9 @@ window.KT = {
   adminExportUsers() {
     const rows = filtreliUyeler().map((u) => {
       const m = activeMembership(u.id);
-      const hesap = (state.authAccounts || []).find((a) => a.userId === u.id) || {};
       return { Ad: u.name, Telefon: u.phone, Eposta: u.email, Sehir: u.city, Tip: userTip(u),
         TCKN_maskeli: u.tcknMasked || "", Dogum_yili: (u.birthDateMasked || "").slice(0, 4),
-        Eposta_dogrulandi: hesap.emailVerified ? "evet" : "hayır",
+        Eposta_dogrulandi: u.emailVerified ? "evet" : "hayır",
         Telefon_dogrulandi: u.phoneVerified ? "evet" : "hayır",
         Aylik_gelir: u.monthlyIncome || "", Meslek: u.occupationGroup || "",
         Uyelik: m ? m.name : "Ücretsiz", Kaynak: u.acqGclid ? "Google Ads" : (u.acqSource || "Doğrudan"),

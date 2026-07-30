@@ -476,7 +476,7 @@ function roleForKey(roleKey) {
 }
 
 function roleLabel(role) {
-  const labels = { BUYER: "Alıcı", SELLER: "Satıcı", AGENT: "Emlak danışmanı", ADMIN: "Admin" };
+  const labels = { BUYER: "Konut alıcısı", SELLER: "Evine alıcı arayan", AGENT: "Emlak danışmanı", ADMIN: "Admin" };
   return labels[role] || role;
 }
 
@@ -1156,7 +1156,7 @@ function registerFlowInfo(sel) {
     "Evine uygun kiracı kriterini kaydet; uyan talep gelince haber al.",
     "Üyelikle kiracının iletişim bilgisine ulaş; kirayı ve şartları doğrudan siz belirlersiniz."
   ]};
-  if (sel === "seller") return { label: "Satıcı", steps: [
+  if (sel === "seller") return { label: "Evine alıcı arayan", steps: [
     "Kaydını oluştur; ev almak isteyenlerin taleplerini filtrele.",
     "Evine uygun alıcı kriterini kaydet; uyan talep gelince haber al.",
     "Üyelikle alıcının iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
@@ -1265,7 +1265,7 @@ function authRegisterPage(roleKey = "buyer") {
   const roleOptions = [
     ["buyer", "Konut alıcısı"],
     ["tenant", "Kiracı"],
-    ["seller", "Satıcı"],
+    ["seller", "Evine alıcı arayan"],
     ["landlord", "Ev sahibi"],
     ["agent", "Emlak danışmanı"]
   ];
@@ -1696,7 +1696,7 @@ function authLoginPage() {
 
 // Google'dan donen yeni kullanici icin kisa tamamlama ekrani (rol + telefon + sehir).
 function googleCompletePage() {
-  const roleOptions = [["buyer", "Konut alıcısı"], ["tenant", "Kiracı"], ["seller", "Satıcı"], ["landlord", "Ev sahibi"], ["agent", "Emlak danışmanı"]];
+  const roleOptions = [["buyer", "Konut alıcısı"], ["tenant", "Kiracı"], ["seller", "Evine alıcı arayan"], ["landlord", "Ev sahibi"], ["agent", "Emlak danışmanı"]];
   return publicShell("Üyeliğini tamamla", "Google hesabınla giriş yaptın. Eşleşme için birkaç bilgi daha gerekiyor.", `
     <div class="auth-layout auth-layout-narrow">
       <form class="panel auth-panel" onsubmit="KT.googleComplete(event)">
@@ -1818,7 +1818,7 @@ function publicPage(kind) {
       ${howSteps()}
       <div class="grid grid-2" style="margin-top:18px">
         <article class="card"><h3>Alıcı / kiracı akışı</h3><p>Talebini bırak, e-postanı doğrula; talebin yayına girer ve kriterine uyan üyelere duyurulur. İletişim bilgini görüntüleyen üyeler seni doğrudan arar — sitede başka bir şey yapman gerekmez.</p></article>
-        <article class="card"><h3>Satıcı / ev sahibi / danışman akışı</h3><p>Üye ol, talep havuzunu filtrele, aradığın talebin kriterini kaydet; üyelikle talep sahibinin iletişim bilgisini gör, doğrudan ara ve anlaş.</p></article>
+        <article class="card"><h3>Ev sahibi / evine alıcı arayan / danışman akışı</h3><p>Üye ol, talep havuzunu filtrele, aradığın talebin kriterini kaydet; üyelikle talep sahibinin iletişim bilgisini gör, doğrudan ara ve anlaş.</p></article>
       </div>
     `);
   }
@@ -1833,17 +1833,17 @@ function publicPage(kind) {
     `);
   }
   if (kind === "satici") {
-    return publicShell("Satıcılar için", "Evin için gerçek ihtiyacı olan alıcı taleplerini gör.", `
+    return publicShell("Evine alıcı arayanlar için", "Evin için gerçek ihtiyacı olan konut alıcısı taleplerini gör.", `
       <div class="grid grid-3">
         ${featureCard("home", "Hazır talep havuzu", "Bütçesi ve ihtiyacı belli alıcıları filtrele.")}
         ${featureCard("send", "Doğrudan iletişim", "Üyelikle uygun alıcının iletişim bilgisine ulaş, doğrudan görüş.")}
         ${featureCard("chart", "Kriter bildirimi", "Aradığın alıcı profilini kaydet; uyan talep yayına girince haber al.")}
       </div>
-      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('seller')">Satıcı olarak üye ol</button></div>
+      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('seller')">Evine alıcı bul — üye ol</button></div>
     `);
   }
   if (kind === "fiyatlandirma") {
-    return publicShell("Fiyatlandırma", "Talep bırakmak (kiracı ve alıcı) tamamen ücretsizdir, komisyon yoktur. Ev sahibi, satıcı ve onaylı emlak danışmanı, talep sahibinin iletişim bilgisini görmek için üyelik alır. Üste taşıma ise ayrı, isteğe bağlı bir hizmettir.", pricingCards());
+    return publicShell("Fiyatlandırma", "Talep bırakmak (kiracı ve alıcı) tamamen ücretsizdir, komisyon yoktur. Ev sahibi, evine alıcı arayan ve onaylı emlak danışmanı, talep sahibinin iletişim bilgisini görmek için üyelik alır. Üste taşıma ise ayrı, isteğe bağlı bir hizmettir.", pricingCards());
   }
   if (kind === "yardim") {
     return publicShell("Yardım ve SSS", "Konuttalebi'nin temel kurallarını sade biçimde incele.", faq());
@@ -2089,7 +2089,7 @@ function legalPage(kind) {
         <li><strong>Üye:</strong> Site'ye kayıt olan ve hizmetlerden yararlanan gerçek veya tüzel kişi.</li>
         <li><strong>Talep:</strong> Alıcı veya kiracının aradığı konutu, iş yerini veya arsayı tarif eden kayıt. Site'de ilan yayımlanmaz; yalnızca talepler listelenir.</li>
         <li><strong>Talep Sahibi (Alıcı / Kiracı):</strong> Konut almak veya kiralamak için talep oluşturan Üye. Talep bırakmak ücretsizdir.</li>
-        <li><strong>Bireysel Üye (Satıcı / Ev Sahibi):</strong> Talep havuzunu inceleyen ve ücretli üyelikle talep sahibinin iletişim bilgisini görüntüleyebilen Üye.</li>
+        <li><strong>Bireysel Üye (Ev Sahibi / Evine Alıcı Arayan):</strong> Talep havuzunu inceleyen ve ücretli üyelikle talep sahibinin iletişim bilgisini görüntüleyebilen Üye.</li>
         <li><strong>Onaylı Emlak Danışmanı:</strong> Sorumlu Emlak Danışmanı (Seviye 5) belgesi platform tarafından onaylanmış, danışman üyeliğine sahip Üye.</li>
         <li><strong>Üyelik (İletişim Erişimi):</strong> Talep sahibinin iletişim bilgisini, kendisiyle iletişime geçmek amacıyla görüntüleme hakkı veren ücretli üyelik.</li>
       </ul>
@@ -2880,7 +2880,7 @@ const PLAN_TYPE = {
   "plan-buyer-free": "Alıcı", "plan-buyer-boost": "Alıcı", "plan-buyer-contact": "Alıcı",
   "plan-tenant-free": "Kiracı",
   "plan-landlord-contact": "Ev sahibi", "plan-landlord-boost": "Ev sahibi",
-  "plan-seller-boost": "Satıcı", "plan-seller-contact": "Satıcı",
+  "plan-seller-boost": "Evine alıcı arayan", "plan-seller-contact": "Evine alıcı arayan",
   "plan-pro": "Emlak danışmanı"
 };
 function userTip(u) {
@@ -2891,13 +2891,13 @@ function userTip(u) {
     const ds = (state.demands || []).filter((d) => d.buyerId === u.id);
     const r = ds.some((d) => (d.transactionType || "SALE") === "RENT");
     const s = ds.some((d) => (d.transactionType || "SALE") === "SALE");
-    return r && s ? "Alıcı + Kiracı" : r ? "Kiracı" : s ? "Alıcı" : "Alıcı / Kiracı";
+    return r && s ? "Konut alıcısı + Kiracı" : r ? "Kiracı" : s ? "Konut alıcısı" : "Kiracı / Konut alıcısı";
   }
   if (u.role === "SELLER") {
     const ps = (state.properties || []).filter((p) => p.sellerId === u.id);
     const r = ps.some((p) => (p.transactionType || "SALE") === "RENT");
     const s = ps.some((p) => (p.transactionType || "SALE") === "SALE");
-    return r && s ? "Satıcı + Ev sahibi" : r ? "Ev sahibi" : s ? "Satıcı" : "Satıcı / Ev sahibi";
+    return r && s ? "Bireysel üye" : r ? "Ev sahibi" : s ? "Evine alıcı arayan" : "Bireysel üye";
   }
   return u.role || "";
 }
@@ -2927,7 +2927,7 @@ function adminUsers() {
     ${pageHead("Kullanıcılar", "Tüm üyeler. Ad/e-posta/telefon ile ara; tip ve şehre göre filtrele.")}
     <div class="toolbar">
       <input id="au-q" placeholder="Ara: ad, e-posta, telefon" oninput="KT.renderAdminUsers()" style="flex:1;min-width:200px">
-      <select id="au-tip" onchange="KT.renderAdminUsers()"><option value="">Tüm tipler</option><option>Alıcı</option><option>Kiracı</option><option>Satıcı</option><option>Ev sahibi</option><option>Emlak danışmanı</option><option>Yönetici</option></select>
+      <select id="au-tip" onchange="KT.renderAdminUsers()"><option value="">Tüm tipler</option><option>Konut alıcısı</option><option>Kiracı</option><option>Evine alıcı arayan</option><option>Ev sahibi</option><option>Bireysel üye</option><option>Emlak danışmanı</option><option>Yönetici</option></select>
       <select id="au-city" onchange="KT.renderAdminUsers()"><option value="">Tüm şehirler</option>${cities.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
       <select id="au-status" onchange="KT.renderAdminUsers()"><option value="">Tüm durumlar</option><option value="ACTIVE">Aktif</option><option value="SUSPENDED">Askıda</option><option value="ANONYMIZED">Anonimleştirilmiş</option></select>
       <select id="au-uyelik" onchange="KT.renderAdminUsers()"><option value="">Üyelik farketmez</option><option value="var">Üyeliği olanlar</option><option value="yok">Ücretsiz kullananlar</option></select>
@@ -3068,7 +3068,7 @@ function adminMemberships() {
     ${pageHead("Üyelikler", "Aktif üyelikler: üye, üyelik tipi, paket ve tarih. Ara/filtrele.")}
     <div class="toolbar">
       <input id="am-q" placeholder="Ara: ad, telefon, şehir" oninput="KT.renderAdminMemberships()" style="flex:1;min-width:200px">
-      <select id="am-tip" onchange="KT.renderAdminMemberships()"><option value="">Tüm tipler</option><option>Alıcı</option><option>Kiracı</option><option>Satıcı</option><option>Ev sahibi</option><option>Emlak danışmanı</option></select>
+      <select id="am-tip" onchange="KT.renderAdminMemberships()"><option value="">Tüm tipler</option><option>Konut alıcısı</option><option>Kiracı</option><option>Evine alıcı arayan</option><option>Ev sahibi</option><option>Bireysel üye</option><option>Emlak danışmanı</option></select>
     </div>
     <div id="admin-memb-box">${adminMembTable(state.entitlements || [])}</div>
   `;
@@ -3700,7 +3700,7 @@ const PAGE_TITLES = {
   fiyatlandirma: "Fiyatlandırma ve üyelik paketleri",
   yardim: "Yardım ve sık sorulan sorular",
   alici: "Konut alıcıları için",
-  satici: "Satıcılar için",
+  satici: "Evine alıcı arayanlar için",
   giris: "Giriş yap",
   "uye-ol": "Üye ol",
   "talep-birak": "Kiralık ev talebi oluştur",

@@ -172,8 +172,8 @@ function seedState() {
 
 // Baslangic yer tutucu; ilk render'dan once sunucudan gercek durum cekilir.
 let state = normalizeState(seedState());
-let uiTxMode = "SALE"; // Satilik/Kiralik UI secimi (state disinda; refreshState ezmesin)
-try { if (new URLSearchParams(location.search).get("tx") === "RENT") uiTxMode = "RENT"; } catch {}
+let uiTxMode = "RENT"; // 2.0 + Okan karari (30 Tem): varsayilan Kiralik. ?tx=SALE ile degisir.
+try { if (new URLSearchParams(location.search).get("tx") === "SALE") uiTxMode = "SALE"; } catch {}
 let PAYMENTS_LIVE = false; // Test icin ?pay=1 ile acilir; canli-moda gecince kosulsuz true yapilacak.
 try { if (new URLSearchParams(location.search).get("pay") === "1") PAYMENTS_LIVE = true; } catch {}
 let _pendingPay = null; // odeme onay modalinda bekleyen islem

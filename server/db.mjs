@@ -170,6 +170,18 @@ for (const alter of [
   "ALTER TABLE users ADD COLUMN emailVerifyDeadline TEXT",
   // Hatirlatma bir kez gonderilir; bu alan dolu ise tekrar gonderilmez.
   "ALTER TABLE users ADD COLUMN emailReminderSentAt TEXT",
+  // Istege bagli acik rizalar (2026-07-30 izin yapisi yenilemesi).
+  // marketingConsent = ticari elektronik ileti (eskiden beri var).
+  // personalizationConsent = pazarlama ve kisisellestirme (verinin ISLENMESI).
+  // partnerTransferConsent = is ortaklarina AKTARIM (bankalar, proje
+  //   gelistiriciler, sigorta, nakliyat, abonelik saglayicilari - adiyla sayili).
+  // Ikisi ayri tutulur cunku hukuken farkli islemlerdir: kisi profillemeyi
+  // kabul edip aktarimi reddedebilir. Tarih damgalari ispat icindir.
+  "ALTER TABLE users ADD COLUMN personalizationConsent INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN personalizationConsentAt TEXT",
+  "ALTER TABLE users ADD COLUMN partnerTransferConsent INTEGER DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN partnerTransferConsentAt TEXT",
+  "ALTER TABLE users ADD COLUMN marketingConsentAt TEXT",
   // Otomatik (sure dolumu) askiya alma zamani. YONETICININ elle askiya
   // aldigi hesaplarda BOSTUR — bu ayrim onemli: e-posta dogrulanınca yalnizca
   // otomatik aski kalkar, yonetici karari kendiliginden geri alinmaz.

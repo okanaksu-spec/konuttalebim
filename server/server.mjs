@@ -105,6 +105,28 @@ function addAudit(actorId, action, entityType, entityId, metadata) {
   db.prepare("INSERT INTO audit_logs (id,actorId,action,entityType,entityId,metadata,createdAt) VALUES (?,?,?,?,?,?,?)")
     .run(uid("a"), actorId, action, entityType, entityId, metadata || "", today());
 }
+
+/**
+ * Istege bagli acik rizalari kaydeder ve HER BIRINI denetim kaydina yazar.
+ *
+ * KVKK acisinden onemli: rizanin ne zaman ve hangi kapsamla verildigini
+ * ispatlayabilmek gerekir. Bu yuzden salt kolon guncellemek yetmez; her izin
+ * icin tarih damgasi tutulur ve denetim kaydina EVET/HAYIR olarak dusulur.
+ * Uc kayit ucundan da (register, misafir talep, google complete) cagrilir.
+ */
+function izinleriKaydet(userId, body) {
+  const izinler = [
+    ["marketingConsent", "marketingConsentAt", "MARKETING_CONSENT", "Ticari elektronik ileti izni"],
+    ["personalizationConsent", "personalizationConsentAt", "PERSONALIZATION_CONSENT", "Pazarlama ve kişiselleştirme izni"],
+    ["partnerTransferConsent", "partnerTransferConsentAt", "PARTNER_TRANSFER_CONSENT", "İş ortaklarına aktarım izni"],
+  ];
+  for (const [kolon, tarihKolon, olay, etiket] of izinler) {
+    const deger = body[kolon] ? 1 : 0;
+    db.prepare(`UPDATE users SET ${kolon}=?, ${tarihKolon}=? WHERE id=?`)
+      .run(deger, deger ? now() : null, userId);
+    addAudit(userId, olay, "User", userId, `${etiket}: ${deger ? "EVET" : "HAYIR"}`);
+  }
+}
 // Kimlik alanlarini dogrula ve sifreli bicimde don. Anahtar yoksa sessizce atlanir.
 // Donus: { ok, error } | { ok:true, tcknEnc, tcknHash, birthDate, consent }
 function prepareIdentity(body, userIdToSkip) {
@@ -970,6 +992,11 @@ function buildState(user) {
       // NULL = hic dokunulmamis = acik kabul edilir.
       notifyMatch: (self || isAdmin) ? (u.notifyMatch === 0 ? 0 : 1) : undefined,
       notifyDigest: (self || isAdmin) ? (u.notifyDigest === 0 ? 0 : 1) : undefined,
+      // Istege bagli acik rizalar: kisi kendi tercihlerini ayarlardan yonetir,
+      // yonetici izin durumunu (ispat geregi) panelde gorur.
+      marketingConsent: (self || isAdmin) ? (u.marketingConsent ? 1 : 0) : undefined,
+      personalizationConsent: (self || isAdmin) ? (u.personalizationConsent ? 1 : 0) : undefined,
+      partnerTransferConsent: (self || isAdmin) ? (u.partnerTransferConsent ? 1 : 0) : undefined,
       // Telefon dogrulama durumu: kendisi ve admin gorur. Karsi tarafa
       // "dogrulanmis uye" bilgisi guven sinyali olarak da gosterilebilir.
       phoneVerified: u.phoneVerified ? 1 : 0,
@@ -1204,7 +1231,7 @@ async function handleApi(req, res, url) {
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent,monthlyIncome,occupationGroup,phoneVerified,phoneVerifiedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent,
         monthlyIncome, occupationGroup, smsEnabled() ? 1 : 0, smsEnabled() ? now() : null);
-    addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    izinleriKaydet(id, body);
     saveIdentity(id, kimlik);
     saveAttribution(id, body.attribution);
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
@@ -1351,7 +1378,7 @@ async function handleApi(req, res, url) {
     const id = uid("u");
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent) VALUES (?,?,?,?,?,?,?,?,?,?)")
       .run(id, role, name, email, phone, city, "ACTIVE", role === "BUYER" ? 54 : 50, today(), marketingConsent);
-    addAudit(id, "MARKETING_CONSENT", "User", id, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    izinleriKaydet(id, body);
     saveIdentity(id, kimlik);
     saveAttribution(id, body.attribution);
     // Sifre yok: saglayici Google. E-posta Google tarafindan dogrulanmis kabul edilir.
@@ -1589,7 +1616,7 @@ async function handleApi(req, res, url) {
     db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent,occupationGroup,phoneVerified,phoneVerifiedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
       .run(uid_, "BUYER", name, email, phone, gecici.city, "ACTIVE", 54, today(), marketingConsent,
         (body.occupation || "").toString().slice(0, 40), 0, null);
-    addAudit(uid_, "MARKETING_CONSENT", "User", uid_, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    izinleriKaydet(uid_, body);
     saveIdentity(uid_, kimlik);
     saveAttribution(uid_, body.attribution);
     db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
@@ -1865,6 +1892,19 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     const bitis = epostaDogrulamaBaslat(user.id, u.email, u.name);
     addAudit(user.id, "EMAIL_VERIFY_RESENT", "User", user.id, u.email);
     return ok(res, { sent: true, expiresAt: bitis });
+  }
+
+  // --- acik riza tercihleri (giris gerekli) ---
+  // Kullanici kayitta verdigi (veya vermedigi) istege bagli izinleri sonradan
+  // degistirebilmeli - KVKK'da rizanin geri alinabilirligi sarttir. Her
+  // degisiklik izinleriKaydet uzerinden denetim kaydina duser.
+  if (seg[0] === "izinler" && method === "PATCH") {
+    izinleriKaydet(user.id, {
+      marketingConsent: body.marketingConsent,
+      personalizationConsent: body.personalizationConsent,
+      partnerTransferConsent: body.partnerTransferConsent,
+    });
+    return ok(res);
   }
 
   // --- bildirim tercihleri (giris gerekli) ---

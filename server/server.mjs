@@ -218,6 +218,17 @@ function sifreGecerliMi(pw) {
 // ---------- E-posta dogrulama (72 saat) ----------
 const EPOSTA_SURE_SAAT = 72;
 
+/* Olcum kimlikleri — KÜNYE'deki degerlerle ve app.js / index.html ile
+   BIREBIR ayni olmali. Burada tekrar taniminin sebebi: misafir talep akisinda
+   asil donusum (talep yayina girdi) sunucunun dondurdugu dogrulama sayfasinda
+   gerceklesiyor; o sayfa SPA degil, bu yuzden gtag'i kendisi yuklemek zorunda.
+   Kimlikler degisirse UC yerde birlikte guncellenmeli. */
+const OLCUM = {
+  ads: "AW-18335656859",
+  ga4: "G-LFBWPTNVDE",
+  talepDonusumEtiketi: "IuOECKTCnNMcEJvXj6dE",   // "Talep oluşturma" donusumu
+};
+
 function epostaDogrulamaBaslat(userId, email, isim) {
   const token = randomBytes(24).toString("hex");
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -322,6 +333,46 @@ function otomatikAskiyiKaldir(userId) {
   return true;
 }
 
+/**
+ * Misafir akisinda dogrulanmayan taleplerin temizligi.
+ *
+ * 48 saat icinde e-postasi dogrulanmayan talep silinir. Talebin sahibi olan
+ * hesap da hicbir ise yaramadigi icin (hic dogrulanmamis, tek talebi buydu)
+ * birlikte silinir — yoksa panelde ve uye sayilarinda cop birikir.
+ *
+ * Guvenlik: yalnizca (a) e-postasi hic dogrulanmamis, (b) tek talebi
+ * PENDING_VERIFY olan, (c) baska hicbir kaydi (teklif, odeme, ilan) bulunmayan
+ * hesaplar silinir. Kosullardan biri tutmazsa hesaba dokunulmaz.
+ */
+const MISAFIR_TALEP_SURE_SAAT = 48;
+function misafirTalepTemizle() {
+  const sinir = new Date(Date.now() - MISAFIR_TALEP_SURE_SAAT * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const bekleyenler = db.prepare(`
+    SELECT d.id AS demandId, d.buyerId, d.createdAt
+    FROM demands d JOIN auth_accounts a ON a.userId = d.buyerId
+    WHERE d.status='PENDING_VERIFY' AND a.emailVerified = 0`).all();
+  let silinen = 0;
+  for (const b of bekleyenler) {
+    if (String(b.createdAt || "") > sinir) continue;    // henuz 48 saat olmamis
+    const baskaKayit =
+      db.prepare("SELECT COUNT(*) c FROM demands WHERE buyerId=? AND id<>?").get(b.buyerId, b.demandId).c +
+      db.prepare("SELECT COUNT(*) c FROM properties WHERE sellerId=?").get(b.buyerId).c +
+      db.prepare("SELECT COUNT(*) c FROM offers WHERE buyerId=? OR sellerId=?").get(b.buyerId, b.buyerId).c +
+      db.prepare("SELECT COUNT(*) c FROM payments WHERE userId=?").get(b.buyerId).c;
+    db.prepare("DELETE FROM demands WHERE id=?").run(b.demandId);
+    silinen++;
+    if (baskaKayit === 0) {
+      db.prepare("DELETE FROM buyer_profiles WHERE userId=?").run(b.buyerId);
+      db.prepare("DELETE FROM email_verifications WHERE userId=?").run(b.buyerId);
+      db.prepare("DELETE FROM notifications WHERE userId=?").run(b.buyerId);
+      db.prepare("DELETE FROM sessions WHERE userId=?").run(b.buyerId);
+      db.prepare("DELETE FROM auth_accounts WHERE userId=?").run(b.buyerId);
+      db.prepare("DELETE FROM users WHERE id=?").run(b.buyerId);
+    }
+  }
+  return silinen;
+}
+
 async function epostaHatirlatmaTara() {
   const bekleyenler = db.prepare(`
     SELECT u.id, u.name, u.email, u.emailVerifyDeadline
@@ -350,9 +401,13 @@ async function epostaTaramasi() {
   const askiyaAlinan = await epostaSureDolduTara().catch((e) => {
     console.error("[mail] aski taramasi hatasi:", e && e.message); return 0;
   });
+  let temizlenen = 0;
+  try { temizlenen = misafirTalepTemizle(); }
+  catch (e) { console.error("[talep] misafir temizligi hatasi:", e && e.message); }
   if (hatirlatilan) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${hatirlatilan} kisi`);
   if (askiyaAlinan) console.log(`[uyelik] sure dolumu nedeniyle askiya alinan: ${askiyaAlinan} hesap`);
-  return { hatirlatilan, askiyaAlinan };
+  if (temizlenen) console.log(`[talep] dogrulanmayan misafir talebi silindi: ${temizlenen}`);
+  return { hatirlatilan, askiyaAlinan, temizlenen };
 }
 setInterval(() => { epostaTaramasi().catch(() => {}); }, 60 * 60 * 1000).unref?.();
 setTimeout(() => { epostaTaramasi().catch(() => {}); }, 60 * 1000).unref?.();
@@ -952,7 +1007,11 @@ function buildState(user) {
     : (user ? all("notifications").filter((n) => n.userId === user.id) : []);
   const myPayments = isAdmin ? all("payments")
     : (user ? all("payments").filter((p) => p.userId === user.id) : []);
-  const demandsArr = conv(all("demands"), boolFields.demands);
+  // PENDING_VERIFY talepler: misafir akisinda e-posta dogrulanana kadar bekleyen
+  // kayitlar. Sahibi ve yonetici gorur; baska hicbir kullaniciya gosterilmez ki
+  // dogrulanmamis talepler satici havuzunu kirletmesin.
+  const demandsArr = conv(all("demands"), boolFields.demands)
+    .filter((d) => (d.status || "ACTIVE") !== "PENDING_VERIFY" || isAdmin || (user && d.buyerId === user.id));
   const propertiesArr = conv(all("properties"), boolFields.properties);
 
   return {
@@ -1003,6 +1062,103 @@ function buildState(user) {
 }
 
 // ---------- API yonlendirme ----------
+// ---------- Talep yardimcilari ----------
+// Govdeden talep kaydi nesnesi kurar. Iki yerden cagrilir: panelden talep
+// olusturma ve misafir talep akisi. Tek kaynak olmasi, iki akisin zamanla
+// birbirinden ayrilmasini engeller.
+function talepNesnesiKur(body, buyerId) {
+  return {
+    id: uid("d"), buyerId, title: (body.title || "").trim(), city: body.city || "İstanbul",
+    district: (body.district || "").trim(), neighborhood: (body.neighborhood || "").trim(),
+    propertyType: body.propertyType || "Daire", roomCount: body.roomCount || "2+1",
+    minSqm: +body.minSqm || 0, maxSqm: +body.maxSqm || 0, minBudget: +body.minBudget || 0,
+    maxBudget: +body.maxBudget || 0, downPayment: +body.downPayment || 0,
+    usesCredit: body.usesCredit ? 1 : 0, cashReady: body.cashReady ? 1 : 0, exchangePossible: body.exchangePossible ? 1 : 0,
+    purchaseTimeline: body.purchaseTimeline || "Fırsat olursa", description: (body.description || "").trim(),
+    privacyLevel: body.privacyLevel || "Platform varsayılanı",
+    transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
+    depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0,
+    interiorFeatures: JSON.stringify(Array.isArray(body.interiorFeatures) ? body.interiorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
+    exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
+    heatingType: (body.heatingType || "").toString().slice(0, 40),
+    buildingAge: (body.buildingAge || "").toString().slice(0, 20),
+    floorPref: (body.floorPref || "").toString().slice(0, 40),
+    occupation: (body.occupation || "").toString().slice(0, 40),
+    neighborhoods: JSON.stringify(Array.isArray(body.neighborhoods) ? body.neighborhoods.slice(0, 60).map((x) => String(x).slice(0, 60)) : []),
+    mainCategory: MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "Konut"
+  };
+}
+
+/**
+ * Talep basligini otomatik uretir.
+ *
+ * Kullaniciya baslik yazdirmiyoruz: bir alan daha demek oldugu gibi, elle
+ * yazilan basliklar tutarsiz ve genelde bilgisiz oluyor.
+ *
+ * Ek almayan ayirici bicim kullanilir ("Kadıköy · 2+1 ...") — cunku Turkce'de
+ * yer adina bulunma eki getirmek ses uyumuna ve son harfe gore degisir
+ * (Kadıköy'de, Ankara'da, Zonguldak'ta) ve yanlis ek marka dilini bozar.
+ */
+function talepBasligiUret(d) {
+  const yer = [d.district, d.city].filter(Boolean)[0] || d.city || "";
+  const oda = d.roomCount ? `${d.roomCount} ` : "";
+  const ne = (d.transactionType === "RENT") ? "kiralık ev arıyor" : "satılık ev arıyor";
+  const butce = (d.minBudget && d.maxBudget)
+    ? ` · ${Number(d.minBudget).toLocaleString("tr-TR")}–${Number(d.maxBudget).toLocaleString("tr-TR")} TL`
+    : "";
+  return `${yer ? yer + " · " : ""}${oda}${ne}${butce}`.slice(0, 160);
+}
+
+// Talep kaydini veritabanina yazar. durum: "ACTIVE" | "PENDING_VERIFY"
+function talepKaydet(d, imageData, durum) {
+  db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,neighborhoods,mainCategory,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, durum, 0, 0, imageData, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, d.neighborhoods, d.mainCategory, today());
+}
+
+/**
+ * Talebi yayina almanin YAN ETKILERI: uygun saticilara bildirim, talep sahibine
+ * eslesme bildirimi ve "Talebin yayinda" e-postasi.
+ *
+ * Neden ayri fonksiyon: panelden olusturulan talepte bunlar aninda calisir;
+ * misafir akisinda ise talep once PENDING_VERIFY olarak yazilir ve bu blok
+ * ancak e-posta dogrulandiktan sonra calisir. Ayni kodun iki yerde kopyalanmasi
+ * zamanla iki akisin farkli davranmasina yol acardi.
+ */
+function talebiYayinaAl(d) {
+  const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
+  const seen = new Set();
+  let matchCount = 0;
+  for (const p of props) {
+    const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
+    if (calculateMatchScore(d, p) >= 70 || loc) {
+      matchCount++;
+      if (!seen.has(p.sellerId)) {
+        seen.add(p.sellerId);
+        const where = loc ? locationLabel(p, loc) : "";
+        const metin = where
+          ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
+          : `${d.title} talebi ilanınıza uyuyor.`;
+        notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", metin, "dashboard/satici/alici-talepleri");
+        queueDigest(p.sellerId, "demand", "Sana uygun yeni talep", metin, "dashboard/satici/alici-talepleri");
+      }
+    }
+  }
+  if (matchCount > 0) {
+    notify(d.buyerId, "MATCH_FOUND", "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan var. İlgili ${d.transactionType === "RENT" ? "ev sahipleri" : "satıcılar"} sana teklif gönderebilir; tekliflerini takip et.`, "dashboard/alici/teklifler");
+  }
+  // "Talebin yayında" e-postasi: her talepte bir kez, uygun ilan sayisi
+  // gercek deger olarak icine yazilir. Ayri sablon kullanir.
+  const talepSahibi = db.prepare("SELECT name,email FROM users WHERE id=?").get(d.buyerId);
+  if (talepSahibi && talepSahibi.email && mailIzniVar(d.buyerId, "match")) {
+    const html = demandPublishedEmailHtml(talepSahibi.name, d, matchCount, d.buyerId);
+    Promise.resolve()
+      .then(() => deliverEmail(d.buyerId, talepSahibi.email, talepSahibi.name,
+        "Konuttalebi — Talebin yayında", html, "Talep yayınlandı bildirimi", d.buyerId))
+      .catch((e) => console.error("[mail] talep yayinda gonderilemedi:", e && e.message));
+  }
+  return matchCount;
+}
+
 async function handleApi(req, res, url) {
   const seg = url.pathname.replace(/^\/api\//, "").split("/");
   const method = req.method;
@@ -1256,7 +1412,10 @@ async function handleApi(req, res, url) {
     const rawToken = (body.token || "").trim();
     const password = body.password || "";
     if (!rawToken) return err(res, 400, "Geçersiz bağlantı.");
-    if (password.length < 6) return err(res, 400, "Şifre en az 6 karakter olmalı.");
+    // Kural kayittakiyle AYNI olmali: eskiden burada "en az 6 karakter" yaziyordu,
+    // yani sifirlama yoluyla kayit kuralindan zayif sifre belirlenebiliyordu.
+    const sifreHatasi = sifreGecerliMi(password);
+    if (sifreHatasi) return err(res, 400, sifreHatasi);
     const row = db.prepare("SELECT * FROM password_resets WHERE tokenHash = ?").get(sha256hex(rawToken));
     if (!row || row.usedAt || new Date(row.expiresAt).getTime() < Date.now())
       return err(res, 400, "Bağlantı geçersiz veya süresi dolmuş. Lütfen yeniden şifre sıfırlama isteyin.");
@@ -1386,6 +1545,72 @@ async function handleApi(req, res, url) {
 
   // --- KAYIT FORMU: telefon dogrulama (giris gerektirmez) ---
   // Hesap acilmadan once telefonu dogrularz; kayit sirasinda bu kayda bakilir.
+  // --- MISAFIR TALEP: tek cagrida hesap + talep (giris gerektirmez) ---
+  //
+  // NEDEN: Once uyelik isteyen akista kiracinin onune bos bir giris ekrani
+  // cikiyordu ve reklamdan gelen trafigin neredeyse tamami geri donuyordu.
+  // Bu ucta sira tersine cevrilir: kisi formu doldurur, hesap ve talep AYNI
+  // istekte olusur. Talep "PENDING_VERIFY" durumunda bekler; e-posta
+  // dogrulanmadan ne yayina girer, ne aramada gorunur, ne sayaca yazilir.
+  //
+  // Hesap ve talep tek islemde olusturuldugu icin e-posta dogrulama duvarina
+  // takilmaz — duvar yalnizca sonraki isteklerde devreye girer.
+  if (seg[0] === "kayit" && seg[1] === "talep" && method === "POST") {
+    if (!rateLimit(`misafir-talep-ip:${clientIp(req)}`, 5, 60 * 60 * 1000))
+      return err(res, 429, "Çok fazla talep denemesi. Lütfen bir süre sonra tekrar dene.");
+
+    const name = (body.name || "").trim();
+    const email = norm(body.email);
+    const phone = (body.phone || "").trim();
+    const password = body.password || "";
+    if (name.length < 3) return err(res, 400, "Adını ve soyadını yaz.");
+    if (!email.includes("@")) return err(res, 400, "Geçerli bir e-posta adresi yaz.");
+    if (!normalizePhone(phone)) return err(res, 400, "Geçerli bir cep telefonu numarası gir (5xx xxx xx xx).");
+    const sifreHata = sifreGecerliMi(password);
+    if (sifreHata) return err(res, 400, sifreHata);
+    if (!body.termsAccepted) return err(res, 400, "Devam etmek için kullanım koşullarını ve KVKK metnini onaylaman gerekiyor.");
+    if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
+      return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var. Giriş yapıp talebini oradan oluşturabilirsin.");
+
+    // Kimlik alanlari hesap acilmadan ONCE dogrulanir ki yarim kayit olusmasin.
+    const kimlik = prepareIdentity(body, null);
+    if (!kimlik.ok) return err(res, 400, kimlik.error);
+
+    // Talep gecerliligi hesap acmadan once kontrol edilir: gecersiz formda
+    // ortada sahipsiz bir uyelik kalmasin.
+    const gecici = talepNesnesiKur(body, "gecici");
+    gecici.transactionType = "RENT";     // bu sayfa yalnizca kiracı tarafi icin
+    if (!gecici.minBudget || !gecici.maxBudget || gecici.maxBudget < gecici.minBudget)
+      return err(res, 400, "Geçerli bir aylık kira aralığı gir.");
+    if (!gecici.city) return err(res, 400, "Hangi ilde ev aradığını seç.");
+
+    const uid_ = uid("u");
+    const marketingConsent = body.marketingConsent ? 1 : 0;
+    db.prepare("INSERT INTO users (id,role,name,email,phone,city,status,trustScore,createdAt,marketingConsent,occupationGroup,phoneVerified,phoneVerifiedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(uid_, "BUYER", name, email, phone, gecici.city, "ACTIVE", 54, today(), marketingConsent,
+        (body.occupation || "").toString().slice(0, 40), 0, null);
+    addAudit(uid_, "MARKETING_CONSENT", "User", uid_, `Ticari elektronik ileti izni: ${marketingConsent ? "EVET" : "HAYIR"}`);
+    saveIdentity(uid_, kimlik);
+    saveAttribution(uid_, body.attribution);
+    db.prepare("INSERT INTO auth_accounts (userId,email,passwordHash,emailVerified,createdAt,lastLoginAt) VALUES (?,?,?,?,?,?)")
+      .run(uid_, email, hashPassword(password), 0, today(), today());
+    db.prepare("INSERT INTO buyer_profiles (userId,verificationLevel,badge,budgetTrustScore,profileCompletion,declaredBudgetMin,declaredBudgetMax,declaredDownPayment,declaredCashReady,declaredUsesCredit) VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(uid_, "Bütçe Beyanı Bekleniyor", "neutral", 35, 20, gecici.minBudget, gecici.maxBudget, 0, 0, 0);
+    addAudit(uid_, "USER_REGISTERED", "User", uid_, "BUYER üyeliği misafir talep akışıyla oluşturuldu.");
+
+    // Talep, kullanicinin gercek id'siyle yeniden kurulur ve BEKLEMEDE yazilir.
+    const d = talepNesnesiKur(body, uid_);
+    d.transactionType = "RENT";
+    if (!d.title) d.title = talepBasligiUret(d);
+    talepKaydet(d, cleanImage(body.imageData), "PENDING_VERIFY");
+    addAudit(uid_, "DEMAND_CREATED_PENDING", "Demand", d.id, `${d.title} — e-posta doğrulaması bekliyor.`);
+
+    // Dogrulama baglantisi. Hos geldin maili GONDERILMEZ: dogrulanana kadar
+    // kisiye tek bir mail gitsin, kafa karismasin.
+    epostaDogrulamaBaslat(uid_, email, name);
+    return ok(res, { userId: uid_, demandId: d.id, email });
+  }
+
   if (seg[0] === "kayit" && seg[1] === "telefon-kod" && method === "POST") {
     if (!smsEnabled()) return err(res, 503, "SMS doğrulama şu anda kapalı.");
     const p = normalizePhone(body.phone);
@@ -1435,6 +1660,8 @@ async function handleApi(req, res, url) {
     const suresiDolmus = kayit && new Date(kayit.expiresAt) < new Date();
     const gecerli = Boolean(kayit) && !kayit.usedAt && !suresiDolmus;
     let askiKalkti = false;
+    let yayinaAlinan = 0;
+    let ekBaslik = {};
     if (gecerli) {
       db.prepare("UPDATE email_verifications SET usedAt=? WHERE tokenHash=?").run(now(), tokenHash);
       db.prepare("UPDATE auth_accounts SET emailVerified=1 WHERE userId=?").run(kayit.userId);
@@ -1445,11 +1672,34 @@ async function handleApi(req, res, url) {
       if (askiKalkti)
         notify(kayit.userId, "ACCOUNT_REACTIVATED", "Üyeliğin yeniden aktif",
           "E-postanı doğruladın, hesabın yeniden kullanıma açıldı.", "");
+
+      // MISAFIR TALEP AKISI: beklemede duran talepler burada yayina girer.
+      // Eslesme taramasi, saticilara bildirim ve "Talebin yayinda" e-postasi
+      // panelden olusturulan taleple birebir ayni kodu kullanir.
+      const bekleyenler = db.prepare("SELECT * FROM demands WHERE buyerId=? AND status='PENDING_VERIFY'").all(kayit.userId);
+      for (const bekleyen of bekleyenler) {
+        db.prepare("UPDATE demands SET status='ACTIVE' WHERE id=?").run(bekleyen.id);
+        addAudit(kayit.userId, "DEMAND_PUBLISHED", "Demand", bekleyen.id, "E-posta doğrulandı, talep yayına alındı.");
+        try { talebiYayinaAl({ ...bekleyen, status: "ACTIVE" }); }
+        catch (e) { console.error("[talep] yayina alma hatasi:", e && e.message); }
+      }
+      yayinaAlinan = bekleyenler.length;
+
+      // Kisi dogrulama baglantisina tikladiktan sonra tekrar giris yapmak
+      // zorunda kalmasin: oturum burada aciliyor.
+      try {
+        const oturum = randomUUID();
+        db.prepare("INSERT INTO sessions (token,userId,createdAt) VALUES (?,?,?)").run(oturum, kayit.userId, new Date().toISOString());
+        ekBaslik = { "Set-Cookie": `kt_session=${oturum}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` };
+      } catch { /* oturum acilamazsa kullanici elle giris yapar */ }
     }
     const govde = gecerli
-      ? `<h1>E-postan doğrulandı</h1><p>${askiKalkti
-        ? "Üyeliğinin askısı kalktı, hesabın yeniden kullanıma açıldı."
-        : "Üyeliğin tamamlandı. Panelinden devam edebilirsin."}</p>`
+      ? yayinaAlinan > 0
+        ? `<h1>Talebin yayında</h1><p>E-postanı doğruladın ve talebin yayına alındı. Artık ev sahipleri sana teklif gönderebilir.</p>
+           <p class="small">Girişin açık — aşağıdaki butonla talebini görebilir, dilediğin zaman düzenleyebilirsin.</p>`
+        : `<h1>E-postan doğrulandı</h1><p>${askiKalkti
+          ? "Üyeliğinin askısı kalktı, hesabın yeniden kullanıma açıldı."
+          : "Üyeliğin tamamlandı. Panelinden devam edebilirsin."}</p>`
       : kayit && kayit.usedAt
         ? `<h1>Zaten doğrulanmış</h1><p>Bu bağlantı daha önce kullanılmış. Giriş yapabilirsin.</p>`
         : suresiDolmus
@@ -1463,9 +1713,21 @@ async function handleApi(req, res, url) {
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
 .box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
 .small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
-text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style></head>
-<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/#/giris">Giriş yap</a></div></body></html>`;
-    res.writeHead(gecerli || kayit ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
+text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style>
+${yayinaAlinan > 0 ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${OLCUM.ads}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${OLCUM.ads}');
+  gtag('config', '${OLCUM.ga4}');
+  /* ASIL DONUSUM: talep yayina girdi. Form gonderiminde degil BURADA sayilir —
+     ev sahibinin karsiligini gordugu sey dogrulanmis talep. */
+  gtag('event', 'conversion', { send_to: '${OLCUM.ads}/${OLCUM.talepDonusumEtiketi}', currency: 'TRY', value: 1.0 });
+  gtag('event', 'kt_talep_dogrulandi', { send_to: ['${OLCUM.ga4}', '${OLCUM.ads}'], akis: 'misafir' });
+</script>` : ""}</head>
+<body><div class="box">${govde}<a class="btn" href="${BASE_URL}/#/${yayinaAlinan > 0 ? "dashboard/alici/taleplerim" : "giris"}">${yayinaAlinan > 0 ? "Talebimi gör" : "Giriş yap"}</a></div></body></html>`;
+    res.writeHead(gecerli || kayit ? 200 : 400, { "Content-Type": "text/html; charset=utf-8", ...ekBaslik });
     return res.end(html);
   }
 
@@ -1641,68 +1903,13 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     if (user.role !== "BUYER") return err(res, 403, "Sadece alıcı talep oluşturabilir.");
     // Telefon dogrulamasi: kayit sonrasi ILK islemde istenir.
     if (requirePhone(res, user)) return;
-    const id = uid("d");
-    const d = {
-      id, buyerId: user.id, title: (body.title || "").trim(), city: body.city || "İstanbul",
-      district: (body.district || "").trim(), neighborhood: (body.neighborhood || "").trim(),
-      propertyType: body.propertyType || "Daire", roomCount: body.roomCount || "2+1",
-      minSqm: +body.minSqm || 0, maxSqm: +body.maxSqm || 0, minBudget: +body.minBudget || 0,
-      maxBudget: +body.maxBudget || 0, downPayment: +body.downPayment || 0,
-      usesCredit: body.usesCredit ? 1 : 0, cashReady: body.cashReady ? 1 : 0, exchangePossible: body.exchangePossible ? 1 : 0,
-      purchaseTimeline: body.purchaseTimeline || "Fırsat olursa", description: (body.description || "").trim(),
-      privacyLevel: body.privacyLevel || "Platform varsayılanı",
-      transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
-      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0,
-      interiorFeatures: JSON.stringify(Array.isArray(body.interiorFeatures) ? body.interiorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
-      exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
-      heatingType: (body.heatingType || "").toString().slice(0, 40),
-      buildingAge: (body.buildingAge || "").toString().slice(0, 20),
-      floorPref: (body.floorPref || "").toString().slice(0, 40),
-      occupation: (body.occupation || "").toString().slice(0, 40),
-      neighborhoods: JSON.stringify(Array.isArray(body.neighborhoods) ? body.neighborhoods.slice(0, 60).map((x) => String(x).slice(0, 60)) : []),
-      mainCategory: MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "Konut"
-    };
+    const d = talepNesnesiKur(body, user.id);
     if (!d.title || !d.minBudget || !d.maxBudget || d.maxBudget < d.minBudget || d.description.length < 20)
       return err(res, 400, "Başlık, geçerli bütçe ve en az 20 karakter açıklama gerekli.");
-    const dImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO demands (id,buyerId,title,city,district,neighborhood,propertyType,roomCount,minSqm,maxSqm,minBudget,maxBudget,downPayment,usesCredit,cashReady,exchangePossible,purchaseTimeline,description,privacyLevel,status,viewCount,offerCount,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,heatingType,buildingAge,floorPref,occupation,neighborhoods,mainCategory,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(d.id, d.buyerId, d.title, d.city, d.district, d.neighborhood, d.propertyType, d.roomCount, d.minSqm, d.maxSqm, d.minBudget, d.maxBudget, d.downPayment, d.usesCredit, d.cashReady, d.exchangePossible, d.purchaseTimeline, d.description, d.privacyLevel, "ACTIVE", 0, 0, dImage, d.transactionType, d.depositAmount, d.furnished, d.interiorFeatures, d.exteriorFeatures, d.heatingType, d.buildingAge, d.floorPref, d.occupation, d.neighborhoods, d.mainCategory, today());
-    // uygun saticilara bildirim + talep sahibine karsilikli eslesme bildirimi
-    const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
-    const seen = new Set();
-    let matchCount = 0;
-    for (const p of props) {
-      const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
-      if (calculateMatchScore(d, p) >= 70 || loc) {
-        matchCount++;
-        if (!seen.has(p.sellerId)) {
-          seen.add(p.sellerId);
-          const where = loc ? locationLabel(p, loc) : "";
-          const body = where
-            ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
-            : `${d.title} talebi ilanınıza uyuyor.`;
-          notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", body, "dashboard/satici/alici-talepleri");
-          // Aninda mail yerine gunluk ozete: yogun donemde ayni kisiye
-          // arka arkaya mail gitmesin diye.
-          queueDigest(p.sellerId, "demand", "Sana uygun yeni talep", body, "dashboard/satici/alici-talepleri");
-        }
-      }
-    }
-    if (matchCount > 0) {
-      notify(d.buyerId, "MATCH_FOUND", "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan var. İlgili ${d.transactionType === "RENT" ? "ev sahipleri" : "satıcılar"} sana teklif gönderebilir; tekliflerini takip et.`, "dashboard/alici/teklifler");
-    }
-    // "Talebin yayında" e-postasi: her talepte bir kez, uygun ilan sayisi
-    // gercek deger olarak icine yazilir. Ayri sablon kullanir.
-    const talepSahibi = db.prepare("SELECT name,email FROM users WHERE id=?").get(d.buyerId);
-    if (talepSahibi && talepSahibi.email && mailIzniVar(d.buyerId, "match")) {
-      const html = demandPublishedEmailHtml(talepSahibi.name, d, matchCount, d.buyerId);
-      Promise.resolve()
-        .then(() => deliverEmail(d.buyerId, talepSahibi.email, talepSahibi.name,
-          "Konuttalebi — Talebin yayında", html, "Talep yayınlandı bildirimi", d.buyerId))
-        .catch((e) => console.error("[mail] talep yayinda gonderilemedi:", e && e.message));
-    }
-    addAudit(user.id, "DEMAND_CREATED", "Demand", id, d.title);
-    return ok(res, { id });
+    talepKaydet(d, cleanImage(body.imageData), "ACTIVE");
+    talebiYayinaAl(d);
+    addAudit(user.id, "DEMAND_CREATED", "Demand", d.id, d.title);
+    return ok(res, { id: d.id });
   }
 
   // --- ilan olustur ---

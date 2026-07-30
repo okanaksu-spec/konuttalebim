@@ -110,6 +110,33 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   id TEXT PRIMARY KEY, actorId TEXT, action TEXT, entityType TEXT, entityId TEXT,
   metadata TEXT, createdAt TEXT
 );
+
+-- 2.0 "Yalniz Talep" modeli (2026-07-31) ------------------------------------
+
+-- Uyenin "aradigim talepler" kriteri. Yeni talep yayina girdiginde bu tabloya
+-- gore eslesme bildirimi gonderilir (ilan kalktigi icin eslesmenin yeni tanimi
+-- talep <-> uye kriteri). Kullanici basina TEK kayit tutulur (MVP).
+CREATE TABLE IF NOT EXISTS saved_searches (
+  userId TEXT PRIMARY KEY,
+  tx TEXT DEFAULT '',                -- '' = ikisi de, 'RENT', 'SALE'
+  cities TEXT DEFAULT '[]',          -- JSON il adlari listesi
+  mainCategory TEXT DEFAULT '',      -- '' = tum kategoriler
+  minBudget INTEGER DEFAULT 0,
+  maxBudget INTEGER DEFAULT 0,
+  updatedAt TEXT
+);
+
+-- Iletisim goruntuleme kaydi. KVKK ispati + talep sahibine sayac + kotuye
+-- kullanim halinde yoneticinin kimin baktigini gorebilmesi icin tutulur.
+-- Talep sahibine giden bildirim ANONIMDIR (Okan karari) - isim bu tablodan
+-- yalnizca admin ekranina cikar.
+CREATE TABLE IF NOT EXISTS contact_views (
+  id TEXT PRIMARY KEY,
+  viewerId TEXT,                     -- iletisimi acan uye
+  demandId TEXT,
+  ownerId TEXT,                      -- talep sahibi
+  createdAt TEXT
+);
 `);
 
 // ---------- Migrasyonlar (mevcut DB'ye eksik sutunlari ekle) ----------
@@ -190,6 +217,16 @@ for (const alter of [
   try { db.exec(alter); } catch { /* sutun zaten varsa yoksay */ }
 }
 
+// 2.0 GECISI: mevcut ilanlarin tamami ARSIVE alinir (silinmez - uyusmazlik
+// ihtimaline karsi kayit durur, yalnizca vitrinden ve panellerden kalkar).
+// ALTER yalnizca ilk calismada basarili oldugu icin UPDATE de bir kez calisir.
+try {
+  db.exec("ALTER TABLE properties ADD COLUMN archivedAt TEXT");
+  const n = db.prepare("UPDATE properties SET status='ARCHIVED', archivedAt=? WHERE status='ACTIVE'")
+    .run(new Date().toISOString().slice(0, 16).replace("T", " ")).changes;
+  console.log(`[db] 2.0 gecisi: ${n} ilan arsive alindi. Yeni ilan kabul edilmiyor.`);
+} catch { /* sutun zaten var - gecis daha once yapildi */ }
+
 // E-posta dogrulama duvarindan MUAF hesaplar.
 // Kural geriye donuk isletilmez: duvar devreye girdiginde sistemde kayitli olan
 // herkes muaf sayilir; muafiyet yalnizca bu tek seferlik gecis sirasinda verilir,
@@ -240,17 +277,16 @@ export function purgeUsersByIds(csv) {
 
 // Paket adlarini/iceriklerini son modele gore GUNCELLER (mevcut satirlar dahil). Her acilista calisir, idempotent.
 export function syncPlans() {
-  // Kanonik paket listesi. Satılık + Kiralık + Danışman. Kiralıkta KİRACI ücretsiz; EV SAHİBİ öder.
+  // 2.0 "Yalniz Talep" modeli: ilan kalkti, paketler 4'e indi.
+  // Talep birakan (kiraci/alici) her zaman ucretsiz; iletisim goren taraf oder.
+  // plan-landlord-contact id'si KORUNDU (mevcut uyelikler kirilmasin), adi ve
+  // kapsami "Bireysel Uyelik" oldu. Eski contact planlari listeden cikti ama
+  // hasContactMembership geriye uyum icin eski id'leri kabul etmeye devam eder.
   const plans = [
-    ["plan-buyer-free", "Alıcı Ücretsiz", "BUYER", 0, "ay", "Satılık · Temel", ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"]],
-    ["plan-buyer-boost", "Talebimi Üste Taşı", "BUYER", 99, "7 gün", "Satılık · Reklam", ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"]],
-    ["plan-buyer-contact", "Satıcı Bilgilerini Gör", "BUYER", 199, "ay", "Satılık · İletişim", ["Eşleştiğin satıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"]],
-    ["plan-seller-boost", "İlanımı Üste Taşı", "SELLER", 149, "7 gün", "Satılık · Reklam", ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"]],
-    ["plan-seller-contact", "Alıcı Bilgilerini Gör", "SELLER", 299, "ay", "Satılık · İletişim", ["Eşleştiğin alıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"]],
-    ["plan-tenant-free", "Kiracı Ücretsiz", "BUYER", 0, "ay", "Kiralık · Temel", ["Sınırsız kiralık talebi", "Ev sahipleri sana ulaşır", "Tamamen ücretsiz"]],
-    ["plan-landlord-contact", "Kiracı Bilgilerini Gör", "SELLER", 199, "ay", "Kiralık · İletişim", ["Eşleştiğin kiracının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız kiracı talebi görüntüleme"]],
-    ["plan-landlord-boost", "Kiralık İlanımı Üste Taşı", "SELLER", 99, "7 gün", "Kiralık · Reklam", ["Kiralık ilanın üst sıralarda", "Kiracı havuzunda renkli vurgu", "Uygun kiracılara ek bildirim"]],
-    ["plan-pro", "Profesyonel Paket", "AGENT", 799, "ay", "Danışman · Reklam + üyelik", ["Satılık + kiralık çoklu portföy", "Tüm iletişim bilgilerini görme", "Aylık öne çıkarma hakları"]],
+    ["plan-tenant-free", "Kiracı / Alıcı Ücretsiz", "BUYER", 0, "ay", "Talep · Temel", ["Sınırsız talep bırakma", "Üyeler sana ulaşır, sen beklersin", "İletişimin görüntülendiğinde bildirim", "Tamamen ücretsiz, komisyon yok"]],
+    ["plan-buyer-boost", "Talebimi Üste Taşı", "BUYER", 99, "7 gün", "Talep · Reklam", ["Talep kartın üst sıralarda", "Havuzda renkli vurgu", "Daha fazla üyenin dikkatini çeker"]],
+    ["plan-landlord-contact", "Bireysel Üyelik", "SELLER", 199, "ay", "İletişim üyeliği", ["Kiracı ve alıcı taleplerini gör", "Talep sahibinin telefon/e-postasını aç", "Süre boyunca sınırsız görüntüleme", "Aradığın talep profili için eşleşme bildirimi"]],
+    ["plan-pro", "Danışman Üyelik", "AGENT", 799, "ay", "İletişim üyeliği · Belgeli", ["Onaylı Sorumlu Emlak Danışmanı (Seviye 5) rozeti", "Tüm kiracı ve alıcı taleplerini gör", "Süre boyunca sınırsız iletişim görüntüleme", "Eşleşme bildirimleri"]],
   ];
   try {
     db.exec("DELETE FROM plans");

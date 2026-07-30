@@ -541,25 +541,25 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
       <div style="font-size:15px;font-weight:700;color:#10243a">${escapeHtmlSrv(deger)}</div>
     </td>`;
 
-  // Eslesme kutusu: sayi varsa yesil, yoksa durust bir bekleme mesaji.
+  // Eslesme kutusu (2.0): sayi = talebinle ilgilenen profildeki uye sayisi.
   const kutu = uygunSayi > 0
     ? `<div style="background:#eef7f0;border:1px solid #d3e8d9;border-radius:12px;padding:22px;text-align:center;margin:18px 0">
          <div style="font-size:40px;font-weight:800;color:#10243a;line-height:1.1">${uygunSayi}</div>
          <div style="font-size:14.5px;color:#41556d;margin-top:6px">
-           ${kira ? "ev sahibinin" : "satıcının"} yayındaki konutu talebinle uyuşuyor; talebin onlara bildirildi.
+           ${kira ? "ev sahibi/danışmanın" : "satıcı/danışmanın"} aradığı profil talebinle uyuşuyor; talebin onlara bildirildi.
          </div>
        </div>`
     : `<div style="background:#fbf6ec;border:1px solid #f0e2c8;border-radius:12px;padding:20px;margin:18px 0">
          <div style="font-size:14.5px;color:#41556d;line-height:1.6">
-           Talebin aktif. Kriterlerine uyan bir konut yayınlandığı anda
-           ${kira ? "ev sahibine" : "satıcıya"} bildirilir ve sana haber veririz.
+           Talebin aktif ve havuzda görünüyor. Talebinle ilgilenen bir üye
+           iletişim bilgini görüntülediğinde sana haber veririz.
          </div>
        </div>`;
 
   const sss = [
-    ["Teklifi kim gönderir?", `Talebini gören ${kira ? "ev sahipleri ve emlak danışmanları" : "satıcılar ve emlak danışmanları"} sana özel teklif gönderir. Sen aramazsın.`],
-    ["İletişim bilgilerim güvende mi?", "Evet. Talebinde adın, telefonun ve e-postan görünmez. İletişim bilgisi yalnızca eşleşme sonrası, iki taraf da onay verdiğinde paylaşılır."],
-    ["Teklif gelmezse ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; daha fazla konutla eşleşirsin."]
+    ["Beni kim arayacak?", `Talebini gören ${kira ? "ev sahipleri ve onaylı emlak danışmanları" : "satıcılar ve onaylı emlak danışmanları"} iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Sen aramazsın.`],
+    ["İletişim bilgilerim güvende mi?", "Talebinde adın, telefonun ve e-postan herkese açık görünmez. İletişim bilgin yalnızca ücretli üyeliği olan üyeler ve onaylı emlak danışmanları tarafından görüntülenebilir; her görüntülemede sana haber veririz."],
+    ["Kimse aramazsa ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; eşleşme ihtimalin artar."]
   ].map(([s, c]) => `
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#41556d">
       <strong style="color:#10243a">${escapeHtmlSrv(s)}</strong><br>${escapeHtmlSrv(c)}
@@ -900,12 +900,15 @@ function maskSensitiveInfo(text) {
 }
 
 function hasContactMembership(userId, role) {
-  // Satıcı/ev sahibi hem satılık (plan-seller-contact) hem kiralık (plan-landlord-contact) üyeliğiyle iletişim görebilir.
-  const ids = role === "BUYER" ? ["plan-buyer-contact"] : ["plan-seller-contact", "plan-landlord-contact"];
+  // 2.0: iletisimi yalnizca uye tarafi (SELLER/AGENT) acar; talep birakan
+  // (BUYER) hicbir kosulda baskasinin iletisimini goremez - gorulecek ilan yok.
+  // Eski plan id'leri geriye uyum icin kabul edilir (mevcut uyelik kirilmasin).
+  if (role === "BUYER") return false;
+  const ids = ["plan-landlord-contact", "plan-seller-contact", "plan-buyer-contact"];
   const ph = ids.map(() => "?").join(",");
   const row = db.prepare(
-    `SELECT COUNT(*) AS c FROM entitlements WHERE userId = ? AND (planId IN (${ph}) OR planId = 'plan-pro')`
-  ).get(userId, ...ids);
+    `SELECT COUNT(*) AS c FROM entitlements WHERE userId = ? AND (planId IN (${ph}) OR planId = 'plan-pro') AND (activeTo IS NULL OR activeTo >= ?)`
+  ).get(userId, ...ids, today());
   return row.c > 0;
 }
 
@@ -1078,6 +1081,13 @@ function buildState(user) {
     auditLogs: isAdmin ? all("audit_logs") : [],
     payments: myPayments,
     entitlements: isAdmin ? all("entitlements") : (user ? all("entitlements").filter((e) => e.userId === user.id) : []),
+    // 2.0: uyenin kayitli kriteri (kendi kaydi) ve iletisim goruntulemeleri.
+    // Talep sahibi tarafinda viewerId GONDERILMEZ (anonimlik karari); yalnizca
+    // tarih ve talep id gider. Goruntuleyen kendi actiklarini tam gorur.
+    savedSearch: user ? (db.prepare("SELECT * FROM saved_searches WHERE userId=?").get(user.id) || null) : null,
+    contactViews: !user ? [] : isAdmin
+      ? all("contact_views")
+      : db.prepare("SELECT id, demandId, ownerId, createdAt, CASE WHEN viewerId=? THEN viewerId ELSE '' END AS viewerId FROM contact_views WHERE viewerId=? OR ownerId=?").all(user.id, user.id, user.id),
     // Ana sayfa vitrin sayaclari (kisisel veri degil, sadece toplam adet).
     // Yalnizca yayinda olan kayitlar sayilir; kaldirilan/pasif olanlar vitrine yansimaz.
     stats: {
@@ -1152,26 +1162,27 @@ function talepKaydet(d, imageData, durum) {
  * zamanla iki akisin farkli davranmasina yol acardi.
  */
 function talebiYayinaAl(d) {
-  const props = db.prepare("SELECT * FROM properties WHERE status='ACTIVE'").all();
-  const seen = new Set();
+  // 2.0: Ilan kalkti. Eslesme artik "talep <-> uyenin kayitli kriteri".
+  // Kriterine uyan her uyeye bildirim + (izinliyse) e-posta ozeti gider.
+  const kriterler = db.prepare("SELECT * FROM saved_searches").all();
   let matchCount = 0;
-  for (const p of props) {
-    const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
-    if (calculateMatchScore(d, p) >= 70 || loc) {
-      matchCount++;
-      if (!seen.has(p.sellerId)) {
-        seen.add(p.sellerId);
-        const where = loc ? locationLabel(p, loc) : "";
-        const metin = where
-          ? `${d.title} talebi ${where} konumundaki ilanınıza uyuyor.`
-          : `${d.title} talebi ilanınıza uyuyor.`;
-        notify(p.sellerId, "NEW_MATCHABLE_DEMAND", "Yeni uygun alıcı talebi", metin, "dashboard/satici/alici-talepleri");
-        queueDigest(p.sellerId, "demand", "Sana uygun yeni talep", metin, "dashboard/satici/alici-talepleri");
-      }
-    }
+  for (const k of kriterler) {
+    if (k.userId === d.buyerId) continue;
+    if (k.tx && k.tx !== (d.transactionType || "SALE")) continue;
+    let iller = [];
+    try { iller = JSON.parse(k.cities || "[]"); } catch { iller = []; }
+    if (iller.length && !iller.includes(d.city)) continue;
+    if (k.mainCategory && k.mainCategory !== (d.mainCategory || "Konut")) continue;
+    // Butce kesisimi: kriterde aralik tanimliysa taleple ortusmeli.
+    if (k.minBudget && (+d.maxBudget || 0) && (+d.maxBudget || 0) < k.minBudget) continue;
+    if (k.maxBudget && (+d.minBudget || 0) > k.maxBudget) continue;
+    matchCount++;
+    const metin = `${d.title} — aradığın profile uyan yeni bir talep yayında.`;
+    notify(k.userId, "NEW_MATCHABLE_DEMAND", "Kriterine uyan yeni talep", metin, "dashboard/satici/talepler");
+    queueDigest(k.userId, "demand", "Kriterine uyan yeni talep", metin, "dashboard/satici/talepler");
   }
   if (matchCount > 0) {
-    notify(d.buyerId, "MATCH_FOUND", "Talebine uygun ev bulundu", `Talebine uygun ${matchCount} ilan var. İlgili ${d.transactionType === "RENT" ? "ev sahipleri" : "satıcılar"} sana teklif gönderebilir; tekliflerini takip et.`, "dashboard/alici/teklifler");
+    notify(d.buyerId, "MATCH_FOUND", "Talebin eşleşti", `Talebin, aradığı profil sana uyan ${matchCount} üyeye bildirildi. İlgilenen üye iletişim bilgini görüntülediğinde haber vereceğiz.`, "");
   }
   // "Talebin yayında" e-postasi: her talepte bir kez, uygun ilan sayisi
   // gercek deger olarak icine yazilir. Ayri sablon kullanir.
@@ -1491,6 +1502,11 @@ async function handleApi(req, res, url) {
   // --- ilan arama (HERKESE AÇIK): il/ilce/mahalle + kategori + fiyat filtreli, iletisim gizli ---
   // Giris gerekmez; ilanlar maskeli doner (satici kimligi/iletisim yok, aciklama maskeli).
   if (seg[0] === "properties" && seg[1] === "search" && method === "GET") {
+    // 2.0: ilan vitrini kapandi. Eski istemci onbellekleri hata almasin diye
+    // bos liste doner (410 degil - vitrin bileseni sessizce bos gosterir).
+    return ok(res, { items: [] });
+  }
+  if (false) {
     const q = url.searchParams;
     const tx = q.get("tx") === "RENT" ? "RENT" : (q.get("tx") === "SALE" ? "SALE" : "");
     const mainCategory = q.get("mainCategory") || "";
@@ -1939,7 +1955,9 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   }
 
   // --- talep olustur ---
-  if (seg[0] === "demands" && method === "POST") {
+  // seg.length === 1 sarti kritik: /demands/:id/contact da POST'tur ve bu blok
+  // onda calisirsa iletisim ucu hic erisilemez (2026-07-31 testinde yakalandi).
+  if (seg[0] === "demands" && method === "POST" && seg.length === 1) {
     if (user.role !== "BUYER") return err(res, 403, "Sadece alıcı talep oluşturabilir.");
     // Telefon dogrulamasi: kayit sonrasi ILK islemde istenir.
     if (requirePhone(res, user)) return;
@@ -1952,7 +1970,80 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     return ok(res, { id: d.id });
   }
 
-  // --- ilan olustur ---
+  /* =========================================================================
+     2.0 "YALNIZ TALEP" MODELI (2026-07-31, Okan onayli senaryo)
+     -------------------------------------------------------------------------
+     Ilan (arz) ve site ici iletisim akislari KAPANDI:
+     - Ilan eklenmez, teklif gonderilmez, eslesme onayi ve mesajlasma yok.
+     - Yerine tek akis: odeme yapan uye (bireysel) veya odeme + admin onayli
+       danisman, talep sahibinin telefon/e-postasini dogrudan gorur ve arar.
+     - "Eslesme" yeni tanimiyla yasiyor: uye kriter kaydeder (saved_searches),
+       kritere uyan yeni talep yayina girince bildirim alir.
+     Kapatilan uclar 410 "Gone" doner ki eski istemci onbellekleri anlasilir
+     bir mesaj gorsun; sessiz 404 kafa karistirirdi.
+     ========================================================================= */
+  const MODEL2_MESAJ = "Konuttalebi yenilendi: artık ilan ve teklif yok. Talepleri görüntüleyip iletişim bilgisini üyelikle açabilirsin.";
+  if (seg[0] === "properties" && method === "POST") return err(res, 410, MODEL2_MESAJ);
+  if (seg[0] === "offers" && method === "POST") return err(res, 410, MODEL2_MESAJ);
+  if (seg[0] === "matches" && seg[2] === "messages" && method === "POST") return err(res, 410, MODEL2_MESAJ);
+  if (seg[0] === "matches" && seg[2] === "approve" && method === "POST") return err(res, 410, MODEL2_MESAJ);
+
+  // --- kriter: "aradigim talepler" (giris gerekli; SELLER/AGENT) ---
+  // Uye tek kriter seti tutar; yeni talep bu kritere uyarsa eslesme bildirimi alir.
+  if (seg[0] === "kriter" && method === "PUT") {
+    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Kriter kaydı yalnızca üye tarafı içindir.");
+    const tx = body.tx === "RENT" || body.tx === "SALE" ? body.tx : "";
+    const cities = Array.isArray(body.cities) ? body.cities.slice(0, 10).map((c) => String(c).slice(0, 40)) : [];
+    const mainCategory = MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "";
+    db.prepare(`INSERT INTO saved_searches (userId,tx,cities,mainCategory,minBudget,maxBudget,updatedAt)
+      VALUES (?,?,?,?,?,?,?)
+      ON CONFLICT(userId) DO UPDATE SET tx=excluded.tx, cities=excluded.cities,
+        mainCategory=excluded.mainCategory, minBudget=excluded.minBudget,
+        maxBudget=excluded.maxBudget, updatedAt=excluded.updatedAt`)
+      .run(user.id, tx, JSON.stringify(cities), mainCategory, +body.minBudget || 0, +body.maxBudget || 0, now());
+    addAudit(user.id, "SAVED_SEARCH_UPDATED", "User", user.id, `Kriter: ${tx || "hepsi"} · ${cities.join(", ") || "tüm iller"}`);
+    return ok(res);
+  }
+
+  // --- iletisimi gor: modelin yeni kalbi (giris gerekli) ---
+  // Kosullar: SELLER/AGENT rolu + aktif iletisim uyeligi (admin muaf).
+  // Danisman belge onayi Faz 3'te devreye girecek (14 gun gecis karari).
+  if (seg[0] === "demands" && seg[2] === "contact" && method === "POST") {
+    if (!["SELLER", "AGENT"].includes(user.role) && user.role !== "ADMIN")
+      return err(res, 403, "İletişim bilgisini yalnızca üye tarafı (ev sahibi/satıcı/danışman) görüntüleyebilir.");
+    const d = db.prepare("SELECT * FROM demands WHERE id=?").get(seg[1]);
+    if (!d || d.status !== "ACTIVE") return err(res, 404, "Talep bulunamadı veya yayında değil.");
+    if (d.buyerId === user.id) return err(res, 400, "Bu talep zaten sana ait.");
+    if (user.role !== "ADMIN" && !hasContactMembership(user.id, user.role))
+      return err(res, 402, "İletişim bilgisini görmek için aktif bir üyelik gerekiyor. Paketleri fiyatlandırma sayfasında bulabilirsin.");
+    const sahip = db.prepare("SELECT name,phone,email FROM users WHERE id=?").get(d.buyerId);
+    if (!sahip) return err(res, 404, "Talep sahibi bulunamadı.");
+    // Ayni uye ayni talebe ikinci kez bakarsa: kayit ve bildirim TEKRARLANMAZ,
+    // bilgiler yeniden gosterilir (paket sinirsiz goruntuleme icerir).
+    const onceki = db.prepare("SELECT 1 FROM contact_views WHERE viewerId=? AND demandId=?").get(user.id, d.id);
+    if (!onceki) {
+      db.prepare("INSERT INTO contact_views (id,viewerId,demandId,ownerId,createdAt) VALUES (?,?,?,?,?)")
+        .run(uid("cv"), user.id, d.id, d.buyerId, now());
+      addAudit(user.id, "CONTACT_VIEWED", "Demand", d.id, `Talep sahibinin iletişimi görüntülendi (talep: ${d.title}).`);
+      // Talep sahibine ANONIM haber (Okan karari: kim baktigi soylenmez).
+      notify(d.buyerId, "CONTACT_VIEWED", "İletişim bilgin görüntülendi",
+        `"${d.title}" talebindeki iletişim bilgin bir üye tarafından görüntülendi. Yakında aranabilirsin.`, "");
+      const sahipMail = db.prepare("SELECT name,email FROM users WHERE id=?").get(d.buyerId);
+      if (sahipMail && sahipMail.email && mailIzniVar(d.buyerId, "match")) {
+        Promise.resolve().then(() => deliverEmail(d.buyerId, sahipMail.email, sahipMail.name,
+          "Konuttalebi — İletişim bilgin görüntülendi",
+          notificationEmailHtml(sahipMail.name, "İletişim bilgin görüntülendi",
+            [`"${d.title}" talebindeki iletişim bilgin bir üye tarafından görüntülendi.`,
+              "Yakında telefonla aranabilir veya e-posta alabilirsin. Görüşme, pazarlık ve anlaşma tamamen sizin aranızda gerçekleşir.",
+              "Talebini panelinden dilediğin an yayından kaldırabilirsin."
+            ].join("\n\n"), `${BASE_URL}/#/dashboard/alici/taleplerim`, "Talebimi yönet", d.buyerId),
+          "İletişim görüntülenme bildirimi")).catch(() => {});
+      }
+    }
+    return ok(res, { name: sahip.name, phone: sahip.phone, email: sahip.email });
+  }
+
+  // --- ilan olustur (2.0'da KAPALI - ulasilmaz, tarihce icin duruyor) ---
   if (seg[0] === "properties" && method === "POST") {
     if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı ilan ekleyebilir.");
     if (requirePhone(res, user)) return;

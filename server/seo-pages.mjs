@@ -26,8 +26,8 @@ export const CITIES = {
       h1: "İstanbul'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "İstanbul'da ev aramak, çoğu zaman şehri baştan sona gezmek anlamına geliyor. Kadıköy ve Beşiktaş'ta metroya yürüme mesafesindeki daireler günler içinde el değiştiriyor; Şişli ve Üsküdar'da ise aynı kira aralığında bambaşka büyüklükte evler çıkabiliyor. Sen bu koşuşturmayı yapmak yerine ne aradığını bir kez yazıyorsun: hangi semtte oturmak istediğini, kira aralığını, oda sayısını ve taşınma zamanını.",
-        "Talebini gören ev sahipleri sana geliyor. Ataşehir ve Başakşehir tarafındaki site içi dairelerden Bakırköy ve Maltepe'nin daha yerleşik mahallelerine, Beylikdüzü ve Kartal'ın yeni yapılarına kadar farklı bölgelerden teklif alabilirsin. İki yakadan da teklif gelmesini istiyorsan talebine birden fazla semt yazman yeterli.",
-        "İstanbul'da ulaşım, kirayı kadar belirleyici. Talebini yazarken işine ya da okuluna kaç dakikada gitmek istediğini belirtirsen, sana gelen teklifler baştan bu ölçüye göre süzülmüş olur."
+        "Talebini gören ev sahipleri seni arıyor. Ataşehir ve Başakşehir tarafındaki site içi dairelerden Bakırköy ve Maltepe'nin daha yerleşik mahallelerine, Beylikdüzü ve Kartal'ın yeni yapılarına kadar farklı bölgelerden ev sahipleri sana ulaşabilir. İki yakadan da aranmak istiyorsan talebine birden fazla semt yazman yeterli.",
+        "İstanbul'da ulaşım, kirayı kadar belirleyici. Talebini yazarken işine ya da okuluna kaç dakikada gitmek istediğini belirtirsen, seni arayan ev sahipleri baştan bu ölçüye göre gelir."
       ]
     },
     owner: {
@@ -35,9 +35,9 @@ export const CITIES = {
       description: "İstanbul'da ev arayan kiracıların taleplerini bölgeye ve bütçeye göre filtrele, uygun olana teklifini gönder. Aracı yok.",
       h1: "İstanbul'daki kiracı talepleri seni bekliyor",
       city: [
-        "İstanbul'da bir daireyi boş bekletmenin maliyeti başka hiçbir şehirle kıyaslanmıyor. Burada sırayı tersine çeviriyorsun: evini yayına koyup teklif beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüyor ve doğrudan onlara yazıyorsun.",
-        "Talepleri semt ve kira aralığına göre süzebilirsin. Kadıköy, Beşiktaş ve Şişli tarafında talep yoğunluğu genellikle yüksek; Ataşehir, Bakırköy ve Maltepe'de aile büyüklüğüne göre net beklentiler görürsün; Beylikdüzü, Başakşehir ve Kartal'da ise site içi daire arayan kiracılar öne çıkar. Evine uygun talebi seçip kendi şartlarınla teklifini gönderirsin.",
-        "Kirayı, depozitoyu ve sözleşme şartlarını sen belirlersin. Konuttalebi pazarlığa girmez; eşleşme kurulduktan sonra karşı tarafla doğrudan görüşürsün."
+        "İstanbul'da bir daireyi boş bekletmenin maliyeti başka hiçbir şehirle kıyaslanmıyor. Burada sırayı tersine çeviriyorsun: ilan verip beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüyor ve uygun bulduğunu doğrudan arıyorsun.",
+        "Talepleri semt ve kira aralığına göre süzebilirsin. Kadıköy, Beşiktaş ve Şişli tarafında talep yoğunluğu genellikle yüksek; Ataşehir, Bakırköy ve Maltepe'de aile büyüklüğüne göre net beklentiler görürsün; Beylikdüzü, Başakşehir ve Kartal'da ise site içi daire arayan kiracılar öne çıkar. Evine uygun talebi seçer, üyelikle kiracının iletişim bilgisini görüntüler ve telefonla ararsın.",
+        "Kirayı, depozitoyu ve sözleşme şartlarını sen belirlersin. Konuttalebi pazarlığa girmez; kiracıyla doğrudan görüşürsün."
       ]
     }
   },
@@ -50,8 +50,8 @@ export const CITIES = {
       h1: "Ankara'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Ankara'da kiralık ev ararken semt seçimi çoğu zaman işe ya da okula olan mesafeyle başlıyor. Çankaya'da merkeze yakın daireler hızlı el değiştiriyor, Keçiören ve Yenimahalle'de aynı kiraya daha geniş bir daire bulmak mümkün olabiliyor. Sen bu karşılaştırmayı tek tek yapmak yerine, aradığın evi tarif ediyorsun.",
-        "Talebini yazdıktan sonra Etimesgut ve Sincan tarafındaki yeni yapılardan, Mamak ve Pursaklar'ın uygun kira aralığındaki dairelerine, Gölbaşı'nın daha sakin mahallelerine kadar farklı bölgelerden teklif alabilirsin. Kamu kurumlarına ya da üniversite kampüslerine yakınlık senin için önemliyse bunu talebine yazman yeterli; teklifler o çerçevede gelir.",
-        "Ankara'da kış aylarında ısınma gideri kirayı doğrudan etkiliyor. Doğalgaz, merkezi sistem ya da kombi tercihini belirtirsen, sana gelen tekliflerde bu ayrıntıyı baştan görürsün."
+        "Talebini yazdıktan sonra Etimesgut ve Sincan tarafındaki yeni yapılardan, Mamak ve Pursaklar'ın uygun kira aralığındaki dairelerine, Gölbaşı'nın daha sakin mahallelerine kadar farklı bölgelerden ev sahipleri seni arayabilir. Kamu kurumlarına ya da üniversite kampüslerine yakınlık senin için önemliyse bunu talebine yazman yeterli; seni o çerçevede ararlar.",
+        "Ankara'da kış aylarında ısınma gideri kirayı doğrudan etkiliyor. Doğalgaz, merkezi sistem ya da kombi tercihini belirtirsen, seni arayan ev sahipleri bu ayrıntıyı baştan bilerek gelir."
       ]
     },
     owner: {
@@ -59,9 +59,9 @@ export const CITIES = {
       description: "Ankara'da ev arayan kiracıların taleplerini gör, sana uygun olanı seç ve teklifini doğrudan gönder. Emlakçı aracılığı yok.",
       h1: "Ankara'daki kiracı talepleri seni bekliyor",
       city: [
-        "Ankara'da kiracı ararken en çok vakit kaybettiren şey, evine hiç uymayan görüşme taleplerine cevap yetiştirmek. Burada süreç tersten işliyor: kiracılar ne aradıklarını önceden yazıyor, sen de yalnızca evine uyan taleplere teklif gönderiyorsun.",
+        "Ankara'da kiracı ararken en çok vakit kaybettiren şey, evine hiç uymayan görüşme taleplerine cevap yetiştirmek. Burada süreç tersten işliyor: kiracılar ne aradıklarını önceden yazıyor, sen de yalnızca evine uyan talep sahiplerini arıyorsun.",
         "Çankaya'da merkeze yakın daireler için talep genellikle yoğun; Keçiören, Yenimahalle ve Mamak'ta aile büyüklüğüne göre net kira aralıkları görürsün. Etimesgut, Sincan ve Pursaklar'da site içi ve yeni yapı arayan kiracılar öne çıkar, Gölbaşı'nda ise daha sakin bir çevre arayan talepler ağırlıkta olur.",
-        "Teklifini gönderdikten sonra kiracı ilgilenirse eşleşme kurulur ve doğrudan iletişime geçersiniz. Kirayı ve şartları belirleyen taraf sensin."
+        "Üyelikle kiracının telefonunu görüntüler ve doğrudan ararsın; görüşme tamamen ikinizin arasında geçer. Kirayı ve şartları belirleyen taraf sensin."
       ]
     }
   },
@@ -75,7 +75,7 @@ export const CITIES = {
       city: [
         "İzmir'de kiralık ev aramak, çoğu zaman körfezin iki yakası arasında gidip gelmek demek. Karşıyaka ve Bornova'da ulaşımı kolay daireler hızla kiralanıyor, Konak çevresinde ise aynı bütçeyle bambaşka yaşlarda binalar karşına çıkabiliyor. Sen semt semt dolaşmak yerine, aradığın evi bir kez tarif ediyorsun.",
         "Talebini gören ev sahipleri sana ulaşıyor. Buca ve Karabağlar tarafında uygun kira aralığında geniş daireler, Bayraklı'da yeni yapılar, Gaziemir ve Çiğli'de site içi seçenekler, Balçova'da ise merkeze yakın ama daha sakin mahalleler öne çıkıyor. Birden fazla semti aynı anda talebine yazabilirsin.",
-        "İzmir'de deniz etkisi nedeniyle nemli katlar ve ısıtma tercihi kirayı etkileyen ayrıntılar arasında. Kaçıncı katta oturmak istediğini ve ısıtma tercihini belirtirsen, gelen teklifler baştan buna göre gelir."
+        "İzmir'de deniz etkisi nedeniyle nemli katlar ve ısıtma tercihi kirayı etkileyen ayrıntılar arasında. Kaçıncı katta oturmak istediğini ve ısıtma tercihini belirtirsen, seni arayan ev sahipleri baştan buna göre gelir."
       ]
     },
     owner: {
@@ -85,7 +85,7 @@ export const CITIES = {
       city: [
         "İzmir'de evini kiraya verirken doğru kiracıyı beklemek yerine, ev arayanların taleplerini incelemekle işe başlıyorsun. Kiracılar hangi semtte, hangi kira aralığında ve nasıl bir evde oturmak istediklerini önceden yazıyor.",
         "Karşıyaka ve Bornova'da ulaşıma yakın daireler için talep genellikle yoğun; Konak ve Balçova'da merkeze yakınlık öne çıkıyor. Buca ve Karabağlar'da geniş ve uygun kiralı daire arayan talepler, Bayraklı, Gaziemir ve Çiğli'de ise site içi ve yeni yapı arayan kiracılar görürsün.",
-        "Evine uyan talebi seçip teklifini gönderiyorsun. Kiracı ilgilendiğinde eşleşiyorsunuz ve şartları doğrudan kendi aranızda konuşuyorsunuz; araya kimse girmiyor."
+        "Evine uyan talebi seçip üyelikle kiracının iletişim bilgisini görüntülüyor ve doğrudan arıyorsun. Şartları kendi aranızda konuşuyorsunuz; araya kimse girmiyor."
       ]
     }
   },
@@ -98,8 +98,8 @@ export const CITIES = {
       h1: "Eskişehir'de kiralık ev arıyorsan aramayı bırak",
       city: [
         "Eskişehir'de kiralık ev piyasası dönem başlarında hızlanıyor; uygun daireler birkaç gün içinde kiralanabiliyor. Bu tempoda tek tek gezmek yerine talebini önceden yazmak, seni sıranın önüne geçiriyor.",
-        "Tepebaşı ve Odunpazarı ilçeleri şehrin iki ana yaşam alanı. Bağlar ve Emek çevresinde öğrenci ve genç çalışanların tercih ettiği daireler, Çamlıca tarafında ise ailelerin aradığı daha geniş evler öne çıkıyor. Hangi semti düşündüğünü, kira aralığını ve oda sayısını yazdığında ev sahipleri sana doğrudan teklif gönderiyor.",
-        "Üniversiteye ya da tramvay hattına yakınlık senin için belirleyiciyse talebine ekle. Eşyalı ev arıyorsan bunu da belirt; gelen teklifler baştan bu ölçülere göre gelsin."
+        "Tepebaşı ve Odunpazarı ilçeleri şehrin iki ana yaşam alanı. Bağlar ve Emek çevresinde öğrenci ve genç çalışanların tercih ettiği daireler, Çamlıca tarafında ise ailelerin aradığı daha geniş evler öne çıkıyor. Hangi semti düşündüğünü, kira aralığını ve oda sayısını yazdığında ev sahipleri seni doğrudan arıyor.",
+        "Üniversiteye ya da tramvay hattına yakınlık senin için belirleyiciyse talebine ekle. Eşyalı ev arıyorsan bunu da belirt; seni arayanlar baştan bu ölçülere göre gelsin."
       ]
     },
     owner: {
@@ -107,9 +107,9 @@ export const CITIES = {
       description: "Eskişehir'de ev arayan kiracıların taleplerini incele, evine uygun olanı seç ve teklifini gönder. Aracı yok, komisyon yok.",
       h1: "Eskişehir'deki kiracı talepleri seni bekliyor",
       city: [
-        "Eskişehir'de kiracı talebi dönemsel dalgalanıyor; okul dönemi yaklaştığında ev arayan sayısı belirgin biçimde artıyor. Burada bu dalgayı beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüp doğrudan teklif gönderiyorsun.",
+        "Eskişehir'de kiracı talebi dönemsel dalgalanıyor; okul dönemi yaklaştığında ev arayan sayısı belirgin biçimde artıyor. Burada bu dalgayı beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüp uygun olanı doğrudan arıyorsun.",
         "Tepebaşı ve Odunpazarı'ndaki talepleri kira aralığına göre süzebilirsin. Bağlar ve Emek çevresinde tek kişilik ya da paylaşımlı kullanıma uygun daireler için talep yoğun olurken, Çamlıca tarafında aile büyüklüğüne göre geniş daire arayan kiracılar öne çıkıyor.",
-        "Eşyalı bir daire kiraya veriyorsan bunu teklifinde belirtmen işini kolaylaştırır; kiracıların önemli bir bölümü bu ayrıntıyı baştan arıyor."
+        "Eşyalı bir daire kiraya veriyorsan eşyalı ev arayan talepleri süzmen işini kolaylaştırır; kiracıların önemli bir bölümü bu ayrıntıyı talebine baştan yazıyor."
       ]
     }
   },
@@ -122,8 +122,8 @@ export const CITIES = {
       h1: "Bursa'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Bursa'da semtler arasındaki fark kiraya doğrudan yansıyor. Nilüfer'de yeni yapılar ve site içi daireler öne çıkarken, Osmangazi'de merkeze yakınlık, Yıldırım'da ise daha uygun kira aralıkları belirleyici oluyor. Sen bu karşılaştırmayı yapmak yerine aradığın evi tarif ediyorsun.",
-        "Talebini yazdığında Gürsu ve Kestel tarafındaki sanayi bölgelerine yakın dairelerden, Mudanya'nın deniz kıyısındaki evlerine kadar farklı bölgelerden teklif alabilirsin. Birden fazla semt yazmak, sana gelen teklif sayısını artırır.",
-        "İşine yakınlık Bursa'da en çok sorulan ayrıntılardan biri. Hangi bölgede çalıştığını ve kaç dakikalık mesafeyi kabul ettiğini yazarsan, teklifler baştan bu çerçevede gelir."
+        "Talebini yazdığında Gürsu ve Kestel tarafındaki sanayi bölgelerine yakın dairelerden, Mudanya'nın deniz kıyısındaki evlerine kadar farklı bölgelerden ev sahipleri seni arayabilir. Birden fazla semt yazmak, aranma şansını artırır.",
+        "İşine yakınlık Bursa'da en çok sorulan ayrıntılardan biri. Hangi bölgede çalıştığını ve kaç dakikalık mesafeyi kabul ettiğini yazarsan, seni arayanlar baştan bu çerçevede gelir."
       ]
     },
     owner: {
@@ -133,7 +133,7 @@ export const CITIES = {
       city: [
         "Bursa'da evini kiraya verirken kiracı beklemek yerine, ev arayanların yazdığı talepleri inceleyerek başlıyorsun. Her talepte bölge, kira aralığı, oda sayısı ve taşınma zamanı yazılı oluyor.",
         "Nilüfer'de site içi ve yeni yapı arayan kiracılar, Osmangazi'de merkeze yakınlık isteyen talepler, Yıldırım'da ise uygun kira aralığında geniş daire arayanlar öne çıkıyor. Gürsu ve Kestel'de işine yakın oturmak isteyen çalışanların talepleri, Mudanya'da ise deniz tarafında oturmak isteyenlerin talepleri görülür.",
-        "Evine uygun talebi seçtikten sonra kendi şartlarınla teklifini gönderiyorsun. Kirayı ve depozitoyu belirleyen taraf sensin."
+        "Evine uygun talebi seçtikten sonra üyelikle kiracının iletişim bilgisini görüntüleyip doğrudan arıyorsun. Kirayı ve depozitoyu belirleyen taraf sensin."
       ]
     }
   },
@@ -146,8 +146,8 @@ export const CITIES = {
       h1: "Antalya'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Antalya'da uzun dönem kiralık ev bulmak, sezon hareketliliği nedeniyle çoğu şehirden daha zor olabiliyor. Muratpaşa'da merkeze yakın daireler hızla kiralanırken, Konyaaltı'nda sahile yakınlık kirayı belirleyen ilk başlık oluyor. Sen bu yarışın içinde tek tek aramak yerine talebini yazıyorsun.",
-        "Kepez tarafında uygun kira aralığında geniş daireler, Döşemealtı'nda yeni yapılar öne çıkıyor. Alanya ve Manavgat'ta ise yıllık kiralama ile sezonluk kullanım bir arada bulunuyor; uzun dönem oturmak istediğini talebine yazarsan gelen teklifler buna göre süzülür.",
-        "Eşyalı ya da eşyasız tercihini ve taşınmak istediğin ayı belirtmen, Antalya'da sana gelen tekliflerin isabetini belirgin biçimde artırır."
+        "Kepez tarafında uygun kira aralığında geniş daireler, Döşemealtı'nda yeni yapılar öne çıkıyor. Alanya ve Manavgat'ta ise yıllık kiralama ile sezonluk kullanım bir arada bulunuyor; uzun dönem oturmak istediğini talebine yazarsan seni arayanlar buna göre gelir.",
+        "Eşyalı ya da eşyasız tercihini ve taşınmak istediğin ayı belirtmen, Antalya'da seni arayan ev sahiplerinin isabetini belirgin biçimde artırır."
       ]
     },
     owner: {
@@ -157,26 +157,26 @@ export const CITIES = {
       city: [
         "Antalya'da uzun dönem kiracı arıyorsan, sezonluk taleplerin arasında doğru kişiyi bulmak vakit alıyor. Burada kiracılar ne aradıklarını önceden yazdığı için, evine uyanı baştan seçebiliyorsun.",
         "Muratpaşa'da merkeze yakın oturmak isteyen talepler, Konyaaltı'nda sahile yakınlık arayan kiracılar öne çıkıyor. Kepez'de uygun kira aralığında geniş daire arayanlar, Döşemealtı'nda yeni yapı tercih edenler, Alanya ve Manavgat'ta ise yıl boyu oturacak kiracı talepleri görülür.",
-        "Talebi seçip teklifini gönderiyorsun; kiracı ilgilenirse eşleşiyorsunuz ve şartları doğrudan konuşuyorsunuz. Kira ve sözleşme kararları tamamen sana ait."
+        "Talebi seçip üyelikle kiracının iletişim bilgisini görüntülüyor ve doğrudan arıyorsun; şartları kendi aranızda konuşuyorsunuz. Kira ve sözleşme kararları tamamen sana ait."
       ]
     }
   }
 };
 
 // --- Ortak metinler -------------------------------------------------------
-const TENANT_SUB = "Nasıl bir ev aradığını bir kez yaz, arkana yaslan. Uygun ev sahipleri teklifleriyle sana gelsin.";
-const OWNER_SUB = "Evini boş bekletme. Talebi sen seç, teklifini gönder, kirayı ve şartları kendin belirle.";
+const TENANT_SUB = "Nasıl bir ev aradığını bir kez yaz, arkana yaslan. Uygun ev sahipleri seni bulup doğrudan arasın.";
+const OWNER_SUB = "Evini boş bekletme. Kiracı taleplerini incele, iletişim bilgisini üyelikle aç, kirayı ve şartları kendin belirle.";
 
 const TENANT_STEPS = [
   ["Talebini yaz", "Hangi semtte oturmak istediğini, kira aralığını, oda sayısını ve taşınma zamanını belirtirsin. Belge yüklemene gerek yok."],
-  ["Ev sahipleri teklif gönderir", "Talebine uyan ev sahipleri ve danışmanlar teklifleriyle sana gelir; sen gelen teklifleri karşılaştırırsın."],
-  ["Beğendiğinle iletişime geç", "İlgilendiğin teklifte eşleşme kurulur, iletişim bilgisi açılır ve karşı tarafla doğrudan konuşursun."]
+  ["Talebin duyurulur", "E-posta doğrulamasıyla talebin yayına girer; kriterine uyan ev sahipleri ve onaylı danışmanlar haberdar olur."],
+  ["Seni doğrudan ararlar", "İletişim bilgini görüntüleyen üyeler seni telefonla arar; her görüntülemede sana haber verilir. Şartları doğrudan konuşursunuz."]
 ];
 
 const OWNER_STEPS = [
   ["Talepleri filtrele", "Bölge ve kira aralığına göre süz; evine uyan kiracı taleplerini tek listede görürsün."],
-  ["Teklifini gönder", "Uygun bulduğun talebe kendi kira ve şartlarınla teklifini iletirsin."],
-  ["Eşleşince doğrudan görüş", "Kiracı ilgilenirse eşleşme kurulur ve iletişime geçersiniz. Pazarlığa ve sözleşmeye karışmayız."]
+  ["İletişim bilgisini gör", "Uygun bulduğun talebin telefon ve e-postasını üyelikle görüntülersin; talep sahibine anonim bildirim gider."],
+  ["Doğrudan ara ve anlaş", "Kiracıyı kendin arar, kirayı ve şartları birlikte belirlersiniz. Pazarlığa ve sözleşmeye karışmayız."]
 ];
 
 function tenantFaq(il) {
@@ -186,22 +186,22 @@ function tenantFaq(il) {
     ["Kiracı tarafında komisyon var mı?",
       "Hayır. Kiracı tarafında komisyon almıyoruz ve kira pazarlığına karışmıyoruz. Ev sahibiyle doğrudan görüşürsün."],
     ["Talebimi herkes görebiliyor mu?",
-      "Talebin yayındayken sitede herkese açık olarak listelenir; bölge, oda sayısı, kira aralığın ve açıklaman görünür. Adın, telefonun ve e-postan gösterilmez. İletişim bilgin yalnızca eşleşme sonrasında paylaşılır."],
-    [`${il}'da hiç teklif gelmezse ne olur?`,
-      "Talebin yayında kalır ve uygun bir konut sisteme eklendiğinde bildirim alırsın. Talebini istediğin zaman düzenleyebilir ya da kapatabilirsin."]
+      "Talebin yayındayken sitede herkese açık olarak listelenir; bölge, oda sayısı, kira aralığın ve açıklaman görünür. Adın, telefonun ve e-postan kartta gösterilmez; iletişim bilgini yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir ve her görüntülemede sana haber verilir."],
+    [`${il}'da beni kimse aramazsa ne olur?`,
+      "Talebin yayında kalır ve kriterine uyan yeni üyeler geldikçe onlara duyurulmaya devam eder. Talebini istediğin zaman düzenleyebilir ya da kapatabilirsin."]
   ];
 }
 
 function ownerFaq(il) {
   return [
     [`${il}'daki kiracı taleplerini görmek için üye olmam gerekiyor mu?`,
-      "Talepleri bölge ve kira aralığına göre incelemek için üyelik gerekmez; yayındaki talepleri site üzerinden görebilirsin. Teklif göndermek için üye olman gerekir. Ödeme yalnızca eşleştikten sonra karşı tarafın iletişim bilgisini görmek içindir."],
-    ["Teklif gönderdikten sonra ne oluyor?",
-      "Teklifin kiracıya iletilir. Kiracı teklifini beğenirse eşleşme kurulur ve doğrudan iletişime geçersiniz. Araya kimse girmez."],
+      "Talepleri bölge ve kira aralığına göre incelemek için üyelik gerekmez; yayındaki talepleri site üzerinden görebilirsin. Ödeme yalnızca talep sahibinin iletişim bilgisini görüntülemek içindir; üyelik süresince sınırsızdır."],
+    ["İletişim bilgisini görünce ne oluyor?",
+      "Kiracının adı, telefonu ve e-postası açılır; kendisine iletişim bilgisinin bir üye tarafından görüntülendiği bildirilir. Onu doğrudan arar, görüşmeyi kendi aranızda yürütürsünüz. Araya kimse girmez."],
     ["Kirayı ve şartları kim belirliyor?",
       "Sen belirlersin. Fiyata, depozitoya ya da sözleşme şartlarına karışmıyoruz."],
     [`${il}'da evim için uygun talep yoksa?`,
-      "Evini sisteme eklersin; profiline uyan yeni bir talep geldiğinde bildirim alırsın. Yeni kiracı talepleri sürekli ekleniyor."]
+      "Panelinden aradığın kiracı profilini (bölge, kira aralığı) kriter olarak kaydedersin; uyan yeni bir talep yayına girdiğinde bildirim alırsın. Yeni kiracı talepleri sürekli ekleniyor."]
   ];
 }
 
@@ -209,7 +209,7 @@ function ownerFaq(il) {
 const HEADER_HTML = `
     <header class="site">
       <div class="wrap">
-        <a class="logo" href="${SITE}/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
+        <a class="logo" href="${SITE}/">Konuttalebi</a>
         <nav class="nav">
           <a href="${SITE}/kiralik-ev-arayan">Kiralık ev arayan</a>
           <a href="${SITE}/evine-kiraci-bul">Evine kiracı bul</a>
@@ -226,7 +226,7 @@ const FOOTER_HTML = `
         <a href="${SITE}/#/yardim">Yardım</a>
         <a href="${SITE}/#/kvkk">KVKK</a>
         <a href="${SITE}/#/kullanim-sartlari">Kullanım şartları</a>
-        <p style="margin:14px 0 0">© 2026 Konuttalebi — Sen aramazsın, teklifler sana gelir.</p>
+        <p style="margin:14px 0 0">© 2026 Konuttalebi</p>
       </div>
     </footer>`;
 
@@ -309,8 +309,8 @@ export function renderCityPage(side, slug) {
     ? `${city.name}'da evini kiraya mı vereceksin?`
     : `${city.name}'da kiralık ev mi arıyorsun?`;
   const crossText = isTenant
-    ? `Aynı şehirde evi olan tarafa geç: ${city.name}'daki kiracı taleplerini görebilir, uygun bulduğuna teklifini gönderebilirsin.`
-    : `Aynı şehirde ev arayan tarafa geç: ${city.name}'da kiralık ev talebini oluşturabilir, ev sahiplerinden teklif alabilirsin.`;
+    ? `Aynı şehirde evi olan tarafa geç: ${city.name}'daki kiracı taleplerini görebilir, uygun bulduğunun iletişim bilgisini üyelikle açabilirsin.`
+    : `Aynı şehirde ev arayan tarafa geç: ${city.name}'da kiralık ev talebini oluştur; ev sahipleri seni bulup doğrudan arasın.`;
   const crossLabel = isTenant ? `${city.name}'da evine kiracı bul` : `${city.name}'da kiralık ev talebi oluştur`;
 
   // Iki CTA ayni sayfada: ustteki hero, alttaki kapanis bandi. Konum ayri gonderilir.

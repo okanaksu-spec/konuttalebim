@@ -869,7 +869,7 @@ function homePage() {
             <span class="brand-mark">${icon("lock", 18)}</span>
             <div>
               <strong>İletişim kilidi</strong>
-              <p>Telefon ve e-posta üyelik alınana kadar gizli kalır; üyelikle açılır, doğrudan ararsın.</p>
+              <p>Telefon ve e-posta yalnızca eşleşme sonrasında, iki taraf da onay verdiğinde paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
             </div>
           </div>
         </div>
@@ -3533,8 +3533,11 @@ function ensureMatch(offer) {
 
 // Rotaya gore tarayici sekme basligi. Tek sayfa uygulama oldugu icin elle guncelliyoruz.
 const PAGE_TITLES = {
-  "": "Ev al, sat, kirala — yeni nesil emlak anlayışı",
-  home: "Ev al, sat, kirala — yeni nesil emlak anlayışı",
+  "": "Talebini Bırak, Ev Sahipleri Seni Bulsun",
+  // AJANS onaylı title (SAYFA HARİTASI 1. satır). index.html'deki <title> ile
+  // AYNI olmalı — burada farklı yazılırsa tarayıcı sekmesi Google'ın gördüğünden
+  // başka bir başlık gösterir.
+  home: "Talebini Bırak, Ev Sahipleri Seni Bulsun",
   ilanlar: "Yayındaki konutlar",
   ara: "Konut ara",
   "nasil-calisir": "Nasıl çalışır?",

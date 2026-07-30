@@ -112,14 +112,9 @@ function seedState() {
       "u-buyer-3": { verificationLevel: "Bütçe Beyanı: 4-5 mn TL", badge: "neutral", budgetTrustScore: 45, profileCompletion: 42, declaredBudgetMin: 4000000, declaredBudgetMax: 5000000, declaredDownPayment: 1200000, declaredCashReady: false, declaredUsesCredit: true }
     },
     plans: [
-      { id: "plan-buyer-free", name: "Alıcı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Talep · Temel", features: ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"] },
       { id: "plan-buyer-boost", name: "Talebimi Üste Taşı", roleType: "BUYER", price: 99, interval: "7 gün", category: "Talep · Üste Taşıma", features: ["Talep kartı üst sıralarda", "Havuzda renkli vurgu", "Uygun üyelere ek bildirim"] },
-      { id: "plan-buyer-contact", name: "Satıcı Bilgilerini Gör", roleType: "BUYER", price: 199, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin satıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"] },
-      { id: "plan-seller-boost", name: "İlanımı Üste Taşı", roleType: "SELLER", price: 149, interval: "7 gün", category: "Satılık · Reklam", features: ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"] },
-      { id: "plan-seller-contact", name: "Alıcı Bilgilerini Gör", roleType: "SELLER", price: 299, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin alıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"] },
       { id: "plan-tenant-free", name: "Kiracı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Kiralık · Temel", features: ["Sınırsız kiralık talebi", "Ev sahipleri sana ulaşır", "Tamamen ücretsiz"] },
       { id: "plan-landlord-contact", name: "Kiracı Bilgilerini Gör", roleType: "SELLER", price: 199, interval: "ay", category: "Kiralık · İletişim", features: ["Eşleştiğin kiracının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız kiracı talebi görüntüleme"] },
-      { id: "plan-landlord-boost", name: "Kiralık İlanımı Üste Taşı", roleType: "SELLER", price: 99, interval: "7 gün", category: "Kiralık · Reklam", features: ["Kiralık ilanın üst sıralarda", "Kiracı havuzunda renkli vurgu", "Uygun kiracılara ek bildirim"] },
       { id: "plan-pro", name: "Profesyonel Paket", roleType: "AGENT", price: 799, interval: "ay", category: "Danışman · Reklam + üyelik", features: ["Tüm talep havuzuna sınırsız erişim", "Tüm iletişim bilgilerini görme", "Onaylı danışman rozeti"] }
     ],
     demands: [
@@ -873,12 +868,12 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Talep havuzu</div>
-            <h2>Ev arayanları gör, iletişime geç.</h2>
-            <p class="lead">Kiralık ev ve konut satın alma taleplerini il, ilçe ve kategoriye göre üye olmadan gez. Talep sahibinin iletişim bilgisini üyelikle aç, doğrudan ara.</p>
+            <h2>Ev satın almak isteyenleri gör, iletişime geç.</h2>
+            <p class="lead">Ev almak isteyenlerin ve kiralık ev arayanların taleplerini il, ilçe ve kategoriye göre üye olmadan gez. Talep sahibinin iletişim bilgisini üyelikle aç, doğrudan ara.</p>
           </div>
         </div>
         <div class="search-filterbar" style="margin-top:6px">
-          <select id="home-tx"><option value="RENT">Kiralık ev talepleri</option><option value="SALE">Konut satın alma talepleri</option></select>
+          <select id="home-tx"><option value="SALE">Ev almak isteyenlerin talepleri</option><option value="RENT">Kiralık ev talepleri</option></select>
           <select id="home-cat"><option value="">Tüm kategoriler</option>${MAIN_CATEGORIES.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
           <select id="home-city"><option value="">Tüm iller</option>${TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("")}</select>
           <button class="btn btn-primary" onclick="KT.homeSearch()">${icon("search", 16)} Talepleri ara</button>
@@ -890,7 +885,7 @@ function homePage() {
       <div class="container">
         <div class="section-head">
           <div class="section-title">
-            <div class="kicker">Ev arayanlar</div>
+            <div class="kicker">Kiralık Ev Arayanlar</div>
             <h2>Ne aradığını söyleyenler burada; iletişime geç, doğrudan anlaş.</h2>
             <p class="lead">Yayındaki gerçek talepler. Kimlik bilgileri gizli kalır; ihtiyaç özetini görür, üyelikle iletişim bilgisini açar, talep sahibini doğrudan ararsın.</p>
           </div>
@@ -4481,7 +4476,7 @@ window.KT = {
     // 2.0: ilan vitrini yok; ana sayfa yalniz talep gosterir.
     const dBox = document.getElementById("home-demands");
     if (dBox) {
-      const rd = await api("/demands/search?");
+      const rd = await api("/demands/search?transactionType=RENT");
       const talepler = (rd.ok && rd.data && rd.data.items) ? rd.data.items.slice(0, 8) : [];
       _searchItems = talepler;
       dBox.innerHTML = talepler.length

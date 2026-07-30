@@ -1368,6 +1368,164 @@ function emailWallPage() {
     </div>`);
 }
 
+/* ==========================================================================
+   MISAFIR TALEP AKISI  (#/talep-birak)
+   --------------------------------------------------------------------------
+   NEDEN VAR: Eski akista kiraci "talep birak" deyince once GIRIS ekraniyla
+   karsilasiyordu — hesabi olmayan, siteyi ilk kez goren biri icin kapali kapi.
+   Reklam trafiginin neredeyse tamami buradan geri donuyordu.
+
+   BU AKISTA SIRA TERSTIR: kisi once aradigi evi tarif eder (7 soru), sonra
+   kendini tanitir, uyelik o anda kendiliginden olusur. Talep gonderim aninda
+   sunucuya kaydedilir; boylece "kod gelmedi, form uctu" durumu imkansizdir.
+
+   Sayfa arama motorlarina KAPALI ve menude gorunmez — reklam inis sayfasidir.
+   Organik trafik eski akista kalir ki ikisi karsilastirilabilsin.
+   ========================================================================== */
+let misafirAdim = 1;
+let misafirVeri = {};          // 1. adimda toplanan form verisi
+let misafirSonuc = null;       // { email } — gonderim basarili olunca dolar
+let misafirKisi = {};          // 2. adimdaki kisisel alanlar (geri donusta korunur)
+let misafirOlayGitti = false;  // "form basladi" olayi bir kez gonderilsin
+
+function guestDemandPage() {
+  // Giris yapmis kullanici bu sayfaya dusmesin; kendi panelinden devam etsin.
+  if (isSignedIn()) {
+    const u = currentUser();
+    if (u && u.role === "BUYER") { location.hash = "/dashboard/alici/talep-olustur"; return ""; }
+  }
+  if (misafirSonuc) return guestDemandSentScreen();
+  return misafirAdim === 1 ? guestDemandStep1() : guestDemandStep2();
+}
+
+function guestAdimCubugu(aktif) {
+  const kutu = (no, etiket) => {
+    const durum = aktif === no ? "reg-step reg-step-on" : (no < aktif ? "reg-step reg-step-done" : "reg-step");
+    return `<div class="${durum}"><span>${no}</span> ${etiket}</div>`;
+  };
+  return `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+    ${kutu(1, "Aradığın ev")}${kutu(2, "Talebini yayına al")}</div>`;
+}
+
+function guestDemandStep1() {
+  const v = misafirVeri;
+  return publicShell("Nasıl bir ev arıyorsun?",
+    "Üye olmadan doldur. Talebini yayına alırken tanışırız.", `
+    <div class="panel" style="max-width:760px;margin:0 auto">
+      ${guestAdimCubugu(1)}
+      <form class="form-grid" onsubmit="KT.misafirDevam(event)" oninput="KT.misafirFormBasladi()">
+        ${locationFields("g", true)}
+        <div class="field"><label for="g-type">Ev tipi</label>
+          <select id="g-type">${CATEGORY_TREE[CAT_KONUT].map((t) => `<option ${v.propertyType === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}</select></div>
+        <div class="field"><label for="g-rooms">Oda sayısı</label>
+          <select id="g-rooms">${["1+1", "2+1", "3+1", "4+1", "5+1"].map((r) => `<option ${v.roomCount === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
+        <div class="field"><label for="g-minbudget">En az aylık kira <span style="color:#c0392b">*</span></label>
+          <input id="g-minbudget" type="number" inputmode="numeric" placeholder="20000" value="${escapeAttr(v.minBudget || "")}"></div>
+        <div class="field"><label for="g-maxbudget">En fazla aylık kira <span style="color:#c0392b">*</span></label>
+          <input id="g-maxbudget" type="number" inputmode="numeric" placeholder="30000" value="${escapeAttr(v.maxBudget || "")}"></div>
+        <div class="field"><label for="g-timeline">Ne zaman taşınmak istiyorsun?</label>
+          <select id="g-timeline">${["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"].map((t) => `<option ${v.purchaseTimeline === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+        <div class="field"><label for="g-occupation">Meslek / çalışma durumu</label>
+          <select id="g-occupation">${MESLEK_DURUMLARI.map((m) => `<option ${v.occupation === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}</select></div>
+        <div class="field full">
+          <label class="check"><input id="g-furnished" type="checkbox" ${v.furnished ? "checked" : ""}><span style="font-weight:500">Eşyalı olsun</span></label>
+        </div>
+        <div id="g-error" class="form-error"></div>
+        <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" type="submit">Devam et ${icon("send", 16)}</button>
+          <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
+        </div>
+        <p class="muted full" style="font-size:13px;margin:0">
+          Kiracı için tamamen ücretsiz. Komisyon yok. İletişim bilgin, sen onaylamadan kimseye gösterilmez.
+        </p>
+      </form>
+    </div>`);
+}
+
+function guestDemandStep2() {
+  const k = misafirKisi || {};
+  return publicShell("Talebini yayına al",
+    "Son adım. Ev sahipleri seni bu bilgilerle bulacak.", `
+    <div class="panel" style="max-width:640px;margin:0 auto">
+      ${guestAdimCubugu(2)}
+      <div class="notice" style="margin:0 0 16px">
+        <strong>Talebin hazır.</strong> ${escapeHtml(misafirOzetMetni())}
+        <button class="btn btn-small btn-outline" style="margin-left:8px" onclick="KT.misafirGeri()">Değiştir</button>
+      </div>
+      <form class="form-grid" onsubmit="KT.misafirGonder(event)">
+        <div class="field full"><label for="g-name">Ad Soyad <span style="color:#c0392b">*</span></label>
+          <input id="g-name" type="text" autocomplete="name" placeholder="Adın ve soyadın" value="${escapeAttr(k.name || "")}"></div>
+        <div class="field full"><label for="g-email">E-posta <span style="color:#c0392b">*</span></label>
+          <input id="g-email" type="email" autocomplete="email" inputmode="email" placeholder="ornek@eposta.com" value="${escapeAttr(k.email || "")}">
+          <span class="muted" style="font-size:12.5px">Talebini yayına almak için buraya bir onay bağlantısı göndereceğiz.</span></div>
+        <div class="field full"><label for="g-phone">Cep telefonu <span style="color:#c0392b">*</span></label>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <span style="display:flex;align-items:center;padding:0 12px;border:1px solid #dde4ec;border-radius:8px;background:#f5f8fb;font-weight:600">+90</span>
+            <input id="g-phone" type="tel" autocomplete="tel" inputmode="numeric" placeholder="5xx xxx xx xx" oninput="KT.phoneFormat(this)" style="flex:1" value="${escapeAttr(k.phone || "")}">
+          </div>
+          <span class="muted" style="font-size:12.5px">Yalnızca sen onayladıktan sonra karşı tarafa gösterilir.</span></div>
+        <div class="field"><label for="g-tckn">T.C. Kimlik No <span style="color:#c0392b">*</span></label>
+          <input id="g-tckn" type="text" inputmode="numeric" placeholder="11 haneli" oninput="KT.tcknFormat(this,'g-tckn-hint')" value="${escapeAttr(k.tckn || "")}">
+          <span id="g-tckn-hint" class="muted" style="font-size:12.5px"></span></div>
+        <div class="field"><label for="g-birth">Doğum tarihi <span style="color:#c0392b">*</span></label>
+          <input id="g-birth" type="date" value="${escapeAttr(k.birth || "")}" max="${escapeAttr(new Date(Date.now() - 18 * 365.25 * 864e5).toISOString().slice(0, 10))}"></div>
+        <div class="field full"><label for="g-password">Şifre <span style="color:#c0392b">*</span></label>
+          <input id="g-password" type="password" autocomplete="new-password" placeholder="En az 8 karakter" oninput="KT.sifreGucu(this,'g-password-guc')">
+          <div id="g-password-guc" class="muted" style="font-size:12.5px;margin-top:4px">En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</div></div>
+
+        <div class="field full" style="background:#f5f8fb;border-radius:10px;padding:12px;font-size:13px;line-height:1.6" class="muted">
+          <strong>Kimlik bilgin neden isteniyor?</strong> Sahte üyeliği önlemek ve eşleşen tarafların gerçek kişiler
+          olduğundan emin olmak için. Numaran <strong>şifreli</strong> saklanır, yönetim panelinde bile maskeli görünür
+          (123******01) ve <strong>hiçbir kullanıcıyla paylaşılmaz</strong>. Ayrıntı: <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a>.
+        </div>
+        <div class="field full">
+          <label class="check"><input id="g-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span style="color:#c0392b">*</span></span></label>
+        </div>
+        <div class="field full">
+          <label class="check"><input id="g-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Talebimin ilgili ev sahiplerine <strong>iletişim bilgim gizli kalacak şekilde</strong> gösterileceğini biliyorum. <span style="color:#c0392b">*</span></span></label>
+        </div>
+        <div class="field full">
+          <label class="check"><input id="g-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya ve fırsatlardan haberdar olmak için ticari elektronik ileti gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+        </div>
+        <div id="g-error2" class="form-error"></div>
+        <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" type="submit" id="g-submit">Talebimi yayına al</button>
+          <button class="btn btn-outline" type="button" onclick="KT.misafirGeri()">Geri</button>
+        </div>
+      </form>
+    </div>`);
+}
+
+function guestDemandSentScreen() {
+  const mail = (misafirSonuc && misafirSonuc.email) || "";
+  return publicShell("Son bir adım kaldı", "Talebin kaydedildi; e-postanı onaylayınca yayına giriyor.", `
+    <div class="panel" style="max-width:560px;margin:0 auto;text-align:center">
+      <div style="font-size:44px;line-height:1;margin-bottom:10px">&#128231;</div>
+      <h3 style="margin:0 0 10px;font-size:21px">Postana bak</h3>
+      <p class="muted" style="margin:0 0 4px;line-height:1.6">
+        <strong>${escapeHtml(mail)}</strong> adresine bir onay bağlantısı gönderdik.
+        Bağlantıya tıkladığın anda talebin yayına giriyor ve ev sahipleri sana teklif gönderebiliyor.
+      </p>
+      <div class="notice" style="text-align:left;margin:16px 0">
+        Gelen kutunda göremiyorsan <strong>spam / gereksiz</strong> klasörüne bak.
+        Talebin bizde kayıtlı — hiçbir şeyi yeniden doldurmayacaksın.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-outline" onclick="KT.misafirTekrarGonder()">Bağlantıyı tekrar gönder</button>
+        <button class="btn btn-outline" onclick="KT.misafirEpostaDuzelt()">E-postamı yanlış yazdım</button>
+      </div>
+    </div>`);
+}
+
+function misafirOzetMetni() {
+  const v = misafirVeri || {};
+  const yer = [v.district, v.cityName].filter(Boolean).join(", ");
+  const kira = (v.minBudget && v.maxBudget)
+    ? `${Number(v.minBudget).toLocaleString("tr-TR")}–${Number(v.maxBudget).toLocaleString("tr-TR")} TL`
+    : "";
+  return [yer, v.roomCount, v.propertyType, kira].filter(Boolean).join(" · ");
+}
+
 function phoneVerifyPage() {
   const u = currentUser();
   if (!u) { location.hash = "/giris"; return ""; }
@@ -1595,6 +1753,10 @@ function publicPage(kind) {
   }
   if (kind === "telefon-dogrula") {
     return phoneVerifyPage();
+  }
+  // Reklam inis sayfasi: uyeliksiz talep formu. Menude yok, arama motorlarina kapali.
+  if (kind === "talep-birak" || kind.startsWith("talep-birak")) {
+    return guestDemandPage();
   }
   if (kind === "nasil-calisir") {
     return publicShell("Nasıl Çalışır", "Talep ve teklif eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
@@ -3378,6 +3540,7 @@ const PAGE_TITLES = {
   satici: "Satıcılar için",
   giris: "Giriş yap",
   "uye-ol": "Üye ol",
+  "talep-birak": "Kiralık ev talebi oluştur",
   "sifremi-unuttum": "Şifremi unuttum",
   "sifre-sifirla": "Yeni şifre belirle",
   "google-tamamla": "Bilgilerini tamamla",
@@ -3403,6 +3566,15 @@ function updatePageTitle(path) {
     suffix = PAGE_TITLES[key] !== undefined ? PAGE_TITLES[key] : PAGE_TITLES.home;
   }
   document.title = suffix ? `${base} | ${suffix}` : base;
+  // Reklam inis sayfasi arama sonuclarina girmesin. Hash rotasi oldugu icin
+  // Google zaten ayri sayfa saymaz, ama yine de acikca kapatiyoruz: sadece
+  // arama motoru icin var olan, ice linki olmayan sayfalar "doorway page"
+  // muamelesi gorur ve cezasi tek sayfayla kalmaz, alan adina yazilir.
+  const robots = document.querySelector('meta[name="robots"]');
+  if (robots) {
+    const kapali = path === "talep-birak" || path.startsWith("talep-birak");
+    robots.setAttribute("content", kapali ? "noindex, nofollow" : "index, follow");
+  }
 }
 
 function render() {
@@ -3586,9 +3758,11 @@ window.KT = {
     reader.readAsDataURL(file);
   },
   // --- Kayit formu: bicimlendirme ve adim gecisi ---
-  tcknFormat(el) {
+  // ipucuId: ayni islev iki formda kullaniliyor (kayit ve misafir talep);
+  // ipucu kutusunun kimligi cagirandan gelir.
+  tcknFormat(el, ipucuId) {
     el.value = el.value.replace(/\D/g, "").slice(0, 11);
-    const h = document.getElementById("r-tckn-hint");
+    const h = document.getElementById(ipucuId || "r-tckn-hint");
     if (!h) return;
     if (!el.value) { h.textContent = ""; h.style.color = ""; return; }
     if (el.value.length < 11) { h.textContent = `${el.value.length}/11 hane`; h.style.color = ""; return; }
@@ -3605,8 +3779,8 @@ window.KT = {
     el.value = d.replace(/^(\d{3})(\d{0,3})(\d{0,2})(\d{0,2}).*$/, (m, a, b, c, e) =>
       [a, b, c, e].filter(Boolean).join(" "));
   },
-  sifreGucu(el) {
-    const h = document.getElementById("r-pw-hint");
+  sifreGucu(el, ipucuId) {
+    const h = document.getElementById(ipucuId || "r-pw-hint");
     if (!h) return;
     const v = el.value;
     const eksik = [];
@@ -3617,6 +3791,102 @@ window.KT = {
     if (!v) { h.textContent = "En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam."; h.style.color = ""; return; }
     h.textContent = eksik.length ? `Eksik: ${eksik.join(", ")}` : "Şifre kurallara uygun.";
     h.style.color = eksik.length ? "#c0392b" : "#2f8f4e";
+  },
+  /* ---------- MISAFIR TALEP AKISI ---------- */
+  // Form dolduruldugu an bir kez olay gonderilir: kac kisi baslayip
+  // bitirmedigini gorebilmek icin. Donusum degil, yalnizca huni olcumu.
+  misafirFormBasladi() {
+    if (misafirOlayGitti) return;
+    misafirOlayGitti = true;
+    ktTrack("talep_formu_basladi", { akis: "misafir" });
+  },
+  misafirDevam(event) {
+    event.preventDefault();
+    const el = (id) => document.getElementById(id);
+    const val = (id) => { const e = el(id); return e ? e.value : ""; };
+    const sec = (id) => { const v = val(id); return /^(Farketmez|Belirtmek istemiyorum)$/.test(v) ? "" : v; };
+    const ilSec = el("g-city");
+    const cityName = ilSec && ilSec.value ? ilSec.selectedOptions[0].text : "";
+    const mahalleler = [...document.querySelectorAll(".g-mah:checked")].map((x) => x.value);
+    const min = Number(val("g-minbudget")), max = Number(val("g-maxbudget"));
+    if (!cityName) return showFormError("g-error", "Hangi ilde ev aradığını seç.");
+    if (!min || !max) return showFormError("g-error", "Aylık kira aralığını yaz.");
+    if (max < min) return showFormError("g-error", "En fazla kira, en az kiradan küçük olamaz.");
+    misafirVeri = {
+      cityName, city: cityName,
+      district: val("g-district"),
+      neighborhoods: mahalleler,
+      neighborhood: mahalleler[0] || "",
+      mainCategory: CAT_KONUT,
+      propertyType: val("g-type"),
+      roomCount: val("g-rooms"),
+      minBudget: min, maxBudget: max,
+      purchaseTimeline: val("g-timeline"),
+      occupation: sec("g-occupation"),
+      furnished: el("g-furnished") ? el("g-furnished").checked : false,
+      transactionType: "RENT",
+    };
+    misafirAdim = 2;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+  misafirGeri() { misafirAdim = 1; render(); window.scrollTo({ top: 0 }); },
+  async misafirGonder(event) {
+    event.preventDefault();
+    const val = (id) => { const e = document.getElementById(id); return e ? e.value.trim() : ""; };
+    const chk = (id) => { const e = document.getElementById(id); return e ? e.checked : false; };
+    const name = val("g-name"), email = val("g-email"), phone = val("g-phone");
+    const tckn = val("g-tckn"), birth = val("g-birth"), password = document.getElementById("g-password").value;
+    if (name.length < 3) return showFormError("g-error2", "Adını ve soyadını yaz.");
+    if (!email.includes("@")) return showFormError("g-error2", "Geçerli bir e-posta adresi yaz.");
+    if (phone.replace(/\D/g, "").length !== 10) return showFormError("g-error2", "Cep telefonunu 10 hane olarak yaz (5xx xxx xx xx).");
+    if (!tcknGecerliMi(tckn)) return showFormError("g-error2", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
+    if (!birth) return showFormError("g-error2", "Doğum tarihini gir.");
+    const sifreEksik = (() => {
+      if (password.length < 8) return "Şifre en az 8 karakter olmalı.";
+      if (!/[a-zçğıöşü]/.test(password)) return "Şifre en az bir küçük harf içermeli.";
+      if (!/[A-ZÇĞİÖŞÜ]/.test(password)) return "Şifre en az bir büyük harf içermeli.";
+      if (!/\d/.test(password)) return "Şifre en az bir rakam içermeli.";
+      return "";
+    })();
+    if (sifreEksik) return showFormError("g-error2", sifreEksik);
+    if (!chk("g-identity-consent")) return showFormError("g-error2", "Kimlik bilgilerinin işlenmesi için açık rıza gerekiyor.");
+    if (!chk("g-terms")) return showFormError("g-error2", "Kullanım koşullarını ve KVKK metnini onaylaman gerekiyor.");
+
+    // Girilen kisisel alanlar saklanir: "e-postami yanlis yazdim" dendiginde
+    // veya bir hata dondugunde kullanici hicbir seyi yeniden yazmasin.
+    misafirKisi = { name, email, phone, tckn, birth, marketing: chk("g-marketing") };
+
+    const btn = document.getElementById("g-submit");
+    if (btn) { btn.disabled = true; btn.textContent = "Gönderiliyor…"; }
+    const r = await api("/kayit/talep", "POST", {
+      ...misafirVeri,
+      name, email, phone, password, tckn, birthDate: birth,
+      identityConsent: true, termsAccepted: true,
+      marketingConsent: chk("g-marketing"),
+      attribution: attribution(),
+    });
+    if (btn) { btn.disabled = false; btn.textContent = "Talebimi yayına al"; }
+    if (!r.ok) return showFormError("g-error2", (r.data && r.data.error) || "Talep gönderilemedi. Lütfen tekrar dene.");
+    // Bu bir donusum DEGIL: asil donusum e-posta dogrulaninca sunucu tarafinda
+    // tamamlanir. Burada yalnizca huni adimi olculur.
+    ktTrack("talep_gonderildi", { akis: "misafir", sehir: misafirVeri.cityName });
+    misafirSonuc = { email };
+    render();
+    window.scrollTo({ top: 0 });
+  },
+  async misafirTekrarGonder() {
+    // Hesap olustu ama oturum yok; kullanici sifresiyle girip panelden de
+    // isteyebilir. Burada sifre sifirlama altyapisi degil, dogrulama ucu gerekli
+    // oldugu icin kullaniciyi girise yonlendirmek en durustu.
+    toast("Bağlantıyı yeniden göndermek için giriş yap; panelinde 'tekrar gönder' düğmesi var.");
+    setTimeout(() => { location.hash = "/giris"; }, 1200);
+  },
+  misafirEpostaDuzelt() {
+    toast("E-postanı düzeltmek için talebi yeniden gönder — bilgilerin formda duruyor.");
+    misafirSonuc = null;
+    misafirAdim = 2;
+    render();
   },
   // Kayit oncesi SMS kodu (yalnizca saglayici acikken gorunur)
   async regSendSms() {

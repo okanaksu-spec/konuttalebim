@@ -546,7 +546,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
     ? `<div style="background:#eef7f0;border:1px solid #d3e8d9;border-radius:12px;padding:22px;text-align:center;margin:18px 0">
          <div style="font-size:40px;font-weight:800;color:#10243a;line-height:1.1">${uygunSayi}</div>
          <div style="font-size:14.5px;color:#41556d;margin-top:6px">
-           ${kira ? "ev sahibi/danışmanın" : "satıcı/danışmanın"} aradığı profil talebinle uyuşuyor; talebin onlara bildirildi.
+           ${kira ? "ev sahibi/danışmanın" : "evine alıcı arayanın/danışmanın"} aradığı profil talebinle uyuşuyor; talebin onlara bildirildi.
          </div>
        </div>`
     : `<div style="background:#fbf6ec;border:1px solid #f0e2c8;border-radius:12px;padding:20px;margin:18px 0">
@@ -557,7 +557,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
        </div>`;
 
   const sss = [
-    ["Beni kim arayacak?", `Talebini gören ${kira ? "ev sahipleri ve onaylı emlak danışmanları" : "satıcılar ve onaylı emlak danışmanları"} iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Sen aramazsın.`],
+    ["Beni kim arayacak?", `Talebini gören ${kira ? "ev sahipleri ve onaylı emlak danışmanları" : "evine alıcı arayanlar ve onaylı emlak danışmanları"} iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Sen aramazsın.`],
     ["İletişim bilgilerim güvende mi?", "Talebinde adın, telefonun ve e-postan herkese açık görünmez. İletişim bilgin yalnızca ücretli üyeliği olan üyeler ve onaylı emlak danışmanları tarafından görüntülenebilir; her görüntülemede sana haber veririz."],
     ["Kimse aramazsa ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; eşleşme ihtimalin artar."]
   ].map(([s, c]) => `
@@ -2010,7 +2010,7 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   // Danisman belge onayi Faz 3'te devreye girecek (14 gun gecis karari).
   if (seg[0] === "demands" && seg[2] === "contact" && method === "POST") {
     if (!["SELLER", "AGENT"].includes(user.role) && user.role !== "ADMIN")
-      return err(res, 403, "İletişim bilgisini yalnızca üye tarafı (ev sahibi/satıcı/danışman) görüntüleyebilir.");
+      return err(res, 403, "İletişim bilgisini yalnızca üye tarafı (ev sahibi/evine alıcı arayan/danışman) görüntüleyebilir.");
     const d = db.prepare("SELECT * FROM demands WHERE id=?").get(seg[1]);
     if (!d || d.status !== "ACTIVE") return err(res, 404, "Talep bulunamadı veya yayında değil.");
     if (d.buyerId === user.id) return err(res, 400, "Bu talep zaten sana ait.");

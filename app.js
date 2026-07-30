@@ -112,15 +112,15 @@ function seedState() {
       "u-buyer-3": { verificationLevel: "Bütçe Beyanı: 4-5 mn TL", badge: "neutral", budgetTrustScore: 45, profileCompletion: 42, declaredBudgetMin: 4000000, declaredBudgetMax: 5000000, declaredDownPayment: 1200000, declaredCashReady: false, declaredUsesCredit: true }
     },
     plans: [
-      { id: "plan-buyer-free", name: "Alıcı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Satılık · Temel", features: ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"] },
-      { id: "plan-buyer-boost", name: "Talebimi Üste Taşı", roleType: "BUYER", price: 99, interval: "7 gün", category: "Satılık · Reklam", features: ["Talep kartı üst sıralarda", "Satıcı havuzunda renkli vurgu", "Uygun satıcılara ek bildirim"] },
+      { id: "plan-buyer-free", name: "Alıcı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Talep · Temel", features: ["1 aktif talep", "Sana uygun ilanlarla eşleşme", "Eşleşme bildirimleri"] },
+      { id: "plan-buyer-boost", name: "Talebimi Üste Taşı", roleType: "BUYER", price: 99, interval: "7 gün", category: "Talep · Üste Taşıma", features: ["Talep kartı üst sıralarda", "Havuzda renkli vurgu", "Uygun üyelere ek bildirim"] },
       { id: "plan-buyer-contact", name: "Satıcı Bilgilerini Gör", roleType: "BUYER", price: 199, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin satıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Güvenli iletişim uyarıları"] },
       { id: "plan-seller-boost", name: "İlanımı Üste Taşı", roleType: "SELLER", price: 149, interval: "7 gün", category: "Satılık · Reklam", features: ["Ev kartı üst sıralarda", "Alıcı taleplerinde renkli vurgu", "Uygun alıcılara ek bildirim"] },
       { id: "plan-seller-contact", name: "Alıcı Bilgilerini Gör", roleType: "SELLER", price: 299, interval: "ay", category: "Satılık · İletişim", features: ["Eşleştiğin alıcının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız talep görüntüleme"] },
       { id: "plan-tenant-free", name: "Kiracı Ücretsiz", roleType: "BUYER", price: 0, interval: "ay", category: "Kiralık · Temel", features: ["Sınırsız kiralık talebi", "Ev sahipleri sana ulaşır", "Tamamen ücretsiz"] },
       { id: "plan-landlord-contact", name: "Kiracı Bilgilerini Gör", roleType: "SELLER", price: 199, interval: "ay", category: "Kiralık · İletişim", features: ["Eşleştiğin kiracının telefon/e-posta bilgisi", "Bilgiyi gör, doğrudan ara", "Sınırsız kiracı talebi görüntüleme"] },
       { id: "plan-landlord-boost", name: "Kiralık İlanımı Üste Taşı", roleType: "SELLER", price: 99, interval: "7 gün", category: "Kiralık · Reklam", features: ["Kiralık ilanın üst sıralarda", "Kiracı havuzunda renkli vurgu", "Uygun kiracılara ek bildirim"] },
-      { id: "plan-pro", name: "Profesyonel Paket", roleType: "AGENT", price: 799, interval: "ay", category: "Danışman · Reklam + üyelik", features: ["Satılık + kiralık çoklu portföy", "Tüm iletişim bilgilerini görme", "Aylık öne çıkarma hakları"] }
+      { id: "plan-pro", name: "Profesyonel Paket", roleType: "AGENT", price: 799, interval: "ay", category: "Danışman · Reklam + üyelik", features: ["Tüm talep havuzuna sınırsız erişim", "Tüm iletişim bilgilerini görme", "Onaylı danışman rozeti"] }
     ],
     demands: [
       { id: "d-1", buyerId: "u-buyer-1", title: "Kadıköy'de aile için 3+1", city: "İstanbul", district: "Kadıköy", neighborhood: "Göztepe / Feneryolu", propertyType: "Daire", roomCount: "3+1", minSqm: 110, maxSqm: 155, minBudget: 6000000, maxBudget: 8000000, downPayment: 2500000, usesCredit: true, cashReady: false, exchangePossible: false, purchaseTimeline: "3 ay içinde", description: "Metroya ve okula yakın, krediye uygun, bakımlı bir aile evi arıyorum.", privacyLevel: "Rozet ve bütçe aralığı görünsün", status: "ACTIVE", viewCount: 46, offerCount: 2, createdAt: "2026-07-01" },
@@ -568,7 +568,7 @@ function calculateMatchScore(demand, property) {
   const reasons = [];
   const warnings = [];
   if (!demand || !property) return { score: 0, reasons, warnings: ["Eksik talep veya ev verisi"] };
-  if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return { score: 0, reasons, warnings: ["İşlem tipi farklı (satılık/kiralık)"] };
+  if ((demand.transactionType || "SALE") !== (property.transactionType || "SALE")) return { score: 0, reasons, warnings: ["İşlem tipi farklı (satın alma/kiralık)"] };
   if ((demand.mainCategory || CAT_KONUT) !== (property.mainCategory || CAT_KONUT)) return { score: 0, reasons, warnings: ["Kategori farklı (konut/iş yeri/arsa)"] };
   if (demand.city === property.city) score += 12;
   if (demand.district === property.district) {
@@ -874,7 +874,7 @@ function homePage() {
           <div class="section-title">
             <div class="kicker">Talep havuzu</div>
             <h2>Ev arayanları gör, iletişime geç.</h2>
-            <p class="lead">Kiralık ve satılık talepleri il, ilçe ve kategoriye göre üye olmadan gez. Talep sahibinin iletişim bilgisini üyelikle aç, doğrudan ara.</p>
+            <p class="lead">Kiralık ev ve konut satın alma taleplerini il, ilçe ve kategoriye göre üye olmadan gez. Talep sahibinin iletişim bilgisini üyelikle aç, doğrudan ara.</p>
           </div>
         </div>
         <div class="search-filterbar" style="margin-top:6px">
@@ -976,7 +976,7 @@ function homePage() {
           ${featureCard("key", "Aradığın netleşir", "Bölge, bütçe ve ihtiyacını beyan et; talebin kriterine uyan ev sahipleri ve danışmanlara duyurulur.")}
           ${featureCard("card", "Belge değil, beyan", "Belge yüklemezsin; bütçe/kira aralığı, peşinat ve zaman tercihini beyan edersin.")}
           ${featureCard("lock", "İletişim üyelikle açılır", "Talep sahibinin telefon ve e-postası yalnızca ücretli üyeler ve onaylı danışmanlar tarafından görüntülenir; her görüntülemede talep sahibine haber verilir.")}
-          ${featureCard("chart", "Kriterine uyan talep", "Üyeler il, kiralık/satılık, kategori ve bütçe kriterini kaydeder; uyan talep yayına girince bildirim alır.")}
+          ${featureCard("chart", "Kriterine uyan talep", "Üyeler il, kiralık/satın alma, kategori ve bütçe kriterini kaydeder; uyan talep yayına girince bildirim alır.")}
           ${featureCard("alert", "Kötüye kullanım izlenir", "Sahte, tekrarlı veya taciz amaçlı talep ve içerikler risk paneline düşer.")}
           ${featureCard("card", "Aracı yok, komisyon yok", "Tek işimiz doğru tarafları buluşturmak; fiyata, pazarlığa veya sözleşmeye karışmayız.")}
         </div>
@@ -1175,9 +1175,9 @@ function registerFlowInfo(sel) {
 // Kayit sayfasinin sag sutunundaki gorsel. Rol degistikce degisir ki
 // kullanici dogru akista oldugunu anlasin. Gorseller assets/ altinda mevcut.
 const REG_GORSEL = {
-  buyer: { src: "/assets/property-residence.webp", alt: "Satılık daire görseli", not: "Talebini bırak, satıcılar seni arasın." },
+  buyer: { src: "/assets/property-residence.webp", alt: "Konut görseli", not: "Talebini bırak, ev sahipleri seni arasın." },
   tenant: { src: "/assets/property-apartment.webp", alt: "Kiralık daire görseli", not: "Ev arama, ev sahipleri seni bulsun." },
-  seller: { src: "/assets/property-villa.webp", alt: "Satılık konut görseli", not: "Hazır alıcı taleplerine ulaş." },
+  seller: { src: "/assets/property-villa.webp", alt: "Konut görseli", not: "Hazır konut alıcısı taleplerine ulaş." },
   landlord: { src: "/assets/property-apartment.webp", alt: "Kiralık konut görseli", not: "Evine uygun kiracıyı sen seç." },
   agent: { src: "/assets/hero-konuttalebim.webp", alt: "Emlak danışmanı görseli", not: "Gerçek taleplerle çalış, ilanla değil." },
 };
@@ -2407,9 +2407,9 @@ function kriterPage() {
       <div class="form-grid">
         <div class="field"><label for="kr-tx">Talep türü</label>
           <select id="kr-tx">
-            <option value="" ${!k.tx ? "selected" : ""}>Kiralık + Satılık</option>
+            <option value="" ${!k.tx ? "selected" : ""}>Kiralık + Satın alma</option>
             <option value="RENT" ${k.tx === "RENT" ? "selected" : ""}>Kiralık (kiracı arayanlar)</option>
-            <option value="SALE" ${k.tx === "SALE" ? "selected" : ""}>Satılık (alıcılar)</option>
+            <option value="SALE" ${k.tx === "SALE" ? "selected" : ""}>Satın alma (konut alıcıları)</option>
           </select></div>
         <div class="field"><label for="kr-cat">Kategori</label>
           <select id="kr-cat">

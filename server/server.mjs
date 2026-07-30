@@ -2324,7 +2324,13 @@ const sessionCookie = (token) => ({
 });
 
 // ---------- Statik dosya servisi ----------
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml; charset=utf-8" };
+// .webp EKSIKTI: hero ve ilan gorselleri "application/octet-stream" olarak
+// gidiyordu. Tarayici yine gosteriyor ama sikistirma/onbellek kararlarini
+// dogru veremiyor ve bazi araclar gorsel saymiyor.
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".avif": "image/avif", ".woff2": "font/woff2", ".woff": "font/woff", ".svg": "image/svg+xml", ".json": "application/json", ".ico": "image/x-icon", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml; charset=utf-8" };
+// /assets/ altindaki gorsel ve fontlar 30 gun onbellege alinir. Bu dosyalarin
+// adi degistiginde yeni adres olusacagi icin uzun sure guvenlidir.
+const ASSET_ONBELLEK_SN = 30 * 24 * 3600;
 // Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
 // Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
 const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html"]);
@@ -2381,7 +2387,35 @@ async function serveStatic(req, res, url) {
   if (!existsSync(filePath)) return notFoundPage(res);
   try {
     const data = await readFile(filePath);
-    res.writeHead(200, { "Content-Type": MIME[extname(filePath)] || "application/octet-stream" });
+    const tip = MIME[extname(filePath)] || "application/octet-stream";
+
+    // ONBELLEK (2026-07-30, KUYRUK #15)
+    // Onceki durum: hicbir statik dosyada Cache-Control, ETag veya Last-Modified
+    // yoktu. Sonucu: Cloudflare hicbir seyi onbelleklemiyordu (cf-cache-status:
+    // DYNAMIC) ve tarayici da onbelleklemedigi icin her ziyarette ~360 KB
+    // (app.js 319 + styles.css 39 + gorseller) bastan iniyordu.
+    //
+    // Iki farkli strateji, sebebiyle birlikte:
+    //
+    // 1) /assets/ altindaki gorsel ve fontlar -> 30 gun. Bu dosyalar
+    //    degistiginde adlari da degisiyor, o yuzden uzun sure guvenli.
+    //
+    // 2) index.html / app.js / styles.css -> "no-cache" + ETag. Bu dosyalarin
+    //    adinda surum/hash YOK; uzun onbellek verilirse deploy sonrasi
+    //    kullanicilar eski surumde kalir. "no-cache" adi yaniltici: dosyayi
+    //    onbellege ALIR, ama her kullanimda sunucuya "degisti mi" diye sorar.
+    //    Degismediyse 304 + BOS govde doner (birkac yuz bayt), degistiyse
+    //    yenisi iner. Yani hem taze hem hizli.
+    if (isAsset) {
+      res.writeHead(200, { "Content-Type": tip, "Cache-Control": `public, max-age=${ASSET_ONBELLEK_SN}` });
+      return res.end(data);
+    }
+    const etag = `"${createHash("sha256").update(data).digest("hex").slice(0, 20)}"`;
+    if (req.headers["if-none-match"] === etag) {
+      res.writeHead(304, { ETag: etag, "Cache-Control": "no-cache" });
+      return res.end();
+    }
+    res.writeHead(200, { "Content-Type": tip, "Cache-Control": "no-cache", ETag: etag });
     res.end(data);
   } catch { res.writeHead(500); res.end("Hata"); }
 }

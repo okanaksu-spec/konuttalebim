@@ -206,7 +206,11 @@ const ISYERI_OZELLIKLER = ["Cadde Cephesi", "Vitrinli", "Asansör", "Yük Asans�
 const ARSA_OZELLIKLER = ["Müstakil Tapu", "Hisseli Tapu", "Köşe Parsel", "Yola Cephe", "İfrazlı", "Projeli", "Elektrik", "Su", "Doğalgaz", "Etrafı Çevrili"];
 const ISYERI_KULLANIM = ["Boş", "Kiracılı", "Sahibi kullanıyor"];
 // Arama/kesfet ekrani durumu (kategori tikla + kart izgarasi)
-let searchState = { tx: "SALE", mainCategory: "", subCategory: "", city: "", cityName: "", district: "", neighborhood: "", minPrice: "", maxPrice: "", sort: "new" };
+// Varsayilan islem tipi KIRALIK: reklam kampanyasi, misafir talep formu ve
+// sehir sayfalarinin tamami kiraci tarafina odakli. Kenar cubugunda da Kiralik
+// once duruyor; varsayilan Satilik kalirsa ilk gorunen sekme ile secili sekme
+// birbirini tutmuyor.
+let searchState = { tx: "RENT", mainCategory: "", subCategory: "", city: "", cityName: "", district: "", neighborhood: "", minPrice: "", maxPrice: "", sort: "new" };
 let _searchItems = [];
 
 // ---------- Olcumleme (Google Ads dönüşümleri + reklam kaynagi) ----------

@@ -3273,8 +3273,8 @@ function renderSearchSidebar() {
   }).join("");
   return `
     <div class="sc-tx">
-      <button type="button" class="${s.tx === "SALE" ? "active" : ""}" onclick="KT.searchTx('SALE')">Satılık</button>
       <button type="button" class="${s.tx === "RENT" ? "active" : ""}" onclick="KT.searchTx('RENT')">Kiralık</button>
+      <button type="button" class="${s.tx === "SALE" ? "active" : ""}" onclick="KT.searchTx('SALE')">Satılık</button>
     </div>
     <div class="sc-head">Kategoriler</div>
     <button type="button" class="sc-item sc-root ${!s.mainCategory ? "active" : ""}" onclick="KT.searchPick('')">Tüm Emlak</button>

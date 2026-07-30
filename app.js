@@ -831,7 +831,7 @@ function homePage() {
       <div class="hero-inner">
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
-          <h1>Bırak, seni bulsunlar.</h1>
+          <h1>Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
           <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun mülk sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
@@ -4985,7 +4985,24 @@ window.addEventListener("hashchange", navigate);
 window.addEventListener("DOMContentLoaded", async () => {
   // Reklam kaynagini ilk aciliste sakla (kullanici site icinde dolasirken kaybolmasin).
   captureAttribution();
+
+  // MUKERRER YUKLEME DUZELTMESI (2026-07-30)
+  // Eskiden sira suydu: refreshState() -> location.hash = "/home" -> render().
+  // Ortadaki atama hashchange olayini tetikliyor, o da navigate()'i cagiriyordu;
+  // navigate() de refreshState()+render() yapiyordu. Sonuc: ilk aciliste
+  // /api/state IKI kez, ana sayfa listeleri (properties/search + demands/search)
+  // IKI kez iniyordu — dort gereksiz istek.
+  //
+  // Cozum: hash'i veri cekmeden ONCE ve history.replaceState ile ayarla.
+  // replaceState hashchange TETIKLEMEZ; "location.hash = ..." tetikler.
+  if (!location.hash) {
+    try { history.replaceState(null, "", `${location.pathname}${location.search}#/home`); }
+    catch { location.hash = "/home"; }   // cok eski tarayici: eski davranisa dus
+  }
   await refreshState();
-  if (!location.hash) location.hash = "/home";
   render();
+  // Ilk aciliste elle page_view GONDERILMEZ; gtag'in config page_view'u zaten gitti.
+  // Bu bayragi burada harcamazsak ilk gercek rota degisimi de atlanir ve
+  // her oturumda bir page_view eksik olculur.
+  ktIlkRotaAtlandi = true;
 });

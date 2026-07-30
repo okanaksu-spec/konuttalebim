@@ -15,6 +15,11 @@
     <link rel="canonical" href="https://konuttalebi.com/" />
     <meta name="theme-color" content="#10243a" />
 
+    <!-- Hero gorseli sayfanin ilk gorunen (LCP) ogesi ama CSS arka plani olarak
+         yuklendigi icin tarayicinin on tarayicisi onu goremiyor ve gec basliyor.
+         preload satiri indirmeyi hemen baslatir. -->
+    <link rel="preload" as="image" href="/assets/hero-konuttalebim.webp" fetchpriority="high" />
+
     <!-- Site ikonlari (sekme, yer imi, ana ekrana ekle) -->
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png" />
@@ -98,7 +103,12 @@
          noindex olduğu için ona tarama bağlantısı verilmez. -->
     <div id="app">
       <main style="max-width: 760px; margin: 0 auto; padding: 48px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #10243a">
-        <h1 style="font-size: 34px; line-height: 1.25; margin: 0 0 14px">Bırak, seni bulsunlar.</h1>
+        <!-- H1 metni app.js'teki hero H1'i ile AYNI olmalı. Arama motoruna bir
+             başlık, kullanıcıya başka bir başlık göstermek yanıltıcıdır.
+             NOT: SAYFA HARİTASI'ndaki AJANS onaylı H1 "Bırak, seni bulsunlar."
+             — Okan 2026-07-30'da eski metnin kalmasına karar verdi, bu yüzden
+             onaylı metin uygulanmadı. KUYRUK #19 bu yönüyle açık kalıyor. -->
+        <h1 style="font-size: 34px; line-height: 1.25; margin: 0 0 14px">Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
         <p style="font-size: 17px; line-height: 1.7; margin: 0 0 14px">
           Konuttalebi ters ilan platformudur: yüzlerce ilanı tek tek karıştırmak yerine
           <strong>ne aradığını bir kez yazarsın</strong>, ev sahipleri sana teklif gönderir.

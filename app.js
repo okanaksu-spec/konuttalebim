@@ -536,16 +536,11 @@ function hasContactMembership(userId, roleName) {
 
 // Paket kartlarında Türkçe rol rozeti + Satılık/Kiralık gruplaması.
 const PLAN_META = {
-  // Uyelik (iletisim erisimi): kim para oder. Kiraci ucretsiz; alici/satici/ev sahibi/danisman oder.
-  "plan-tenant-free": { role: "KİRACI", kind: "membership", order: 1, free: ["buyer", "RENT"] },
-  "plan-landlord-contact": { role: "EV SAHİBİ", kind: "membership", order: 2 },
-  "plan-buyer-contact": { role: "ALICI", kind: "membership", order: 3 },
-  "plan-seller-contact": { role: "SATICI", kind: "membership", order: 4 },
-  "plan-pro": { role: "DANIŞMAN", kind: "membership", order: 5 },
-  // Uste tasima & reklam (opsiyonel) — ayri bolum.
-  "plan-buyer-boost": { role: "ALICI", kind: "boost", order: 1 },
-  "plan-seller-boost": { role: "SATICI", kind: "boost", order: 2 },
-  "plan-landlord-boost": { role: "EV SAHİBİ", kind: "boost", order: 3 },
+  // 2.0: dort plan. Talep birakan ucretsiz; iletisimi goren taraf oder.
+  "plan-tenant-free": { role: "KİRACI / KONUT ALICISI", kind: "membership", order: 1, free: ["buyer", "RENT"] },
+  "plan-landlord-contact": { role: "BİREYSEL", kind: "membership", order: 2 },
+  "plan-pro": { role: "DANIŞMAN", kind: "membership", order: 3 },
+  "plan-buyer-boost": { role: "TALEP SAHİBİ", kind: "boost", order: 1 },
   // Kayit herkese ucretsiz; alici icin ayri "ucretsiz" karti gostermeyiz (kafa karistirmasin).
   "plan-buyer-free": { role: "ALICI", kind: "hidden", free: ["buyer", "SALE"] },
 };
@@ -734,7 +729,7 @@ function toast(message) {
 function header() {
   const publicLinks = [
     ["home", "Ana Sayfa"],
-    ["ilanlar", "İlanlar"],
+    ["talepler", "Talepler"],
     ["nasil-calisir", "Nasıl Çalışır"],
     ["fiyatlandirma", "Fiyatlandırma"],
     ["yardim", "Yardım"]
@@ -747,7 +742,7 @@ function header() {
       <div class="topbar-inner">
         <a class="brand" href="#/home" aria-label="Konuttalebi ana sayfa">
           <span class="brand-mark">${icon("key", 19)}</span>
-          <span class="brand-text"><strong>Konuttalebi</strong><span>Talep ve teklif</span></span>
+          <span class="brand-text"><strong>Konuttalebi</strong></span>
         </a>
         <nav class="nav" id="site-nav" aria-label="Ana menü">
           ${publicLinks.map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#/${path}">${label}</a>`).join("")}
@@ -823,12 +818,7 @@ function homePage() {
     usesCredit: true, cashReady: false, purchaseTimeline: "3 ay içinde", transactionType: "SALE",
     description: "Metroya ve okula yakın, krediye uygun, bakımlı bir aile evi arıyorum.", offerCount: 0,
   };
-  const sampleProperty = {
-    id: "ornek-ilan", sellerId: "ornek", title: "Kadıköy Göztepe'de yenilenmiş 3+1",
-    city: "İstanbul", district: "Kadıköy", roomCount: "3+1", netSqm: 122, price: 7350000,
-    photoClass: "apartment", creditEligible: true, negotiable: true, transactionType: "SALE",
-    description: "Bağdat Caddesi'ne yakın, bakımlı, krediye uygun daire.",
-  };
+  // 2.0: ornek ILAN nesnesi kaldirildi — sitede arz yok, yalniz talep.
   const profile = { verificationLevel: "Bütçe beyanı: 6–8 milyon TL", badge: "blue", budgetTrustScore: 88 };
   return `
     <section class="hero">
@@ -836,15 +826,12 @@ function homePage() {
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
           <h1>Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
-          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun mülk sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
+          <p>Ev almak veya kiralamak istiyorsan talebini bırak; evi sana uygun olanlar iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Aracı yok, komisyon yok.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
             <a class="btn btn-secondary" href="/evine-kiraci-bul">${icon("home", 17)} Evime kiracı arıyorum</a>
+            <button class="btn btn-secondary" onclick="KT.startRegistration('buyer','SALE')">${icon("card", 17)} Ev almak istiyorum</button>
           </div>
-          <p style="margin-top:14px;font-size:14px;color:#cdd9e6">
-            Ev almak veya satmak mı istiyorsun?
-            <a href="#/uye-ol" style="color:#e6c98a;font-weight:600;text-decoration:underline">Buradan devam et</a>
-          </p>
           <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:#cdd9e6;font-weight:600;font-size:14px">
             <span>${icon("card", 15)} Belge istenmez</span>
             <span>${icon("lock", 15)} İletişim açık rızayla</span>
@@ -861,41 +848,42 @@ function homePage() {
             <p>${escapeHtml(sampleDemand.city)} / ${escapeHtml(sampleDemand.district)} · ${escapeHtml(sampleDemand.roomCount)} · ${shortMoney(sampleDemand.minBudget)}-${shortMoney(sampleDemand.maxBudget)}</p>
             <div class="hero-progress"><span style="width:${profile.budgetTrustScore}%"></span></div>
           </div>
-          <div class="hero-card hero-card-photo">
-            <div class="photo ${sampleProperty.photoClass || ""}"></div>
-            <div>
-              <span class="badge badge-blue">92/100 uyum</span>
-              <h3>${escapeHtml(sampleProperty.title)}</h3>
-              <p>${escapeHtml(sampleProperty.roomCount)} · ${sampleProperty.netSqm} m2 · ${money(sampleProperty.price)}</p>
+<!-- 2.0: ornek ILAN karti kaldirildi; yerine ikinci ornek TALEP karti. -->
+          <div class="hero-card hero-card-main" style="opacity:.94">
+            <div class="sample-top">
+              <span class="badge badge-gold">Kiralık ev arıyor</span>
+              <span class="pill">1 ay içinde taşınacak</span>
             </div>
+            <h3>Nilüfer'de eşyalı 2+1 arıyorum</h3>
+            <p>Bursa / Nilüfer · 2+1 · 20-30 bin ₺/ay</p>
           </div>
           <div class="hero-card hero-card-lock">
             <span class="brand-mark">${icon("lock", 18)}</span>
             <div>
               <strong>İletişim kilidi</strong>
-              <p>Telefon ve e-posta yalnızca eşleşme sonrasında, iki taraf da onay verdiğinde paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
+              <p>Talep sahibinin telefonu ve e-postası yalnızca ücretli üyeler ve onaylı danışmanlar tarafından görüntülenir; her görüntülemede talep sahibine haber verilir.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
+<!-- 2.0: "Yayindaki konutlar" bolumu kaldirildi - sitede artik ilan yok. -->
     <section class="band band-white">
       <div class="container">
         <div class="section-head">
           <div class="section-title">
-            <div class="kicker">Yayındaki konutlar</div>
-            <h2>Gerçek konutlar arasında gez, hemen ara.</h2>
-            <p class="lead">İl, ilçe, mahalle ve kategoriye göre yayındaki gerçek konutları keşfet — üye olmadan da gezebilirsin. İletişim bilgisi yalnızca üyelikle açılır.</p>
+            <div class="kicker">Talep havuzu</div>
+            <h2>Ev arayanları gör, iletişime geç.</h2>
+            <p class="lead">Kiralık ve satılık talepleri il, ilçe ve kategoriye göre üye olmadan gez. Talep sahibinin iletişim bilgisini üyelikle aç, doğrudan ara.</p>
           </div>
         </div>
         <div class="search-filterbar" style="margin-top:6px">
-          <select id="home-tx"><option>Satılık</option><option>Kiralık</option></select>
+          <select id="home-tx"><option value="RENT">Kiralık ev talepleri</option><option value="SALE">Konut satın alma talepleri</option></select>
           <select id="home-cat"><option value="">Tüm kategoriler</option>${MAIN_CATEGORIES.map((c) => `<option>${escapeHtml(c)}</option>`).join("")}</select>
           <select id="home-city"><option value="">Tüm iller</option>${TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}">${escapeHtml(il.name)}</option>`).join("")}</select>
-          <button class="btn btn-primary" onclick="KT.homeSearch()">${icon("search", 16)} Ara</button>
+          <button class="btn btn-primary" onclick="KT.homeSearch()">${icon("search", 16)} Talepleri ara</button>
         </div>
-        <div id="home-listings" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>Konutlar yükleniyor…</b><span class="muted">Yayındaki konutlar birazdan görünecek.</span></div></div>
-        <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/ilanlar">${icon("search", 15)} Tüm konutları gör</a></div>
+        <div class="section-actions" style="margin-top:16px"><a class="btn btn-outline" href="#/talepler">${icon("search", 15)} Tüm talepleri gör</a></div>
       </div>
     </section>
     <section class="band band-soft">
@@ -903,8 +891,8 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Ev arayanlar</div>
-            <h2>Ne aradığını söyleyenler burada; sen teklifi doğrudan onlara götür.</h2>
-            <p class="lead">Yayındaki gerçek talepler. Kimlik bilgileri gizli kalır; ihtiyaç özetini görüp panelinden teklif gönderirsin.</p>
+            <h2>Ne aradığını söyleyenler burada; iletişime geç, doğrudan anlaş.</h2>
+            <p class="lead">Yayındaki gerçek talepler. Kimlik bilgileri gizli kalır; ihtiyaç özetini görür, üyelikle iletişim bilgisini açar, talep sahibini doğrudan ararsın.</p>
           </div>
         </div>
         <div id="home-demands" class="card-grid" style="margin-top:18px"><div class="empty" style="grid-column:1/-1"><b>Talepler yükleniyor…</b><span class="muted">Yayındaki talepler birazdan görünecek.</span></div></div>
@@ -951,13 +939,28 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Ürün akışı</div>
-            <h2>Talebini oluştur, eşleş, mülk sahibiyle doğrudan iletişime geç.</h2>
-            <p class="lead">Karşı taraf senin kimliğini veya özel bilgini değil, talep özetini ve güven rozetlerini görür. İletişim bilgisi üyelikle açılır; ödemeye, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız. <em style="opacity:.75">(Aşağıdaki kartlar temsili örnektir.)</em></p>
+            <h2>Talebini bırak; ev sahipleri ve danışmanlar seni arasın.</h2>
+            <p class="lead">Havuzda herkes talebinin özetini görür; telefonunu ve e-postanı yalnızca ücretli üyeler ile onaylı emlak danışmanları görüntüleyebilir ve her görüntülemede sana haber veririz. Fiyata, kiraya veya pazarlığa karışmayız — doğrudan siz anlaşırsınız. <em style="opacity:.75">(Aşağıdaki kart temsili örnektir.)</em></p>
           </div>
         </div>
         <div class="product-strip">
           ${demandCard(sampleDemand, { sample: true, profile })}
-          ${propertyOfferSample(sampleProperty, sampleDemand, profile)}
+          <article class="sample-card">
+            <div class="sample-top">
+              <span class="badge badge-blue">${icon("lock", 13)} Üye görünümü</span>
+              <span class="badge badge-gold">Bireysel üye</span>
+            </div>
+            <div>
+              <h3>İletişim bilgisini gör</h3>
+              <p class="muted">Kriterine uyan talep yayına girince bildirim alırsın; kartta tek düğmeyle telefon ve e-posta açılır.</p>
+            </div>
+            <div class="pill-row">
+              <span class="pill">0532 ··· ·· ··</span>
+              <span class="pill">e-posta gizli</span>
+              <span class="pill">Görüntüleme kayıt altında</span>
+            </div>
+            <p class="row-note">Teklif kartı, mesajlaşma veya onay bekleme yok: numarayı görür, doğrudan ararsın.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -970,10 +973,10 @@ function homePage() {
           </div>
         </div>
         <div class="grid grid-3">
-          ${featureCard("key", "Aradığın netleşir", "Bölge, bütçe ve ihtiyacını beyan et; sistem seni en uygun konut ve taleplerle eşleştirir.")}
+          ${featureCard("key", "Aradığın netleşir", "Bölge, bütçe ve ihtiyacını beyan et; talebin kriterine uyan ev sahipleri ve danışmanlara duyurulur.")}
           ${featureCard("card", "Belge değil, beyan", "Belge yüklemezsin; bütçe/kira aralığı, peşinat ve zaman tercihini beyan edersin.")}
-          ${featureCard("lock", "İletişim üyelikle açılır", "Mülk sahibinin telefon ve e-postası yalnızca bilgileri görme üyeliğiyle açılır; sonra doğrudan iletişime geçersin.")}
-          ${featureCard("chart", "Talebe göre eşleşme", "Bölge, bütçe, oda, m2, konut tipi ve kredi uygunluğu puanlanır.")}
+          ${featureCard("lock", "İletişim üyelikle açılır", "Talep sahibinin telefon ve e-postası yalnızca ücretli üyeler ve onaylı danışmanlar tarafından görüntülenir; her görüntülemede talep sahibine haber verilir.")}
+          ${featureCard("chart", "Kriterine uyan talep", "Üyeler il, kiralık/satılık, kategori ve bütçe kriterini kaydeder; uyan talep yayına girince bildirim alır.")}
           ${featureCard("alert", "Kötüye kullanım izlenir", "Sahte, tekrarlı veya taciz amaçlı talep ve içerikler risk paneline düşer.")}
           ${featureCard("card", "Aracı yok, komisyon yok", "Tek işimiz doğru tarafları buluşturmak; fiyata, pazarlığa veya sözleşmeye karışmayız.")}
         </div>
@@ -999,30 +1002,30 @@ function homePage() {
           <article class="card role-area">
             <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
             <h3>Ev Kirala</h3>
-            <p>Kiralamak istediğin evi tarif et; sana uygun ev sahibine üyelikle ulaş, doğrudan anlaş. Aylık kira ve depozito aralığını beyan et.</p>
-            <ul class="role-points"><li>Aylık kira aralığı ve eşyalı tercihi</li><li>Bölgeye göre kiralık eşleşme</li><li>Doğrudan ev sahibiyle iletişim</li></ul>
+            <p>Kiralamak istediğin evi tarif et, talebini bırak; ev sahipleri iletişim bilgini görüntüleyip seni doğrudan arasın. Tamamen ücretsiz.</p>
+            <ul class="role-points"><li>Aylık kira aralığı ve eşyalı tercihi</li><li>Talebin kriterine uyan üyelere duyurulur</li><li>Ev sahibi seni doğrudan arar</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer','RENT')">${icon("key", 16)} Ev Kirala — talep oluştur</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-teal">${icon("home", 26)}</span>
-            <h3>Evini Sat</h3>
-            <p>Satılık evine uygun alıcı taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. Tam adres alıcıya gösterilmez.</p>
-            <ul class="role-points"><li>Uygun alıcı taleplerini gör</li><li>Alıcıya doğrudan ulaş</li><li>Ev görseli yükle</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Evini Sat — teklifini ver</button>
+            <h3>Evine Alıcı Bul</h3>
+            <p>Evine uygun konut alıcılarının taleplerini gör; uygun alıcının iletişim bilgisine üyelikle ulaş, doğrudan görüş. İlan vermezsin, alıcıyı sen seçersin.</p>
+            <ul class="role-points"><li>Konut alıcılarının taleplerini gör</li><li>Alıcı kriterini kaydet, bildirim al</li><li>Alıcıya doğrudan ulaş</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','SALE')">${icon("home", 16)} Konut alıcılarının taleplerini gör</button>
           </article>
           <article class="card role-area">
             <span class="role-ic role-ic-gold">${icon("home", 26)}</span>
             <h3>Evini Kirala</h3>
             <p>Kiraya vereceğin eve uygun kiracı taleplerini gör; uygun kiracının iletişim bilgisine üyelikle ulaş, doğrudan anlaş. Fiyata biz karışmayız.</p>
-            <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Aylık kira ve depozito belirt</li><li>Doğrudan kiracıyla iletişim</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — teklifini ver</button>
+            <ul class="role-points"><li>Uygun kiracı taleplerini gör</li><li>Kiracı kriterini kaydet, bildirim al</li><li>Doğrudan kiracıyla iletişim</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('seller','RENT')">${icon("home", 16)} Evini Kirala — kiracı taleplerini gör</button>
           </article>
           <article class="card role-area" style="grid-column:1/-1">
             <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>
             <h3>Emlak Danışmanı</h3>
-            <p>Satılık ve kiralık çoklu portföyünü tek panelden yönet; uygun alıcı ve kiracı taleplerine profesyonel paketle doğrudan ulaş. Bireysel akışların tüm avantajları, danışman ölçeğinde.</p>
-            <ul class="role-points"><li>Satılık + kiralık çoklu portföy</li><li>Tüm iletişim bilgilerini gör</li><li>Aylık öne çıkarma hakları</li></ul>
-            <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Profesyonel paketle üye ol</button>
+            <p>Alıcı ve kiracı taleplerinin tamamına profesyonel üyelikle ulaş; ilan peşinde koşma, hazır talebe çalış. Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle onaylanırsın.</p>
+            <ul class="role-points"><li>Tüm talep havuzuna sınırsız erişim</li><li>Kriter kaydet, uyan talepte bildirim al</li><li>Onaylı danışman rozeti</li></ul>
+            <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Danışman üyeliğiyle başla</button>
           </article>
         </div>
       </div>
@@ -1082,9 +1085,9 @@ function howSteps() {
     <circle cx="89" cy="66" r="4" fill="#e0a83e"/><rect x="87.5" y="66" width="3" height="9" rx="1.5" fill="#e0a83e"/>
   </svg>`;
   const steps = [
-    [illus1, "Talebini oluştur", "Şehir, ilçe, bütçe/kira, oda, m2 ve zaman belirlenir; istenirse görsel eklenir."],
-    [illus2, "Eşleş ve teklif al", "Bölge, bütçe, oda ve tipe göre eşleşirsin; uygun taraflar sana teklif gönderir, sen de gönderebilirsin. Kimliğin gizli kalır."],
-    [illus3, "Üyelikle iletişimi aç", "Beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın telefon ve e-postası açılır."],
+    [illus1, "Talebini oluştur", "Şehir, ilçe, bütçe/kira, oda, m2 ve zaman belirlenir; e-posta doğrulamasıyla yayına girer."],
+    [illus2, "Talebin duyurulur", "Kriterine uyan ev sahipleri, satıcılar ve onaylı danışmanlar talebinden haberdar olur. Kimliğin havuzda gizli kalır."],
+    [illus3, "Üyelikle iletişim açılır", "Ücretli üye veya onaylı danışman, talep sahibinin telefon ve e-postasını görüntüler; her görüntülemede talep sahibine haber verilir."],
     [illus4, "Doğrudan anlaş", "Fiyata, pazarlığa veya sözleşmeye karışmayız; şartları doğrudan siz belirlersiniz."]
   ];
   return `<div class="grid grid-4 how-steps">${steps.map(([svg, title, body], i) => `<article class="card how-step"><div class="how-illus">${svg}</div><span class="badge badge-gold">${i + 1}. adım</span><h3 style="margin-top:10px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
@@ -1112,7 +1115,7 @@ function demandCard(demand, options = {}) {
         <p class="row-note">${escapeHtml(demand.description)}</p>
         ${options.sample ? "" : demandExtraPills(demand)}
       </div>
-      ${options.sample ? "" : `<div class="row-side"><span class="badge badge-blue">${demand.offerCount} teklif</span><button class="btn btn-small btn-primary" onclick="KT.goSellerOffer('${demand.id}')">Teklif ver</button></div>`}
+      ${options.sample ? "" : `<div class="row-side"><button class="btn btn-small btn-primary" onclick="KT.iletisimGor('${demand.id}')">İletişim bilgisini gör</button></div>`}
     </article>
   `;
 }
@@ -1142,40 +1145,41 @@ function propertyOfferSample(property, demand, profile) {
 }
 
 function registerFlowInfo(sel) {
+  // 2.0: sitede ilan yok; uyelerin isi talep havuzunu izlemek ve iletisim acmak.
   if (sel === "agent") return { label: "Emlak danışmanı", steps: [
-    "Satılık ve kiralık portföyünü ekle; tam adres karşı tarafa gösterilmez.",
-    "Sana uygun alıcı ve kiracı taleplerini eşleşme puanına göre gör.",
-    "Üyelikle talep sahibinin iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
+    "Kaydını oluştur; danışman üyeliğinle talep havuzunun tamamına erişirsin.",
+    "Aradığın talebin kriterini kaydet; uyan talep yayına girince bildirim al.",
+    "Talep sahibinin iletişim bilgisini gör, doğrudan ara; görüşmeyi siz yürütürsünüz."
   ]};
   if (sel === "landlord") return { label: "Ev sahibi", steps: [
-    "Evini ekle; aylık kira ve depozitoyu belirt, tam adres gizli kalır.",
-    "Kiralık ev arayan kiracıların taleplerini gör.",
+    "Kaydını oluştur; kiralık ev arayanların taleplerini filtrele.",
+    "Evine uygun kiracı kriterini kaydet; uyan talep gelince haber al.",
     "Üyelikle kiracının iletişim bilgisine ulaş; kirayı ve şartları doğrudan siz belirlersiniz."
   ]};
   if (sel === "seller") return { label: "Satıcı", steps: [
-    "Evini ekle; konum, özellik ve fiyatını gir, tam adres alıcıya gösterilmez.",
-    "Evine uygun, gerçek alıcı taleplerini gör.",
+    "Kaydını oluştur; ev almak isteyenlerin taleplerini filtrele.",
+    "Evine uygun alıcı kriterini kaydet; uyan talep gelince haber al.",
     "Üyelikle alıcının iletişim bilgisine ulaş; doğrudan görüşüp anlaşırsın."
   ]};
   if (sel === "tenant") return { label: "Kiracı", steps: [
     "Kiralık talebini oluştur; bölge, aylık kira aralığı, oda ve eşyalı tercihini belirt.",
-    "Sana uygun kiralık konutlar eşleşme puanına göre öne çıkar.",
-    "Üyelikle mülk sahibinin iletişim bilgisine ulaş; doğrudan ev sahibiyle anlaşırsın."
+    "Talebin doğrulamadan sonra yayına girer; kriterine uyan üyelere duyurulur.",
+    "İletişim bilgini görüntüleyen üyeler seni doğrudan arar; her görüntülemede sana haber veririz."
   ]};
-  return { label: "Alıcı", steps: [
+  return { label: "Konut alıcısı", steps: [
     "Talebini oluştur; bölge, bütçe aralığı, oda ve tercihlerini belirt (belge istenmez).",
-    "Sana uygun satılık konutlar eşleşme puanına göre öne çıkar.",
-    "Üyelikle mülk sahibinin iletişim bilgisine ulaş; fiyatı doğrudan siz belirlersiniz."
+    "Talebin doğrulamadan sonra yayına girer; kriterine uyan üyelere duyurulur.",
+    "İletişim bilgini görüntüleyen üyeler seni doğrudan arar; her görüntülemede sana haber veririz."
   ]};
 }
 // Kayit sayfasinin sag sutunundaki gorsel. Rol degistikce degisir ki
 // kullanici dogru akista oldugunu anlasin. Gorseller assets/ altinda mevcut.
 const REG_GORSEL = {
-  buyer: { src: "/assets/property-residence.webp", alt: "Satılık daire görseli", not: "Talebini gör, teklif sana gelsin." },
-  tenant: { src: "/assets/property-apartment.webp", alt: "Kiralık daire görseli", not: "Ev arama, evler seni bulsun." },
-  seller: { src: "/assets/property-villa.webp", alt: "Satılık konut görseli", not: "Evini bekleyen alıcıyla buluştur." },
+  buyer: { src: "/assets/property-residence.webp", alt: "Satılık daire görseli", not: "Talebini bırak, satıcılar seni arasın." },
+  tenant: { src: "/assets/property-apartment.webp", alt: "Kiralık daire görseli", not: "Ev arama, ev sahipleri seni bulsun." },
+  seller: { src: "/assets/property-villa.webp", alt: "Satılık konut görseli", not: "Hazır alıcı taleplerine ulaş." },
   landlord: { src: "/assets/property-apartment.webp", alt: "Kiralık konut görseli", not: "Evine uygun kiracıyı sen seç." },
-  agent: { src: "/assets/hero-konuttalebim.webp", alt: "Emlak danışmanı görseli", not: "Portföyünü hazır talebe bağla." },
+  agent: { src: "/assets/hero-konuttalebim.webp", alt: "Emlak danışmanı görseli", not: "Gerçek taleplerle çalış, ilanla değil." },
 };
 
 function regAsideHTML(sel) {
@@ -1219,7 +1223,7 @@ function regAsideHTML(sel) {
 function izinBloguHTML(pre) {
   return `
     <div class="field full">
-      <label class="check"><input id="${pre}-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>'nı okudum ve kabul ediyorum. Eşleştiğim tarafın, onay vermem hâlinde iletişim bilgilerimi görebileceğini biliyorum. <span style="color:#c0392b">*</span></span></label>
+      <label class="check"><input id="${pre}-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>'nı okudum ve kabul ediyorum. Talep bırakırsam ad, telefon ve e-posta bilgilerimin, benimle iletişime geçmeleri amacıyla ücretli üyeler ve onaylı emlak danışmanları tarafından görüntülenebileceğini biliyorum; her görüntülemede bana haber verilir. <span style="color:#c0392b">*</span></span></label>
     </div>
     <div class="field full">
       <div class="notice" style="margin:0;font-size:13px">
@@ -1259,7 +1263,7 @@ function authRegisterPage(roleKey = "buyer") {
     : base === "seller" ? (uiTxMode === "RENT" ? "landlord" : "seller")
     : (uiTxMode === "RENT" ? "tenant" : "buyer");
   const roleOptions = [
-    ["buyer", "Alıcı"],
+    ["buyer", "Konut alıcısı"],
     ["tenant", "Kiracı"],
     ["seller", "Satıcı"],
     ["landlord", "Ev sahibi"],
@@ -1403,7 +1407,7 @@ function emailWallPage() {
         <h3 style="margin:0 0 10px;font-size:21px">${askida ? "Üyeliğin askıya alındı" : "E-postanı doğrulaman gerekiyor"}</h3>
         ${askida ? `<div class="notice" style="text-align:left;margin:0 0 14px;background:#fdf3e3;border-color:#e6c882">
           E-posta adresini süresi içinde doğrulamadığın için üyeliğin askıya alındı.
-          <strong>Verilerin duruyor</strong> — talep ve tekliflerinin hiçbiri silinmedi.
+          <strong>Verilerin duruyor</strong> — taleplerinin hiçbiri silinmedi.
           Aşağıdan yeni bağlantı iste ve tıkla; hesabın <strong>anında</strong> yeniden açılır.
         </div>` : ""}
         <p class="muted" style="margin:0 0 6px;line-height:1.6">
@@ -1557,7 +1561,7 @@ function guestDemandSentScreen() {
       <h3 style="margin:0 0 10px;font-size:21px">Postana bak</h3>
       <p class="muted" style="margin:0 0 4px;line-height:1.6">
         <strong>${escapeHtml(mail)}</strong> adresine bir onay bağlantısı gönderdik.
-        Bağlantıya tıkladığın anda talebin yayına giriyor ve ev sahipleri sana teklif gönderebiliyor.
+        Bağlantıya tıkladığın anda talebin yayına giriyor ve kriterine uyan ev sahiplerine duyuruluyor.
       </p>
       <div class="notice" style="text-align:left;margin:16px 0">
         Gelen kutunda göremiyorsan <strong>spam / gereksiz</strong> klasörüne bak.
@@ -1588,7 +1592,7 @@ function phoneVerifyPage() {
         <div class="panel auth-panel" style="text-align:center">
           <div style="font-size:44px;line-height:1;margin-bottom:10px">✅</div>
           <h3 style="margin:0 0 8px">Telefonun doğrulandı</h3>
-          <p class="muted" style="margin:0 0 18px">Artık talep oluşturabilir ve teklif gönderebilirsin.</p>
+          <p class="muted" style="margin:0 0 18px">Artık talep oluşturabilir ve talep havuzunu kullanabilirsin.</p>
           <a class="btn btn-primary" href="#/${escapeAttr(dashboardPathForRole(u.role))}">Panele git</a>
         </div>
       </div>`);
@@ -1598,8 +1602,8 @@ function phoneVerifyPage() {
     <div class="auth-layout auth-layout-narrow">
       <div class="panel auth-panel">
         <div class="notice" style="margin:0 0 16px">
-          Numaranı doğrulamak <strong>bir kez</strong> yapılır ve ücretsizdir. Numaran ilanında veya talebinde
-          <strong>görünmez</strong>; yalnızca eşleşme sonrası, iki taraf da onay verdiğinde paylaşılır.
+          Numaranı doğrulamak <strong>bir kez</strong> yapılır ve ücretsizdir. Numaran talep kartında
+          <strong>görünmez</strong>; yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir, her görüntülemede sana haber verilir.
         </div>
 
         <div id="pv-step1">
@@ -1638,9 +1642,9 @@ function phoneVerifyPage() {
         <span class="badge badge-blue">${icon("shield", 13)} Neden isteniyor?</span>
         <h3>Gerçek kişilerle eşleşmen için</h3>
         <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
-          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">1</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Sahte üyelik ve boş teklif trafiği azalır.</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">1</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Sahte üyelik ve boş arama trafiği azalır.</span></li>
           <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">2</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Karşı taraf gerçek biriyle konuştuğunu bilir.</span></li>
-          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">3</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Numaran gizli kalır; yalnızca iki taraf da onay verdiğinde paylaşılır.</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">3</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Numaran havuzda gizli kalır; yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir.</span></li>
         </ol>
       </aside>
     </div>`);
@@ -1680,9 +1684,9 @@ function authLoginPage() {
       <aside class="auth-side">
         <span class="badge badge-gold">${icon("lock", 13)} Güvenli giriş</span>
         <h3>Tekrar hoş geldin.</h3>
-        <p>Üyeliğinle paneline dön; talep, teklif ve eşleşmelerini tek yerden yönet. İletişim bilgilerin her zaman korunur.</p>
+        <p>Üyeliğinle paneline dön; taleplerini, kriterlerini ve açtığın iletişimleri tek yerden yönet. İletişim bilgilerin her zaman korunur.</p>
         <div class="auth-benefits">
-          <span>${icon("key", 16)} Talep ve teklif yönetimi</span>
+          <span>${icon("key", 16)} Talep ve kriter yönetimi</span>
           <span>${icon("lock", 16)} Doğrudan iletişim</span>
         </div>
       </aside>
@@ -1692,7 +1696,7 @@ function authLoginPage() {
 
 // Google'dan donen yeni kullanici icin kisa tamamlama ekrani (rol + telefon + sehir).
 function googleCompletePage() {
-  const roleOptions = [["buyer", "Alıcı"], ["tenant", "Kiracı"], ["seller", "Satıcı"], ["landlord", "Ev sahibi"], ["agent", "Emlak danışmanı"]];
+  const roleOptions = [["buyer", "Konut alıcısı"], ["tenant", "Kiracı"], ["seller", "Satıcı"], ["landlord", "Ev sahibi"], ["agent", "Emlak danışmanı"]];
   return publicShell("Üyeliğini tamamla", "Google hesabınla giriş yaptın. Eşleşme için birkaç bilgi daha gerekiyor.", `
     <div class="auth-layout auth-layout-narrow">
       <form class="panel auth-panel" onsubmit="KT.googleComplete(event)">
@@ -1722,7 +1726,7 @@ function googleCompletePage() {
       <aside class="auth-side">
         <span class="badge badge-gold">${icon("lock", 13)} Son adım</span>
         <h3>Neden bu bilgiler?</h3>
-        <p>Üyelik tipin akışını belirler (talep mi bırakacaksın, teklif mi vereceksin). Şehir eşleşme için, telefon ise yalnızca eşleştiğin ve üyelik alan tarafa açılır — herkese açık değildir.</p>
+        <p>Üyelik tipin akışını belirler (talep mi bırakacaksın, talep havuzunu mu izleyeceksin). Telefonun herkese açık değildir; yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir ve her görüntülemede sana haber verilir.</p>
         <div class="auth-benefits">
           <span>${icon("key", 16)} Şifre belirlemene gerek yok</span>
           <span>${icon("lock", 16)} Bilgilerin rızanla paylaşılır</span>
@@ -1810,22 +1814,22 @@ function publicPage(kind) {
     return guestDemandPage();
   }
   if (kind === "nasil-calisir") {
-    return publicShell("Nasıl Çalışır", "Talep ve teklif eşleşir; iletişim bilgisiyle taraflar doğrudan buluşur.", `
+    return publicShell("Nasıl Çalışır", "Ev arayan talebini bırakır; ev sahipleri ve danışmanlar iletişime geçer, taraflar doğrudan buluşur.", `
       ${howSteps()}
       <div class="grid grid-2" style="margin-top:18px">
-        <article class="card"><h3>Alıcı / kiracı akışı</h3><p>Hesap oluştur, aradığın evi tarif et, bütçeni beyan et; sana uygun konutlarla eşleş, üyelikle mülk sahibinin iletişim bilgisine ulaş, doğrudan görüş.</p></article>
-        <article class="card"><h3>Satıcı / ev sahibi akışı</h3><p>Evini ekle, sana uygun alıcı ve kiracı taleplerini gör; üyelikle karşı tarafın iletişim bilgisine ulaş, doğrudan görüşüp anlaş.</p></article>
+        <article class="card"><h3>Alıcı / kiracı akışı</h3><p>Talebini bırak, e-postanı doğrula; talebin yayına girer ve kriterine uyan üyelere duyurulur. İletişim bilgini görüntüleyen üyeler seni doğrudan arar — sitede başka bir şey yapman gerekmez.</p></article>
+        <article class="card"><h3>Satıcı / ev sahibi / danışman akışı</h3><p>Üye ol, talep havuzunu filtrele, aradığın talebin kriterini kaydet; üyelikle talep sahibinin iletişim bilgisini gör, doğrudan ara ve anlaş.</p></article>
       </div>
     `);
   }
   if (kind === "alici") {
-    return publicShell("Alıcılar için", "Yüzlerce konut arasında kaybolmadan aradığın evi tarif et.", `
+    return publicShell("Konut alıcıları için", "Yüzlerce ilan arasında kaybolmadan aradığın evi tarif et.", `
       <div class="grid grid-3">
         ${featureCard("key", "Talebini aç", "Bölge, bütçe ve özelliklerini tek kartta toparla.")}
         ${featureCard("card", "Bütçeni beyan et", "Belge yüklemeden bütçe aralığını, peşinatını ve alım zamanını belirt.")}
-        ${featureCard("chat", "Doğrudan ulaş", "Üyelikle mülk sahibinin telefon ve e-postasına eriş, doğrudan görüş.")}
+        ${featureCard("chat", "Aranmayı bekle", "Talebine uygun satıcılar ve onaylı danışmanlar iletişim bilgini görüntüler ve seni doğrudan arar.")}
       </div>
-      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('buyer')">Alıcı olarak üye ol</button></div>
+      <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('buyer')">Konut alıcısı olarak üye ol</button></div>
     `);
   }
   if (kind === "satici") {
@@ -1833,13 +1837,13 @@ function publicPage(kind) {
       <div class="grid grid-3">
         ${featureCard("home", "Hazır talep havuzu", "Bütçesi ve ihtiyacı belli alıcıları filtrele.")}
         ${featureCard("send", "Doğrudan iletişim", "Üyelikle uygun alıcının iletişim bilgisine ulaş, doğrudan görüş.")}
-        ${featureCard("chart", "Kalite ve limit", "Paket limitleri ve risk skoru ile sürdürülebilir pazaryeri.")}
+        ${featureCard("chart", "Kriter bildirimi", "Aradığın alıcı profilini kaydet; uyan talep yayına girince haber al.")}
       </div>
       <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('seller')">Satıcı olarak üye ol</button></div>
     `);
   }
   if (kind === "fiyatlandirma") {
-    return publicShell("Fiyatlandırma", "Kayıt ücretsiz. Kiralık ev arayan (kiracı) tamamen ücretsizdir. Alıcı, satıcı, ev sahibi ve emlak danışmanı yalnızca eşleştikten sonra karşı tarafın iletişim bilgisini görmek için öder. Üste taşıma & reklam ise ayrı, isteğe bağlı bir hizmettir.", pricingCards());
+    return publicShell("Fiyatlandırma", "Talep bırakmak (kiracı ve alıcı) tamamen ücretsizdir, komisyon yoktur. Ev sahibi, satıcı ve onaylı emlak danışmanı, talep sahibinin iletişim bilgisini görmek için üyelik alır. Üste taşıma ise ayrı, isteğe bağlı bir hizmettir.", pricingCards());
   }
   if (kind === "yardim") {
     return publicShell("Yardım ve SSS", "Konuttalebi'nin temel kurallarını sade biçimde incele.", faq());
@@ -1847,7 +1851,7 @@ function publicPage(kind) {
   if (["iletisim", "kvkk", "gizlilik", "kullanim-sartlari", "cerez-politikasi", "mesafeli-satis", "on-bilgilendirme", "iade-iptal", "teslimat", "guvenli-islem-rehberi"].includes(kind)) {
     return legalPage(kind);
   }
-  if (kind === "ilanlar" || kind === "ara") {
+  if (kind === "talepler" || kind === "ilanlar" || kind === "ara") {
     return `<section class="band band-white"><div class="container">${searchPage()}</div></section>`;
   }
   return homePage();
@@ -1877,8 +1881,8 @@ function pricingCards(roleTypes = null) {
     </article>`;
   };
   const sections = [
-    ["membership", "Üyelik — İletişim Erişimi", "Kayıt herkes için ücretsiz. Ödeme yalnızca eşleştikten sonra karşı tarafın iletişim bilgisini görmek içindir. <strong>Kiralık ev arayan (kiracı) tamamen ücretsizdir.</strong>"],
-    ["boost", "Üste Taşıma & Reklam · opsiyonel", "İsteğe bağlı. Talebini veya ilanını listelerin üstüne taşıyıp daha çok görünürlük al — zorunlu değildir, üyelikten ayrıdır."],
+    ["membership", "Üyelik — İletişim Erişimi", "Kayıt herkes için ücretsiz. Ödeme yalnızca talep sahibinin iletişim bilgisini görüntülemek içindir; üyelik süresince sınırsızdır. <strong>Talep bırakan (kiracı ve alıcı) tamamen ücretsizdir.</strong>"],
+    ["boost", "Üste Taşıma · opsiyonel", "İsteğe bağlı. Talebini listenin üstüne taşıyıp daha çok görünürlük al — zorunlu değildir, üyelikten ayrıdır."],
   ];
   return sections.map(([kind, title, sub]) => {
     const gp = plans.filter((p) => meta(p.id).kind === kind)
@@ -1895,8 +1899,8 @@ function packageOfferPage() {
   const rent = uiTxMode === "RENT";
   let planIds = [];
   if (role === "agent") planIds = ["plan-pro"];
-  else if (role === "seller") planIds = rent ? ["plan-landlord-contact", "plan-landlord-boost"] : ["plan-seller-contact", "plan-seller-boost"];
-  else planIds = rent ? [] : ["plan-buyer-contact", "plan-buyer-boost"]; // kiracı ücretsiz; upsell yok
+  else if (role === "seller") planIds = ["plan-landlord-contact"]; // 2.0: tek bireysel uyelik
+  else planIds = rent ? [] : ["plan-buyer-boost"]; // talep birakan ucretsiz; istege bagli uste tasima
   const plans = planIds.map((id) => planById(id)).filter(Boolean);
   const first = user.name ? escapeHtml(user.name.split(" ")[0]) : "";
   const cards = plans.length
@@ -1908,25 +1912,25 @@ function packageOfferPage() {
           <div class="pill-row" style="margin-top:12px">${plan.features.map((f) => `<span class="pill">${escapeHtml(f)}</span>`).join("")}</div>
           <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>
         </article>`).join("")}</div>`
-    : `<div class="notice" style="margin-top:6px"><strong>Kiracı olarak tamamen ücretsizsin.</strong> Kiralık talebini oluştur; sana uygun ev sahipleri seninle iletişime geçsin. Ödeme yapman gerekmez.</div>`;
+    : `<div class="notice" style="margin-top:6px"><strong>Talep bırakmak tamamen ücretsiz.</strong> Talebini oluştur; sana uygun ev sahipleri iletişim bilgini görüntüleyip seni arasın. Ödeme yapman gerekmez.</div>`;
   return publicShell(`Hoş geldin${first ? ", " + first : ""}!`,
     "Üyeliğin hazır. İstersen bir paketle başla, istersen hiçbir paket almadan ücretsiz devam et — dilediğin an panelden yükseltebilirsin.", `
     ${cards}
     <div style="margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
       <button class="btn btn-outline" onclick="KT.skipPackages()">${icon("key", 16)} Paketsiz ücretsiz devam et</button>
-      <span class="muted">Paket almadan da talep oluşturabilir ve eşleşebilirsin.</span>
+      <span class="muted">Paket almadan da talep oluşturabilir ve havuzu inceleyebilirsin.</span>
     </div>
   `);
 }
 
 function faq() {
   const rows = [
-    ["Konuttalebi nedir?", "Alıcı ve kiracıların konut talebi oluşturduğu, satıcı ve ev sahiplerinin talep verdiği çift yönlü bir emlak platformudur. Talebine/ilanına uygun taraflar sana teklif gönderir; beğendiğin eşleşmede bilgileri görme üyeliğiyle karşı tarafın iletişim bilgisine ulaşır, doğrudan kendi aranızda anlaşırsınız. Platform içi mesajlaşma yoktur; fiyata ve pazarlığa karışmayız."],
-    ["Belge yüklemem gerekiyor mu?", "Hayır. Yalnızca bütçe/kira aralığını, peşinatını ve zaman tercihini beyan edersin."],
-    ["Telefonum ne zaman görünür?", "Karşı taraf, senin talebin/ilanın için bilgileri görme üyeliğini aldığında iletişim bilgin görünür. Bu bilgi yalnızca eşleşme kapsamında ve açık rızanla paylaşılır."],
-    ["Emlak danışmanları kullanabilir mi?", "Evet, ancak daha sıkı rate limit ve kalite skoruna tabidir."],
+    ["Konuttalebi nedir?", "Ev almak veya kiralamak isteyenlerin talep bıraktığı ters ilan platformudur. Sitede ilan yoktur; ev sahipleri, satıcılar ve onaylı emlak danışmanları talep havuzunu inceler, üyelikle talep sahibinin iletişim bilgisini görüntüler ve doğrudan arar. Fiyata, pazarlığa ve sözleşmeye karışmayız."],
+    ["Belge yüklemem gerekiyor mu?", "Talep bırakanlardan belge istenmez; bütçe/kira aralığını ve tercihlerini beyan edersin. Yalnızca emlak danışmanları, Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle onaylanır."],
+    ["Telefonum ne zaman görünür?", "Telefonun ve e-postan talep kartında görünmez. Yalnızca ücretli üyeler ve onaylı danışmanlar, seninle iletişime geçmek amacıyla görüntüleyebilir; her görüntülemede sana haber veririz."],
+    ["Emlak danışmanları kullanabilir mi?", "Evet. Danışman üyeliği için Sorumlu Emlak Danışmanı (Seviye 5) belgesi gerekir; belge onaylanmadan iletişim bilgisi görüntülenemez."],
     ["Bütçe beyanı zorunlu mu?", "Talep oluşturmak için bütçe/kira aralığı gerekir; belge yükleme yoktur."],
-    ["Şikayet nasıl yapılır?", "İlan, talep veya kullanıcı kartından şikayet oluşturulabilir; admin panelde incelenir."]
+    ["Şikayet nasıl yapılır?", "Talep veya kullanıcı kartından şikayet oluşturulabilir; admin panelde incelenir."]
   ];
   return `<div class="grid grid-2">${rows.map(([q, a]) => `<article class="card"><h3>${q}</h3><p>${a}</p></article>`).join("")}</div>`;
 }
@@ -1964,7 +1968,7 @@ function legalPage(kind) {
       <p>Bu form, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği uyarınca, siparişinizi onaylamadan önce sizi bilgilendirmek için sunulur.</p>
       <h3>1. Hizmet Sağlayıcı</h3>${firmaList}
       <h3>2. Hizmetin Konusu</h3>
-      <p>Konuttalebi'nde sunulan dijital hizmet paketleri: (a) <strong>Bilgileri Görme Üyeliği</strong> — eşleştiğiniz karşı tarafın iletişim bilgisini (telefon/e-posta) görüntüleme hakkı; (b) <strong>Öne Çıkarma (Üste Taşı) Paketleri</strong> — talep veya ilanın listelerde belirli süre üstte gösterilmesi. Paketin adı, kapsamı, süresi ve KDV dâhil fiyatı satın alma ekranında açıkça belirtilir.</p>
+      <p>Konuttalebi'nde sunulan dijital hizmet paketleri: (a) <strong>Üyelik (İletişim Erişimi)</strong> — talep sahiplerinin iletişim bilgisini (ad/telefon/e-posta), kendileriyle iletişime geçmek amacıyla üyelik süresince görüntüleme hakkı; (b) <strong>Öne Çıkarma (Üste Taşı) Paketi</strong> — talebin listelerde belirli süre üstte gösterilmesi. Paketin adı, kapsamı, süresi ve KDV dâhil fiyatı satın alma ekranında açıkça belirtilir.</p>
       <h3>3. Fiyat ve Ödeme</h3>
       <p>Satın alma anında ekranda gösterilen, tüm vergiler dâhil tutar geçerlidir. Ödemeler ${C.odeme} sanal POS altyapısı ve 3D Secure ile alınır; kart bilgileriniz Konuttalebi tarafından görülmez ve saklanmaz.</p>
       <h3>4. İfa / Teslim</h3>
@@ -2013,27 +2017,27 @@ function legalPage(kind) {
         <li><strong>Kimlik:</strong> ad-soyad; açık rızanızla T.C. kimlik numarası ve doğum tarihi.</li>
         <li><strong>İletişim:</strong> e-posta, telefon, şehir/adres.</li>
         <li><strong>İşlem güvenliği:</strong> IP, oturum ve log kayıtları, şifre (şifrelenmiş olarak), cihaz bilgisi.</li>
-        <li><strong>Hizmet kullanımı:</strong> oluşturduğunuz talep/ilanlar ve beyanlar (bütçe/kira aralığı, peşinat, kredi/nakit tercihi), gönderdiğiniz teklifler, eşleşmeler, favoriler.</li>
+        <li><strong>Hizmet kullanımı:</strong> oluşturduğunuz talepler ve beyanlar (bütçe/kira aralığı, peşinat, kredi/nakit tercihi), kaydettiğiniz arama kriterleri, iletişim bilgisi görüntüleme kayıtları.</li>
         <li><strong>İşlem/ödeme:</strong> tutar, tarih, işlem numarası (<strong>kart numarası hariç</strong> — kart bilgisi yalnızca ödeme kuruluşu tarafında işlenir, bize aktarılmaz).</li>
         <li><strong>Pazarlama:</strong> çerez ve tercih kayıtları (onayınız dâhilinde).</li>
       </ul>
       <h3>3. İşleme Amaçları</h3>
-      <p>Üyeliğin ve hizmetin sunulması; alıcı/kiracı taleplerinin satıcı/ev sahibi ilanlarıyla eşleştirilmesi; <strong>Bilgileri Görme Üyeliği</strong> kapsamında iletişim bilgisinin açılması; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi; talep/şikâyet yönetimi ve hizmet kalitesinin artırılması.</p>
+      <p>Üyeliğin ve hizmetin sunulması; konut taleplerinin, üyelerin kaydettiği arama kriterlerine göre duyurulması; <strong>üyelik</strong> kapsamında talep sahibinin iletişim bilgisinin, kendisiyle iletişime geçilmesi amacıyla ücretli üyeler ve onaylı emlak danışmanlarına görüntületilmesi ve her görüntülemenin kayıt altına alınıp talep sahibine bildirilmesi; ödeme ve faturalandırma; güvenlik, dolandırıcılık ve kötüye kullanımın önlenmesi; yasal yükümlülüklerin yerine getirilmesi; talep/şikâyet yönetimi ve hizmet kalitesinin artırılması.</p>
       <h3>4. Toplama Yöntemi ve Hukuki Sebepler (KVKK m.5)</h3>
-      <p>Veriler; web sitesi, mobil uygulama ve e-posta yoluyla elektronik ortamda toplanır. Hukuki sebepler: sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; ve gerekli hâllerde açık rıza (örn. iletişim bilginizin, eşleştiğiniz ve üyeliği olan tarafa açılması).</p>
-      <h3>5. Talep ve İlanların Herkese Açık Görünürlüğü</h3>
-      <p>Oluşturduğunuz <strong>talepler ve ilanlar, üyeliği olmayan ziyaretçiler dâhil herkese açık olarak</strong> platformda listelenir. Bu listelemede yalnızca ihtiyaç özeti görünür: şehir/ilçe, konut tipi, oda sayısı, m² aralığı, bütçe veya kira aralığı, zaman tercihi, tercih ettiğiniz özellikler ve yazdığınız açıklama metni. <strong>Adınız, telefonunuz, e-postanız ve kimliğiniz gösterilmez</strong>; açıklama metnine yazılan telefon/e-posta gibi iletişim bilgileri sistem tarafından otomatik olarak maskelenir. İletişim bilgileriniz yalnızca eşleşme sonrası, karşı tarafın <strong>Bilgileri Görme Üyeliği</strong> alması hâlinde paylaşılır. Açıklama alanına kimliğinizi ortaya çıkarabilecek bilgiler yazmamanızı öneririz. Talebinizi panelinizden yayından kaldırdığınızda herkese açık listelemeden de çıkar.</p>
+      <p>Veriler; web sitesi, mobil uygulama ve e-posta yoluyla elektronik ortamda toplanır. Hukuki sebepler: sözleşmenin kurulması/ifası; hukuki yükümlülük; bir hakkın tesisi/korunması; meşru menfaat; ve gerekli hâllerde açık rıza (örn. talep bıraktığınızda iletişim bilginizin, sizinle iletişime geçmeleri amacıyla ücretli üyeler ve onaylı danışmanlara görüntületilmesi — bu husus kayıt sırasında kabul ettiğiniz Kullanım Koşulları'nda açıkça yer alır).</p>
+      <h3>5. Taleplerin Herkese Açık Görünürlüğü ve İletişim Bilgisinin Görüntülenmesi</h3>
+      <p>Oluşturduğunuz <strong>talepler, üyeliği olmayan ziyaretçiler dâhil herkese açık olarak</strong> platformda listelenir. Bu listelemede yalnızca ihtiyaç özeti görünür: şehir/ilçe, konut tipi, oda sayısı, m² aralığı, bütçe veya kira aralığı, zaman tercihi, tercih ettiğiniz özellikler ve yazdığınız açıklama metni. <strong>Adınız, telefonunuz, e-postanız ve kimliğiniz bu listelemede gösterilmez</strong>; açıklama metnine yazılan telefon/e-posta gibi iletişim bilgileri sistem tarafından otomatik olarak maskelenir. Ad, telefon ve e-posta bilgileriniz; sizinle iletişime geçmeleri amacıyla yalnızca <strong>ücretli üyelik sahibi kullanıcılar ve belgesi onaylanmış emlak danışmanları</strong> tarafından görüntülenebilir. Her görüntüleme kayıt altına alınır ve size bildirim gönderilir; görüntüleyenin kimliği tarafınıza açıklanmaz, ancak kötüye kullanım hâlinde inceleme için kayıtlarda tutulur. Açıklama alanına kimliğinizi ortaya çıkarabilecek bilgiler yazmamanızı öneririz. Talebinizi panelinizden yayından kaldırdığınızda herkese açık listelemeden çıkar ve iletişim bilginiz artık görüntülenemez.</p>
       <h3>6. T.C. Kimlik Numarası ve Doğum Tarihi</h3>
-      <p>T.C. kimlik numarası ve doğum tarihi <strong>yalnızca açık rızanızla</strong> alınır; amacı sahte üyeliğin önlenmesi ve eşleşen tarafların gerçek kişiler olduğunun teyididir. Bu veriler şu güvencelerle işlenir:</p>
+      <p>T.C. kimlik numarası ve doğum tarihi <strong>yalnızca açık rızanızla</strong> alınır; amacı sahte üyeliğin önlenmesi ve tarafların gerçek kişiler olduğunun teyididir. Bu veriler şu güvencelerle işlenir:</p>
       <ul class="legal-list">
         <li>T.C. kimlik numarası veritabanında <strong>açık metin olarak tutulmaz</strong>; endüstri standardı şifreleme (AES-256-GCM) ile saklanır.</li>
         <li>Yönetim panelinde dahi <strong>maskeli</strong> görünür (örn. 123******01). Açık değerin görüntülenmesi ayrı bir yetki gerektirir ve <strong>her görüntüleme gerekçesiyle birlikte kayıt altına alınır</strong>.</li>
-        <li>Bu veriler <strong>hiçbir kullanıcıyla paylaşılmaz</strong>; eşleşme sonrası açılan iletişim bilgilerine dâhil değildir.</li>
+        <li>Bu veriler <strong>hiçbir kullanıcıyla paylaşılmaz</strong>; üyelikle görüntülenen iletişim bilgilerine dâhil değildir.</li>
         <li>Alanların doldurulması <strong>zorunlu değildir</strong>; boş bırakabilir, rızanızı dilediğiniz zaman ${C.email} adresine yazarak geri çekebilirsiniz. Rıza geri çekildiğinde bu veriler silinir.</li>
         <li>Üyeliğiniz silindiğinde veya anonimleştirildiğinde bu veriler <strong>geri döndürülemez şekilde</strong> kaldırılır.</li>
       </ul>
       <h3>7. Aktarım (KVKK m.8-9)</h3>
-      <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Eşleşmede yalnızca ilgili iletişim bilgisi, üyeliği olan tarafa açılır.</p>
+      <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Platform içinde yalnızca ad, telefon ve e-posta bilgisi, sizinle iletişime geçmeleri amacıyla ücretli üyeler ve onaylı danışmanlara görüntületilir (bkz. bölüm 5).</p>
       <h3>7a. Açık Rızaya Bağlı Aktarım — İş Ortakları</h3>
       <p><strong>Yalnızca ayrıca açık rıza vermeniz hâlinde</strong>; iletişim bilgileriniz (ad-soyad, telefon, e-posta, şehir) ve konut talep/tercih bilgileriniz (aradığınız konut tipi, bölge, bütçe/kira aralığı, taşınma veya satın alma zamanlaması) aşağıdaki alıcı gruplarına, karşılarında yazan amaçla sınırlı olarak aktarılabilir:</p>
       <ul class="legal-list">
@@ -2083,14 +2087,14 @@ function legalPage(kind) {
       <ul class="legal-list">
         <li><strong>Site:</strong> Konuttalebi web sitesi ve mobil uygulamaları.</li>
         <li><strong>Üye:</strong> Site'ye kayıt olan ve hizmetlerden yararlanan gerçek veya tüzel kişi.</li>
-        <li><strong>Talep:</strong> Alıcı veya kiracının aradığı konutu tarif eden kayıt.</li>
-        <li><strong>İlan:</strong> Satıcı veya ev sahibinin sunduğu konut kaydı.</li>
-        <li><strong>Alıcı / Kiracı:</strong> Konut almak veya kiralamak için talep oluşturan Üye.</li>
-        <li><strong>Satıcı / Ev Sahibi:</strong> Konut satan veya kiraya veren, ilan oluşturan Üye.</li>
-        <li><strong>Bilgileri Görme Üyeliği:</strong> Eşleşilen karşı tarafın iletişim bilgisini görüntüleme hakkı veren ücretli üyelik.</li>
+        <li><strong>Talep:</strong> Alıcı veya kiracının aradığı konutu, iş yerini veya arsayı tarif eden kayıt. Site'de ilan yayımlanmaz; yalnızca talepler listelenir.</li>
+        <li><strong>Talep Sahibi (Alıcı / Kiracı):</strong> Konut almak veya kiralamak için talep oluşturan Üye. Talep bırakmak ücretsizdir.</li>
+        <li><strong>Bireysel Üye (Satıcı / Ev Sahibi):</strong> Talep havuzunu inceleyen ve ücretli üyelikle talep sahibinin iletişim bilgisini görüntüleyebilen Üye.</li>
+        <li><strong>Onaylı Emlak Danışmanı:</strong> Sorumlu Emlak Danışmanı (Seviye 5) belgesi platform tarafından onaylanmış, danışman üyeliğine sahip Üye.</li>
+        <li><strong>Üyelik (İletişim Erişimi):</strong> Talep sahibinin iletişim bilgisini, kendisiyle iletişime geçmek amacıyla görüntüleme hakkı veren ücretli üyelik.</li>
       </ul>
       <h3>3. Platformun Hukuki Statüsü</h3>
-      <p>Konuttalebi, 6563 sayılı Elektronik Ticaretin Düzenlenmesi Hakkında Kanun kapsamında bir <strong>aracı hizmet sağlayıcı / yer sağlayıcı</strong> konumundadır. Taraflar arasındaki alım-satım veya kiralama ilişkisine taraf değildir; talep/ilan içeriğini bizzat oluşturmaz, doğruluğunu garanti etmez ve içerikten kullanıcılar sorumludur.</p>
+      <p>Konuttalebi, 6563 sayılı Elektronik Ticaretin Düzenlenmesi Hakkında Kanun kapsamında bir <strong>aracı hizmet sağlayıcı / yer sağlayıcı</strong> konumundadır. Taraflar arasındaki alım-satım veya kiralama ilişkisine taraf değildir; talep içeriğini bizzat oluşturmaz, doğruluğunu garanti etmez ve içerikten kullanıcılar sorumludur.</p>
       <h3>4. Üyelik ve Hesap</h3>
       <ul class="legal-list">
         <li>Üyelik, gerekli bilgilerin doğru ve eksiksiz girilmesi ve bu koşulların kabulüyle tamamlanır.</li>
@@ -2101,23 +2105,23 @@ function legalPage(kind) {
       <h3>5. Üyenin Yükümlülükleri</h3>
       <ul class="legal-list">
         <li>Yürürlükteki mevzuata (TCK, TBK, TTK, FSEK vb.) uygun davranmak.</li>
-        <li>Gerçek, doğru ve güncel talep/ilan oluşturmak; yanıltıcı, sahte veya hukuka aykırı içerik paylaşmamak.</li>
+        <li>Gerçek, doğru ve güncel talep oluşturmak; yanıltıcı, sahte veya hukuka aykırı içerik paylaşmamak.</li>
         <li>Başkasının kişisel/iletişim bilgilerini izinsiz kullanmamak ve paylaşmamak.</li>
-        <li>Edindiği iletişim bilgisini yalnızca ilgili talep/ilan amacıyla kullanmak; izinsiz toplu pazarlama (spam) yapmamak.</li>
+        <li>Görüntülediği iletişim bilgisini yalnızca ilgili talep amacıyla kullanmak; izinsiz toplu pazarlama (spam) yapmamak, bilgiyi üçüncü kişilerle paylaşmamak.</li>
       </ul>
       <h3>6. Platformun Hak ve Yükümlülükleri</h3>
       <ul class="legal-list">
         <li>Hizmetin sürekliliği için azami özen gösterir; teknik arıza ve mücbir sebep kaynaklı kesintilerden sorumlu değildir.</li>
-        <li>Mevzuata aykırı, yanıltıcı veya şüpheli gördüğü talep/ilanı yayınlamama ya da kaldırma hakkına sahiptir.</li>
+        <li>Mevzuata aykırı, yanıltıcı veya şüpheli gördüğü talebi yayınlamama ya da kaldırma hakkına sahiptir.</li>
         <li>Koşullara aykırı davranan hesapları geçici veya kalıcı olarak askıya alabilir.</li>
         <li>Yetkili mercilerin talebi hâlinde üye bilgilerini mevzuata uygun paylaşabilir.</li>
       </ul>
       <h3>7. İletişim Bilgisi, Teklif ve Mesajlaşma</h3>
-      <p>Telefon, e-posta ve adres gibi iletişim bilgileri herkese açık değildir; yalnızca eşleşme sonrası <strong>Bilgileri Görme Üyeliği</strong> alan tarafa açılır. Site'de platform içi mesajlaşma yoktur; taraflar iletişim bilgisiyle doğrudan görüşür ve kendi aralarında anlaşır. Teklif iletmek ücretsizdir.</p>
+      <p>Telefon, e-posta ve adres gibi iletişim bilgileri herkese açık değildir; talep sahibinin iletişim bilgisini yalnızca <strong>ücretli üyeliği olan kullanıcılar ve belgesi onaylanmış emlak danışmanları</strong> görüntüleyebilir. Her görüntüleme kayıt altına alınır ve talep sahibine bildirilir. Site'de platform içi mesajlaşma ve teklif akışı yoktur; taraflar iletişim bilgisiyle doğrudan görüşür ve kendi aralarında anlaşır.</p>
       <h3>8. İkili İlişkiler ve Mali Sorumluluk Muafiyeti (ÖNEMLİ)</h3>
       <p>Konuttalebi bir <strong>ödeme veya emanet (escrow) hizmeti değildir</strong> ve taraflar arasındaki hiçbir alım-satım, kiralama, kapora, ödeme veya tapu işlemine taraf değildir. Kullanıcıların birbirleriyle kurdukları her ilişki, anlaşma ve ödeme tamamen kendi sorumluluklarındadır. Taşınmazın ayıplı olması, teslim/tescil edilmemesi, ödemenin yapılmaması gibi durumlarda Platform'un hiçbir hukuki, idari veya cezai sorumluluğu yoktur. Kullanıcılar, taşınmazı görmeden ve resmî belgeleri teyit etmeden <strong>kapora/ön ödeme yapmamaları</strong> konusunda uyarılır.</p>
       <h3>9. Ücretli Hizmetler</h3>
-      <p>Bilgileri Görme Üyeliği ve öne çıkarma (üste taşıma) paketlerinin kapsam, süre ve KDV dâhil ücretleri satın alma ekranında belirtilir. Ödeme ve iade koşulları Ön Bilgilendirme Formu, Mesafeli Satış Sözleşmesi ve İade/İptal Politikası'na tabidir. Kiralık ev arayan (kiracı) için kayıt ve kullanım ücretsizdir.</p>
+      <p>Üyelik (iletişim erişimi) ve öne çıkarma (üste taşıma) paketlerinin kapsam, süre ve KDV dâhil ücretleri satın alma ekranında belirtilir. Ödeme ve iade koşulları Ön Bilgilendirme Formu, Mesafeli Satış Sözleşmesi ve İade/İptal Politikası'na tabidir. Talep bırakmak (kiracı ve alıcı) için kayıt ve kullanım ücretsizdir.</p>
       <h3>10. Fikri Mülkiyet</h3>
       <p>Site'nin tasarımı, yazılımı, markası, logosu, veritabanı ve özgün içerikleri üzerindeki haklar ${C.unvan}'ne aittir; izinsiz kopyalanamaz, çoğaltılamaz veya tersine mühendislik yapılamaz. Üyelerin yüklediği içeriklerin hakları kendilerine ait olup, yayınlanmalarıyla Platform'a bunları hizmet kapsamında gösterme lisansı verilmiş sayılır.</p>
       <h3>11. Mücbir Sebep</h3>
@@ -2153,38 +2157,32 @@ function legalPage(kind) {
 
 function dashboardLayout(role, content, activePath) {
   const menus = {
+    // 2.0: ilan/teklif/eslesme ekranlari menulerden kalkti. Talep birakan taraf
+    // sade bir panel gorur; uye tarafi (seller/agent) talep havuzu + kriter +
+    // actiklari + paket gorur.
     buyer: [
       ["dashboard/alici", "Genel Bakış", "chart"],
       ["dashboard/alici/taleplerim", "Taleplerim", "key"],
       ["dashboard/alici/talep-olustur", "Yeni Talep", "send"],
-      ["dashboard/ara", "İlan Ara", "search"],
-      ["dashboard/alici/teklifler", "Gelen Teklifler", "home"],
-      ["dashboard/alici/eslesmeler", "Eşleşmeler", "lock"],
-      ["dashboard/alici/butce-beyani", "Bütçe Beyanı", "card"],
       ["dashboard/alici/bildirimler", "Bildirimler", "bell"],
       ["dashboard/alici/paketler", "Paketlerim", "card"],
       ["dashboard/alici/ayarlar", "Ayarlar", "user"]
     ],
     seller: [
       ["dashboard/satici", "Genel Bakış", "chart"],
-      ["dashboard/satici/evlerim", "Evlerim", "home"],
-      ["dashboard/satici/ev-ekle", "Yeni Ev", "send"],
-      ["dashboard/ara", "İlan Ara", "search"],
-      ["dashboard/satici/talepler", uiTxMode === "RENT" ? "Kiracı Talepleri" : "Alıcı Talepleri", "key"],
-      ["dashboard/satici/tekliflerim", "Tekliflerim", "card"],
-      ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
-      ["dashboard/satici/dogrulama", "Satıcı Doğrulama", "shield"],
-      ["dashboard/satici/paketler", "Paketlerim", "card"],
+      ["dashboard/satici/talepler", "Talep Havuzu", "key"],
+      ["dashboard/satici/kriter", "Aradığım Talepler", "search"],
+      ["dashboard/satici/actiklarim", "İletişim Açtıklarım", "lock"],
+      ["dashboard/satici/paketler", "Üyeliğim", "card"],
       ["dashboard/satici/ayarlar", "Ayarlar", "user"]
     ],
     agent: [
       ["dashboard/satici", "Genel Bakış", "chart"],
-      ["dashboard/satici/evlerim", "Portföy", "home"],
-      ["dashboard/ara", "İlan Ara", "search"],
       ["dashboard/satici/talepler", "Talep Havuzu", "key"],
-      ["dashboard/satici/tekliflerim", "Teklifler", "card"],
-      ["dashboard/satici/eslesmeler", "Eşleşmeler", "lock"],
-      ["dashboard/satici/paketler", "Kurumsal Paket", "card"],
+      ["dashboard/satici/kriter", "Aradığım Talepler", "search"],
+      ["dashboard/satici/actiklarim", "İletişim Açtıklarım", "lock"],
+      ["dashboard/satici/dogrulama", "Danışman Doğrulama", "shield"],
+      ["dashboard/satici/paketler", "Üyeliğim", "card"],
       ["dashboard/satici/ayarlar", "Ayarlar", "user"]
     ],
     admin: [
@@ -2192,8 +2190,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/admin/kullanicilar", "Kullanıcılar", "user"],
       ["dashboard/admin/uyelikler", "Üyelikler", "card"],
       ["dashboard/admin/talepler", "Alıcı Talepleri", "key"],
-      ["dashboard/admin/ilanlar", "Satıcı İlanları", "home"],
-      ["dashboard/admin/teklifler", "Teklifler", "card"],
+      ["dashboard/admin/ilanlar", "İlan Arşivi", "home"],
       ["dashboard/admin/epostalar", "E-postalar", "mail"],
       ["dashboard/admin/belgeler", "Satıcı Belgeleri", "file"],
       ["dashboard/admin/sikayetler", "Şikayetler", "alert"],
@@ -2221,12 +2218,11 @@ function renderBuyer(path) {
   const user = currentUser();
   if (path.includes("/talep-olustur")) return dashboardLayout("buyer", buyerDemandForm(), path);
   if (path.includes("/taleplerim")) return dashboardLayout("buyer", buyerDemands(), path);
-  if (path.includes("/teklifler/")) return dashboardLayout("buyer", buyerOfferDetail(path.split("/").pop()), path);
-  if (path.includes("/teklifler")) return dashboardLayout("buyer", buyerOffers(), path);
-  if (path.includes("/mesajlar/")) return dashboardLayout("buyer", messagesPage(path.split("/").pop(), "buyer"), path);
-  if (path.includes("/mesajlar")) return dashboardLayout("buyer", messagesPage(null, "buyer"), path);
-  if (path.includes("/eslesmeler")) return dashboardLayout("buyer", matchesPage("buyer"), path);
-  if (path.includes("/butce-beyani") || path.includes("/dogrulama")) return dashboardLayout("buyer", budgetDeclarationPage(user.id), path);
+  // 2.0: teklif/eslesme/mesaj/butce ekranlari kalkti; eski baglantilar
+  // taleplerime dusurulur.
+  if (path.includes("/teklifler") || path.includes("/mesajlar") ||
+      path.includes("/eslesmeler") || path.includes("/butce-beyani") || path.includes("/dogrulama"))
+    return dashboardLayout("buyer", buyerDemands(), path);
   if (path.includes("/bildirimler")) return dashboardLayout("buyer", notificationsPage(user.id), path);
   if (path.includes("/paketler")) return dashboardLayout("buyer", buyerPackages(), path);
   if (path.includes("/ayarlar")) return dashboardLayout("buyer", settingsPage(user), path);
@@ -2234,24 +2230,23 @@ function renderBuyer(path) {
 }
 
 function buyerOverview() {
+  // 2.0: teklif/eslesme istatistikleri kalkti; talepler + goruntulenme sayaci.
   const user = currentUser();
   const demands = state.demands.filter((d) => d.buyerId === user.id);
-  const offers = state.offers.filter((o) => o.buyerId === user.id);
-  const matches = state.matches.filter((m) => m.buyerId === user.id);
-  const profile = buyerProfile(user.id);
+  const idler = demands.map((d) => d.id);
+  const goruntulenme = (state.contactViews || []).filter((v) => idler.includes(v.demandId)).length;
   return `
-    ${pageHead("Alıcı Genel Bakış", "Taleplerin, gelen tekliflerin ve bütçe beyanın burada.")} 
+    ${pageHead("Genel Bakış", "Taleplerin ve iletişim bilginin kaç kez görüntülendiği burada.")}
     <div class="stat-grid">
       ${stat("Aktif talep", demands.filter((d) => d.status === "ACTIVE").length)}
-      ${stat("Gelen teklif", offers.length)}
-      ${stat("Eşleşme", matches.length)}
-      ${stat("Profil", `%${profile.profileCompletion}`)}
+      ${stat("İletişim görüntülenmesi", goruntulenme)}
+      ${stat("Toplam talep", demands.length)}
+      ${stat("Bildirimler", (state.notifications || []).filter((n) => !n.readAt).length)}
     </div>
     <div class="grid grid-2">
-      <section class="panel"><h3>Bütçe beyanı</h3><p class="muted" style="margin:8px 0 12px">Satıcılar belge değil, beyan ettiğin bütçe aralığını ve alım niyetini görür.</p><span class="badge ${badgeForProfile(profile)}">${icon("card", 13)} ${profile.verificationLevel}</span><div class="section-actions"><a class="btn btn-primary" href="#/dashboard/alici/butce-beyani">Beyanımı güncelle</a></div></section>
-      <section class="panel"><h3>Önerilen aksiyon</h3><p class="muted" style="margin:8px 0 12px">Talebini ayrıntılandırmak daha kaliteli teklif almanı sağlar.</p><a class="btn btn-secondary" href="#/dashboard/alici/talep-olustur">Yeni talep oluştur</a></section>
+      <section class="panel"><h3>Nasıl işliyor?</h3><p class="muted" style="margin:8px 0 12px">Talebin havuzda anonim listelenir. İletişim bilgini bir üye görüntülediğinde sana haber verilir; seni doğrudan ararlar.</p><a class="btn btn-primary" href="#/dashboard/alici/talepler">Taleplerimi gör</a></section>
+      <section class="panel"><h3>Önerilen aksiyon</h3><p class="muted" style="margin:8px 0 12px">Talebini ayrıntılandırmak doğru kişilerce aranma şansını artırır.</p><a class="btn btn-secondary" href="#/dashboard/alici/talep-olustur">Yeni talep oluştur</a></section>
     </div>
-    <section class="panel"><h3>Son teklifler</h3><div class="list" style="margin-top:12px">${offers.slice(0, 3).map((offer) => offerRow(offer, "buyer")).join("") || empty("Henüz teklif yok", "Talebin yayına girdikçe satıcı teklifleri burada görünür.")}</div></section>
   `;
 }
 
@@ -2260,12 +2255,12 @@ function buyerDemands() {
   const demands = state.demands.filter((d) => d.buyerId === user.id).sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)));
   return `
     ${pageHead("Taleplerim", "Yayındaki, taslak veya pasif taleplerini yönet.", `<a class="btn btn-primary" href="#/dashboard/alici/talep-olustur">${icon("send", 16)} Yeni talep</a>`)}
-    <div class="list">${demands.map((d) => demandRow(d, false)).join("") || empty("Henüz talep yok", "Yeni talep oluşturarak satıcılardan teklif almaya başlayabilirsin.")}</div>
+    <div class="list">${demands.map((d) => demandRow(d, false)).join("") || empty("Henüz talep yok", "Yeni talep oluştur; kriterine uyan ev sahipleri ve danışmanlar seni arasın.")}</div>
   `;
 }
 
 function buyerPackages() {
-  return `${pageHead("Paketlerim", "Talebini üste taşıma reklamı ve satıcı bilgilerini görme üyeliği.")}${pricingCards(["BUYER"])}`;
+  return `${pageHead("Paketlerim", "Talep bırakmak ücretsiz; istersen talebini üste taşıyabilirsin.")}${pricingCards(["BUYER"])}`;
 }
 
 function buyerDemandForm() {
@@ -2277,14 +2272,14 @@ function buyerDemandForm() {
     </div>
     <div class="notice" style="margin:0 0 16px">
       <strong>${icon("lock", 13)} Talebin herkese açık listelenir — ama kimliğin gizli kalır.</strong>
-      Yayına aldığında talebin, üye olmayan ziyaretçilerin de görebildiği <a href="#/ilanlar" target="_blank">Ev Arayanlar</a> listesinde görünür.
+      Yayına aldığında talebin, üye olmayan ziyaretçilerin de görebildiği <a href="#/talepler" target="_blank">Talepler</a> listesinde görünür.
       Görünen bilgiler: şehir/ilçe, konut tipi, oda, m², ${rent ? "kira" : "bütçe"} aralığı, zaman tercihin ve yazdığın açıklama.
-      <strong>Adın, telefonun ve e-postan gösterilmez;</strong> açıklamaya yazılan telefon/e-posta otomatik gizlenir.
-      İletişim bilgin yalnızca eşleşme sonrası, karşı taraf üyelik aldığında paylaşılır.
+      <strong>Adın, telefonun ve e-postan kartta gösterilmez;</strong> açıklamaya yazılan telefon/e-posta otomatik gizlenir.
+      İletişim bilgini yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir; her görüntülemede sana haber verilir.
     </div>
     <form class="panel" onsubmit="KT.createDemand(event)">
       <div class="form-grid">
-        <div class="field full"><label for="d-txtype">İşlem tipi</label><select id="d-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiralık ev arayan talebi (Ev Kirala)." : "Satılık ev arayan talebi (Ev Al)."}</span></div>
+        <div class="field full"><label for="d-txtype">İşlem tipi</label><select id="d-txtype" onchange="KT.setTxMode(this.value)"><option value="Satılık" ${!rent ? "selected" : ""}>Satın Alma</option><option value="Kiralık" ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiralık ev arayan talebi (Ev Kirala)." : "Konut alıcısı talebi (Ev Al)."}</span></div>
         <div class="field"><label for="d-maincat">Ana kategori</label><select id="d-maincat" onchange="KT.onCategory('d')">${MAIN_CATEGORIES.map((c, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
         <div class="field"><label for="d-type">Alt tip</label><select id="d-type">${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
         ${field("Başlık", "d-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de aile için 3+1")}
@@ -2384,39 +2379,93 @@ function buyerOfferDetail(id) {
 
 function renderSeller(path) {
   const role = state.currentRole === "agent" ? "agent" : "seller";
-  const sellerPath = path.replace("dashboard/satici", "dashboard/satici");
-  if (sellerPath.includes("/ev-ekle")) return dashboardLayout(role, propertyForm(), path);
-  if (sellerPath.includes("/evlerim")) return dashboardLayout(role, sellerProperties(), path);
+  const sellerPath = path;
+  // 2.0: ilan/teklif/eslesme/mesaj rotalari kaldirildi; eski baglantilar
+  // talep havuzuna dusurulur ki kimse olu sayfada kalmasin.
+  if (sellerPath.includes("/ev-ekle") || sellerPath.includes("/evlerim") ||
+      sellerPath.includes("/teklif-gonder") || sellerPath.includes("/tekliflerim") ||
+      sellerPath.includes("/mesajlar") || sellerPath.includes("/eslesmeler"))
+    return dashboardLayout(role, sellerDemands(), path);
   if (sellerPath.includes("/talepler")) return dashboardLayout(role, sellerDemands(), path);
-  if (sellerPath.includes("/teklif-gonder/")) return dashboardLayout(role, offerForm(sellerPath.split("/").pop()), path);
-  if (sellerPath.includes("/tekliflerim")) return dashboardLayout(role, sellerOffers(), path);
-  if (sellerPath.includes("/mesajlar/")) return dashboardLayout(role, messagesPage(sellerPath.split("/").pop(), role), path);
-  if (sellerPath.includes("/mesajlar")) return dashboardLayout(role, messagesPage(null, role), path);
-  if (sellerPath.includes("/eslesmeler")) return dashboardLayout(role, matchesPage(role), path);
+  if (sellerPath.includes("/kriter")) return dashboardLayout(role, kriterPage(), path);
+  if (sellerPath.includes("/actiklarim")) return dashboardLayout(role, actiklarimPage(), path);
   if (sellerPath.includes("/dogrulama")) return dashboardLayout(role, sellerVerification(), path);
   if (sellerPath.includes("/paketler")) return dashboardLayout(role, sellerPackages(), path);
-  // Ayarlar ekrani daha once yalnizca alicida vardi; satici ve danisman da
-  // profilini ve bildirim tercihlerini yonetebilmeli.
   if (sellerPath.includes("/ayarlar")) return dashboardLayout(role, settingsPage(currentUser()), path);
   return dashboardLayout(role, sellerOverview(), path);
 }
 
-function sellerOverview() {
-  const user = currentUser();
-  const properties = state.properties.filter((p) => p.sellerId === user.id);
-  const offers = state.offers.filter((o) => o.sellerId === user.id);
-  const matches = state.matches.filter((m) => m.sellerId === user.id);
+/* 2.0 — "Aradigim Talepler" kriter ekrani. Uye kriter kaydeder; kritere uyan
+   yeni talep yayina girdiginde eslesme bildirimi alir. */
+function kriterPage() {
+  const k = state.savedSearch || {};
+  let iller = [];
+  try { iller = JSON.parse(k.cities || "[]"); } catch { iller = []; }
   return `
-    ${pageHead("Satıcı Genel Bakış", "Evlerin, uygun alıcı talepleri ve teklif performansın burada.")}
+    ${pageHead("Aradığım Talepler", "Kriterini kaydet; uyan yeni bir talep yayına girdiğinde sana haber verelim.")}
+    <section class="panel">
+      <div class="form-grid">
+        <div class="field"><label for="kr-tx">Talep türü</label>
+          <select id="kr-tx">
+            <option value="" ${!k.tx ? "selected" : ""}>Kiralık + Satılık</option>
+            <option value="RENT" ${k.tx === "RENT" ? "selected" : ""}>Kiralık (kiracı arayanlar)</option>
+            <option value="SALE" ${k.tx === "SALE" ? "selected" : ""}>Satılık (alıcılar)</option>
+          </select></div>
+        <div class="field"><label for="kr-cat">Kategori</label>
+          <select id="kr-cat">
+            <option value="" ${!k.mainCategory ? "selected" : ""}>Tümü</option>
+            ${MAIN_CATEGORIES.map((c) => `<option ${k.mainCategory === c ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}
+          </select></div>
+        <div class="field full"><label>İller <span class="muted">(en çok 10; boş bırakırsan tüm iller)</span></label>
+          <div class="check-grid" style="max-height:220px;overflow:auto;border:1px solid #dde4ec;border-radius:8px;padding:10px">
+            ${TR_ILLER.map((il) => `<label class="check"><input type="checkbox" class="kr-il" value="${escapeHtml(il.name)}" ${iller.includes(il.name) ? "checked" : ""}> ${escapeHtml(il.name)}</label>`).join("")}
+          </div></div>
+        <div class="field"><label for="kr-min">En az bütçe <span class="muted">(opsiyonel)</span></label>
+          <input id="kr-min" type="number" inputmode="numeric" value="${k.minBudget || ""}" placeholder="0"></div>
+        <div class="field"><label for="kr-max">En fazla bütçe <span class="muted">(opsiyonel)</span></label>
+          <input id="kr-max" type="number" inputmode="numeric" value="${k.maxBudget || ""}" placeholder="Sınırsız"></div>
+        <div id="kr-error" class="form-error"></div>
+        <div class="field full"><button class="btn btn-primary" onclick="KT.kriterKaydet()">${icon("check", 16)} Kriterimi kaydet</button></div>
+      </div>
+      <div class="notice" style="margin-top:12px">Kriterine uyan yeni talepler yayına girdiğinde site içi bildirim ve (bildirim tercihin açıksa) e-posta alırsın.</div>
+    </section>`;
+}
+
+/* 2.0 — "Iletisim Actiklarim": uyenin goruntledigi talepler. Bilgiler yeniden
+   gosterilir; paket sinirsiz goruntuleme icerdigi icin tekrar ucret yoktur. */
+function actiklarimPage() {
+  const u = currentUser();
+  const benimkiler = (state.contactViews || []).filter((v) => v.viewerId === u.id);
+  const kartlar = benimkiler.map((v) => {
+    const d = (state.demands || []).find((x) => x.id === v.demandId);
+    return `<article class="card">
+      <h3 style="margin:0 0 6px">${escapeHtml(d ? d.title : "Talep")}</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Görüntüleme: ${escapeHtml(v.createdAt || "")}</p>
+      <button class="btn btn-small btn-primary" onclick="KT.iletisimGor('${escapeAttr(v.demandId)}')">${icon("lock", 14)} İletişimi tekrar gör</button>
+    </article>`;
+  }).join("");
+  return `
+    ${pageHead("İletişim Açtıklarım", "Görüntülediğin taleplerin iletişim bilgilerine buradan yeniden ulaşabilirsin.")}
+    <div class="card-grid">${kartlar || empty("Henüz iletişim açmadın", "Talep havuzundan bir talep seç ve iletişim bilgisini gör.")}</div>`;
+}
+
+function sellerOverview() {
+  // 2.0: ilan/teklif istatistikleri kalkti; talep havuzu + kriter + acilan iletisimler.
+  const user = currentUser();
+  const acilan = (state.contactViews || []).filter((v) => v.viewerId === user.id);
+  const kriter = state.savedSearch || null;
+  const uyelik = hasContactMembershipUI();
+  return `
+    ${pageHead("Genel Bakış", "Talep havuzu, aradığın talepler ve açtığın iletişimler burada.")}
     <div class="stat-grid">
-      ${stat("Aktif ev", properties.length)}
-      ${stat("Uygun talep", state.demands.filter((d) => properties.some((p) => p.city === d.city)).length)}
-      ${stat("Gönderilen teklif", offers.length)}
-      ${stat("Olumlu yanıt", offers.filter((o) => o.status === "INTERESTED" || o.status === "MATCHED").length)}
+      ${stat("Yayındaki talep", state.demands.filter((d) => d.status === "ACTIVE").length)}
+      ${stat("Açtığın iletişim", acilan.length)}
+      ${stat("Kayıtlı kriter", kriter ? "Var" : "Yok")}
+      ${stat("Üyelik", uyelik ? "Aktif" : "Yok")}
     </div>
     <div class="grid grid-2">
-      <section class="panel"><h3>Alıcı talep havuzu</h3><p class="muted" style="margin:8px 0 12px">Kimlik bilgisi görünmez; rozet, bütçe aralığı ve ihtiyaç görünür.</p><a class="btn btn-primary" href="#/dashboard/satici/talepler">Talepleri gör</a></section>
-      <section class="panel"><h3>Portföy</h3><p class="muted" style="margin:8px 0 12px">Evlerini ekleyip talebe özel teklif gönderebilirsin.</p><a class="btn btn-secondary" href="#/dashboard/satici/ev-ekle">Yeni ev ekle</a></section>
+      <section class="panel"><h3>Talep havuzu</h3><p class="muted" style="margin:8px 0 12px">Kimlik bilgisi görünmez; ihtiyaç özeti ve bütçe aralığı görünür. Üyelikle iletişim bilgisini açarsın.</p><a class="btn btn-primary" href="#/dashboard/satici/talepler">Talepleri gör</a></section>
+      <section class="panel"><h3>Aradığın talepler</h3><p class="muted" style="margin:8px 0 12px">Kriterini kaydet; uyan talep yayına girince bildirim al.</p><a class="btn btn-secondary" href="#/dashboard/satici/kriter">Kriterimi ayarla</a></section>
     </div>
   `;
 }
@@ -2485,25 +2534,22 @@ let demandPoolFilter = { tx: "", city: "", touched: false };
 
 function demandPoolTitle(tx) {
   if (tx === "RENT") return "Kiracı Talepleri";
-  if (tx === "SALE") return "Alıcı Talepleri";
+  if (tx === "SALE") return "Konut Satın Alma Talepleri";
   return "Talep Havuzu";
 }
 function demandPoolRows() {
-  const user = currentUser();
-  const properties = state.properties.filter((p) => p.sellerId === user.id);
+  // 2.0: ilan kalktigi icin uyum puani da kalkti; siralama one cikarilanlar +
+  // en yeni. Yalniz ACTIVE talepler listelenir.
   const list = state.demands.filter((d) => {
+    if ((d.status || "ACTIVE") !== "ACTIVE") return false;
     if (demandPoolFilter.tx && (d.transactionType || "SALE") !== demandPoolFilter.tx) return false;
     if (demandPoolFilter.city && d.city !== demandPoolFilter.city) return false;
     return true;
   });
   const rows = list
-    .map((demand) => ({
-      demand,
-      best: properties.map((property) => calculateMatchScore(demand, property).score).sort((a, b) => b - a)[0] || 0
-    }))
-    // Once öne çıkarılanlar, sonra en yüksek konum/bütçe uyum puanı üstte.
-    .sort((a, b) => (Number(isBoosted(b.demand)) - Number(isBoosted(a.demand))) || (b.best - a.best))
-    .map(({ demand, best }) => demandRow(demand, true, best))
+    .slice()
+    .sort((a, b) => (Number(isBoosted(b)) - Number(isBoosted(a))) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .map((demand) => demandRow(demand, true, null))
     .join("");
   return { html: rows, count: list.length };
 }
@@ -2522,14 +2568,14 @@ function sellerDemands() {
   const tx = demandPoolFilter.tx;
   return `
     ${pageHead(demandPoolTitle(tx), tx === "RENT"
-      ? "Evini kiralamak istiyorsan buradaki kiracı taleplerinden sana uygun olanı seçip teklifini gönder."
+      ? "Evini kiralamak istiyorsan sana uygun kiracı talebini seç, iletişim bilgisini üyelikle aç ve doğrudan ara."
       : tx === "SALE"
-        ? "Evini satmak istiyorsan buradaki alıcı taleplerinden sana uygun olanı seçip teklifini gönder."
-        : "Yayındaki tüm talepler. Sana uygun olanı seçip teklifini gönder.")}
+        ? "Evine alıcı arıyorsan sana uygun konut alıcısının talebini seç, iletişim bilgisini üyelikle aç ve doğrudan ara."
+        : "Yayındaki tüm talepler. Sana uygun olanı seç, iletişim bilgisini üyelikle aç, doğrudan ara.")}
     <div class="toolbar">
       <select id="dp-tx" onchange="KT.setDemandPoolFilter()">
-        ${opt("RENT", "Kiracı talepleri (kiralık)", tx)}
-        ${opt("SALE", "Alıcı talepleri (satılık)", tx)}
+        ${opt("RENT", "Kiralık ev talepleri", tx)}
+        ${opt("SALE", "Konut satın alma talepleri", tx)}
         ${opt("", "Tümü", tx)}
       </select>
       <select id="dp-city" onchange="KT.setDemandPoolFilter()">
@@ -2593,7 +2639,7 @@ function sellerVerification() {
 
 function sellerPackages() {
   const roleTypes = state.currentRole === "agent" ? ["SELLER", "AGENT"] : ["SELLER"];
-  return `${pageHead("Paketlerim", "İlanı üste taşıma reklamı ve alıcı bilgilerini görme üyeliği.")}${pricingCards(roleTypes)}`;
+  return `${pageHead("Üyeliğim", "Talep sahiplerinin iletişim bilgisini görüntüleme üyeliği.")}${pricingCards(roleTypes)}`;
 }
 
 function renderAdmin(path) {
@@ -2863,6 +2909,18 @@ function activeMembership(userId) {
   return { planId: e.planId, name: plan ? plan.name : e.planId, activeFrom: e.activeFrom, activeTo: e.activeTo };
 }
 
+// 2.0: sunucudaki hasContactMembership'in ekran tarafi (yalniz gosterim; asil kontrol sunucuda).
+function hasContactMembershipUI() {
+  const u = currentUser();
+  if (!u) return false;
+  if (u.role === "ADMIN") return true;
+  if (u.role === "BUYER") return false;
+  const KABUL = ["plan-landlord-contact", "plan-seller-contact", "plan-buyer-contact", "plan-pro"];
+  const bugun = new Date().toISOString().slice(0, 10);
+  return (state.entitlements || []).some((e) =>
+    e.userId === u.id && KABUL.includes(e.planId) && String(e.activeTo || "") >= bugun);
+}
+
 function adminUsers() {
   const cities = [...new Set((state.users || []).map((u) => u.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
   return `
@@ -3100,7 +3158,7 @@ function adminDemandsTable(list) {
 
 function adminProperties() {
   return `
-    ${pageHead("Satıcı İlanları", "İçeriği oku, başlık/açıklamayı düzelt, gerekirse gerekçeyle yayından kaldır.")}
+    ${pageHead("İlan Arşivi", "2.0 geçişinde arşivlenen eski ilanlar. Site vitrininde görünmezler; kayıt amaçlı saklanır.")}
     ${adminContentToolbar("ap")}
     <div id="admin-prop-box">${adminPropertiesTable(state.properties || [])}</div>
   `;
@@ -3320,19 +3378,15 @@ function stat(label, value) {
 
 // Kademeli konum alanlari (İl→İlçe→Mahalle). multiMahalle=true → talepte çoklu seçim.
 function searchPage() {
-  searchState.tx = uiTxMode === "RENT" ? "RENT" : "SALE";
+  // 2.0: tek icerik turu var - TALEP. "Konutlar" sekmesi kaldirildi, mod hep
+  // demands. tx varsayilani route/uiTxMode'a gore RENT.
+  searchState.mode = "demands";
+  searchState.tx = uiTxMode === "SALE" ? "SALE" : "RENT";
   const ilOpts = `<option value="">Tüm iller</option>` + TR_ILLER.map((il) => `<option value="${escapeHtml(il.code)}" ${searchState.city === il.code ? "selected" : ""}>${escapeHtml(il.name)}</option>`).join("");
-  const demandMode = searchState.mode === "demands";
-  const tabs = `
-    <div class="sc-tx" style="max-width:420px;margin:0 0 16px">
-      <button type="button" class="${demandMode ? "" : "active"}" onclick="KT.searchMode('properties')">${icon("home", 15)} Konutlar</button>
-      <button type="button" class="${demandMode ? "active" : ""}" onclick="KT.searchMode('demands')">${icon("key", 15)} Ev arayanlar</button>
-    </div>`;
+  const demandMode = true;
   return `
-    ${pageHead(demandMode ? "Ev Arayanlar" : "İlan Ara", demandMode
-      ? "Yayındaki alıcı ve kiracı talepleri. Kimlik bilgisi görünmez; bölge, ihtiyaç ve bütçe aralığı görünür. Teklif göndermek ve iletişim bilgisine ulaşmak için üyelik gerekir."
-      : "Soldan kategoriye tıkla; yayındaki ilanları kutucuklar halinde gör. Kayıt şehrin fark etmez; her il/ilçe/mahalleyi arayabilirsin. İletişim bilgisi yalnızca üyelikle açılır.")}
-    ${tabs}
+    ${pageHead("Talepler",
+      "Yayındaki kiracı ve alıcı talepleri. Kimlik bilgisi görünmez; bölge, ihtiyaç ve bütçe aralığı görünür. Talep sahibinin iletişim bilgisine üyelikle ulaşır, doğrudan ararsın.")}
     <div class="search-layout">
       <aside class="search-side" id="search-side">${renderSearchSidebar()}</aside>
       <div class="search-main">
@@ -3371,8 +3425,8 @@ function renderSearchSidebar() {
   }).join("");
   return `
     <div class="sc-tx">
-      <button type="button" class="${s.tx === "RENT" ? "active" : ""}" onclick="KT.searchTx('RENT')">Kiralık</button>
-      <button type="button" class="${s.tx === "SALE" ? "active" : ""}" onclick="KT.searchTx('SALE')">Satılık</button>
+      <button type="button" class="${s.tx === "RENT" ? "active" : ""}" onclick="KT.searchTx('RENT')">Kiralık ev talepleri</button>
+      <button type="button" class="${s.tx === "SALE" ? "active" : ""}" onclick="KT.searchTx('SALE')">Konut satın alma talepleri</button>
     </div>
     <div class="sc-head">Kategoriler</div>
     <button type="button" class="sc-item sc-root ${!s.mainCategory ? "active" : ""}" onclick="KT.searchPick('')">Tüm Emlak</button>
@@ -3517,7 +3571,9 @@ function demandRow(demand, sellerView, score = null) {
       </div>
       <div class="row-side">
         <span class="badge ${demand.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${statusLabel(demand.status)}</span>
-        ${sellerView ? `<button class="btn btn-small btn-primary" onclick="KT.goSellerOffer('${demand.id}')">Bu alıcıya teklif ver</button>` : `<a class="btn btn-small btn-outline" href="#/dashboard/alici/teklifler">${demand.offerCount} teklifi gör</a><button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı · yakında</button>`}
+        ${sellerView
+          ? `<button class="btn btn-small btn-primary" onclick="KT.iletisimGor('${demand.id}')">${icon("lock", 14)} İletişim bilgisini gör</button>`
+          : `<span class="pill" title="İletişimin kaç kez görüntülendi">${(state.contactViews || []).filter((v) => v.demandId === demand.id).length} görüntülenme</span><button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı · yakında</button>`}
       </div>
     </article>
   `;
@@ -3597,6 +3653,7 @@ function statusLabel(status) {
     ACTIVE: "Yayında",
     DRAFT: "Taslak",
     PAUSED: "Pasif",
+    ARCHIVED: "Arşivlendi",
     SENT: "Gönderildi",
     SEEN: "Görüldü",
     INTERESTED: "Alıcı ilgileniyor",
@@ -3636,12 +3693,13 @@ const PAGE_TITLES = {
   // AYNI olmalı — burada farklı yazılırsa tarayıcı sekmesi Google'ın gördüğünden
   // başka bir başlık gösterir.
   home: "Talebini Bırak, Ev Sahipleri Seni Bulsun",
-  ilanlar: "Yayındaki konutlar",
+  ilanlar: "Talepler",
+  talepler: "Talepler",
   ara: "Konut ara",
   "nasil-calisir": "Nasıl çalışır?",
   fiyatlandirma: "Fiyatlandırma ve üyelik paketleri",
   yardim: "Yardım ve sık sorulan sorular",
-  alici: "Alıcılar için",
+  alici: "Konut alıcıları için",
   satici: "Satıcılar için",
   giris: "Giriş yap",
   "uye-ol": "Üye ol",
@@ -3723,7 +3781,7 @@ function render() {
   document.getElementById("app").innerHTML = `<div class="app">${header()}${content}${path.startsWith("dashboard") ? copyrightBar() : footer()}</div>`;
   updatePageTitle(path);
   // Arama sayfasi (uye paneli ya da public #/ilanlar) acilinca ilanlari otomatik yukle.
-  if (path.startsWith("dashboard/ara") || path === "ilanlar" || path === "ara") KT.searchRun();
+  if (path.startsWith("dashboard/ara") || path === "talepler" || path === "ilanlar" || path === "ara") KT.searchRun();
   // Ana sayfada yayindaki gercek ilanlari yukle.
   if (path === "home" || path === "" || path === "/") KT.loadHomeListings();
   // Google tamamlama ekraninda bekleyen profili (ad/e-posta) doldur.
@@ -3897,6 +3955,59 @@ window.KT = {
     h.textContent = eksik.length ? `Eksik: ${eksik.join(", ")}` : "Şifre kurallara uygun.";
     h.style.color = eksik.length ? "#c0392b" : "#2f8f4e";
   },
+  /* ---------- 2.0: ILETISIMI GOR + KRITER ---------- */
+  // Modelin yeni kalbi: talep sahibinin telefon/e-postasini uyelikle ac.
+  // 402 = uyelik yok -> fiyatlandirmaya yonlendir. Bilgi modalda gosterilir;
+  // panoya kopyalama yok, kullanici gorur ve arar.
+  async iletisimGor(demandId) {
+    if (!isSignedIn()) { toast("İletişim bilgisini görmek için üye olman gerekiyor."); setRoute("uye-ol/landlord"); return; }
+    const r = await api(`/demands/${demandId}/contact`, "POST", {});
+    if (!r.ok) {
+      const mesaj = (r.data && r.data.error) || "İletişim bilgisi alınamadı.";
+      toast(mesaj);
+      if (mesaj.includes("üyelik")) setTimeout(() => setRoute("fiyatlandirma"), 1200);
+      return;
+    }
+    ktTrack("iletisim_acildi", { talep: demandId });
+    const d = r.data;
+    const eski = document.getElementById("kt-contact-modal");
+    if (eski) eski.remove();
+    const kutu = document.createElement("div");
+    kutu.id = "kt-contact-modal";
+    kutu.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(16,36,58,.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.parentNode.remove()">
+        <div class="panel" style="max-width:420px;width:100%;text-align:center">
+          <div style="font-size:38px;line-height:1;margin-bottom:8px">&#128275;</div>
+          <h3 style="margin:0 0 4px">${escapeHtml(d.name || "Talep sahibi")}</h3>
+          <p class="muted" style="margin:0 0 14px;font-size:13.5px">Talep sahibine görüntülendiğin bilgisi iletildi (kimliğin paylaşılmadı).</p>
+          <div style="display:grid;gap:8px;text-align:left">
+            <a class="btn btn-outline" href="tel:${escapeAttr((d.phone || "").replace(/\D/g, ""))}">${icon("phone", 15)} ${escapeHtml(d.phone || "—")}</a>
+            <a class="btn btn-outline" href="mailto:${escapeAttr(d.email || "")}">${icon("mail", 15)} ${escapeHtml(d.email || "—")}</a>
+          </div>
+          <p class="muted" style="margin:14px 0 10px;font-size:12.5px">Fiyat, pazarlık ve sözleşme için iletişime geçiniz. Konuttalebi ödeme ve tapu sürecine karışmaz.</p>
+          <button class="btn btn-primary" style="width:100%" onclick="document.getElementById('kt-contact-modal').remove()">Kapat</button>
+        </div>
+      </div>`;
+    document.body.appendChild(kutu);
+    await refreshState();
+  },
+  async kriterKaydet() {
+    const iller = [...document.querySelectorAll(".kr-il:checked")].map((k) => k.value);
+    if (iller.length > 10) return showFormError("kr-error", "En fazla 10 il seçebilirsin.");
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const r = await api("/kriter", "PUT", {
+      tx: g("kr-tx"),
+      mainCategory: g("kr-cat"),
+      cities: iller,
+      minBudget: Number(g("kr-min") || 0),
+      maxBudget: Number(g("kr-max") || 0),
+    });
+    if (!r.ok) return showFormError("kr-error", (r.data && r.data.error) || "Kriter kaydedilemedi.");
+    await refreshState();
+    toast("Kriterin kaydedildi. Uyan yeni talepte haber vereceğiz.");
+    render();
+  },
+
   /* ---------- IZIN BLOGU ---------- */
   // "Tumunu sec" YALNIZCA istege bagli uc izni isaretler; zorunlu kutulara
   // (kosullar, kimlik rizasi) dokunmaz — zorunlu islemler toplu onaya
@@ -4105,7 +4216,8 @@ window.KT = {
   skipPackages() {
     const user = currentUser();
     const role = user ? user.role : "BUYER";
-    setRoute(role === "BUYER" ? "dashboard/alici/talep-olustur" : role === "AGENT" ? "dashboard/satici/evlerim" : "dashboard/satici/ev-ekle");
+    // 2.0: satici/danisman kayittan sonra talep havuzuna gider (ilan ekleme yok).
+    setRoute(role === "BUYER" ? "dashboard/alici/talep-olustur" : "dashboard/satici/talepler");
   },
   async login(event) {
     event.preventDefault();
@@ -4312,17 +4424,19 @@ window.KT = {
   // sekmesinde acar.
   tumTalepler() {
     searchState.mode = "demands";
-    setRoute("ilanlar");
+    setRoute("talepler");
   },
-  searchMode(mode) {
-    searchState.mode = mode === "demands" ? "demands" : "properties";
+  searchMode() {
+    // 2.0: tek mod var. Eski cagrilar kirilmasin diye islev duruyor.
+    searchState.mode = "demands";
     render();
   },
   async searchRun() {
     const box = document.getElementById("search-results");
     const cnt = document.getElementById("search-count");
     const s = searchState;
-    const demandMode = s.mode === "demands";
+    s.mode = "demands";              // 2.0: yalniz talep
+    const demandMode = true;
     const params = new URLSearchParams();
     params.set("tx", s.tx);
     if (s.mainCategory) params.set("mainCategory", s.mainCategory);
@@ -4351,7 +4465,7 @@ window.KT = {
   // Ana sayfadaki hızlı arama çubuğu → public #/ilanlar sayfasına filtreyle geç.
   homeSearch() {
     const g = (id) => (document.getElementById(id) || {}).value || "";
-    searchState.tx = g("home-tx") === "Kiralık" ? "RENT" : "SALE";
+    searchState.tx = g("home-tx") === "SALE" ? "SALE" : "RENT";
     uiTxMode = searchState.tx;
     searchState.mainCategory = g("home-cat") || "";
     searchState.subCategory = "";
@@ -4359,27 +4473,17 @@ window.KT = {
     searchState.city = citySel ? citySel.value : "";
     searchState.cityName = (citySel && citySel.value) ? citySel.selectedOptions[0].text : "";
     searchState.district = ""; searchState.neighborhood = ""; searchState.minPrice = ""; searchState.maxPrice = ""; searchState.sort = "new";
-    setRoute("ilanlar");
+    searchState.mode = "demands";
+    setRoute("talepler");
   },
   // Ana sayfada yayındaki en yeni gerçek ilanları göster (giriş gerekmez).
   async loadHomeListings() {
-    const box = document.getElementById("home-listings");
-    if (box) {
-      const r = await api("/properties/search?");
-      const items = (r.ok && r.data && r.data.items) ? r.data.items.slice(0, 8) : [];
-      _searchItems = items;
-      box.innerHTML = items.length
-        ? items.map(listingCard).join("")
-        : `<div class="empty" style="grid-column:1/-1"><b>Henüz konut yok</b><span class="muted">İlk konutlar eklendiğinde burada görünür.</span></div>`;
-    }
-    // Ana sayfadaki "Ev arayanlar" bolumu: yayindaki gercek talepler.
-    // Sunucu kimlik alanlarini hic gondermez, aciklamadaki iletisim bilgisi maskelidir.
+    // 2.0: ilan vitrini yok; ana sayfa yalniz talep gosterir.
     const dBox = document.getElementById("home-demands");
     if (dBox) {
       const rd = await api("/demands/search?");
       const talepler = (rd.ok && rd.data && rd.data.items) ? rd.data.items.slice(0, 8) : [];
-      // Karta tiklandiginda detay modali _searchItems icinden okur; ikisini birlestir.
-      _searchItems = (_searchItems || []).concat(talepler);
+      _searchItems = talepler;
       dBox.innerHTML = talepler.length
         ? talepler.map(publicDemandCard).join("")
         : `<div class="empty" style="grid-column:1/-1"><b>Henüz talep yok</b><span class="muted">İlk talepler oluşturulduğunda burada görünür.</span></div>`;
@@ -4440,10 +4544,10 @@ window.KT = {
     const feats = [...parseFeatures(d.interiorFeatures), ...parseFeatures(d.exteriorFeatures)].map(escapeHtml);
     const budget = `${shortMoney(d.minBudget)} - ${shortMoney(d.maxBudget)}${rent ? " / ay" : ""}`;
     const cta = !isSignedIn()
-      ? `<a class="btn btn-primary" style="flex:1" href="#/uye-ol/${rent ? "landlord" : "seller"}" onclick="KT.closeSearchDetail()">Teklif vermek için üye ol</a>`
+      ? `<a class="btn btn-primary" style="flex:1" href="#/uye-ol/${rent ? "landlord" : "seller"}" onclick="KT.closeSearchDetail()">İletişim için üye ol</a>`
       : (u && u.role === "BUYER")
         ? `<a class="btn btn-primary" style="flex:1" href="#/dashboard/alici/taleplerim" onclick="KT.closeSearchDetail()">Kendi talebimi yönet</a>`
-        : `<a class="btn btn-primary" style="flex:1" href="#/dashboard/satici/talepler" onclick="KT.closeSearchDetail()">Panelde teklif ver</a>`;
+        : `<button class="btn btn-primary" style="flex:1" onclick="KT.closeSearchDetail();KT.iletisimGor('${escapeAttr(d.id)}')">${icon("lock", 14)} İletişim bilgisini gör</button>`;
     const old = document.getElementById("kt-listing-overlay");
     if (old) old.remove();
     const ov = document.createElement("div");
@@ -4459,7 +4563,7 @@ window.KT = {
           <div class="pill-row" style="margin:10px 0">${meta.map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join("")}</div>
           ${feats.length ? `<div class="pill-row" style="margin:10px 0">${feats.map((t) => `<span class="pill">${t}</span>`).join("")}</div>` : ""}
           <p style="margin:12px 0;color:#26333f;font-size:14px;line-height:1.6">${escapeHtml(d.description || "")}</p>
-          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} Kimlik gizli.</strong> Talep sahibinin adı, telefonu ve e-postası gösterilmez. Teklifin ilgi görürse iletişim bilgisi üyelikle açılır; ödemeye ve pazarlığa karışmayız.</div>
+          <div class="notice" style="margin:12px 0"><strong>${icon("lock", 13)} Kimlik gizli.</strong> Talep sahibinin adı, telefonu ve e-postası herkese açık gösterilmez; iletişim bilgisi üyelikle görüntülenir. Ödemeye ve pazarlığa karışmayız.</div>
           <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-outline" style="flex:1" onclick="KT.closeSearchDetail()">Kapat</button>${cta}</div>
         </div>
       </div>`;

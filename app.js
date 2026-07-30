@@ -832,7 +832,7 @@ function homePage() {
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
           <h1>Bırak, seni bulsunlar.</h1>
-          <p>Yüzlerce ilanı karıştırmak yerine ne aradığını bir kez yaz; ev sahipleri sana teklif göndersin. Kiracı ve alıcı tarafı için ücretsiz, komisyon yok.</p>
+          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun mülk sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
             <a class="btn btn-secondary" href="/evine-kiraci-bul">${icon("home", 17)} Evime kiracı arıyorum</a>

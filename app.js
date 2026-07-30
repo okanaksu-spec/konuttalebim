@@ -682,7 +682,7 @@ function notifySellersForDemand(demand) {
       "Evinize uygun yeni alıcı talebi var",
       `${demand.city}/${demand.district} bölgesinde ${shortMoney(demand.minBudget)}-${shortMoney(demand.maxBudget)} bütçeli yeni bir alıcı talebi var. ${item.property.title} ile uyum puanı: ${item.score}/100.`,
       "dashboard/satici/talepler",
-      "Yeni alıcı talebi satıcının portföyündeki eve uydu"
+      "Kriterine uyan yeni talep"
     );
   });
   return matches.length;
@@ -701,7 +701,7 @@ function notifyBuyersForProperty(property) {
       "Talebinize uygun yeni ev eklendi",
       `${property.city}/${property.district} bölgesinde ${money(property.price)} fiyatlı yeni bir ev eklendi. ${item.demand.title} talebinizle uyum puanı: ${item.score}/100.`,
       "dashboard/alici/teklifler",
-      "Yeni satıcı ilanı alıcının talebine uydu"
+      "Talep kriter eşleşmesi"
     );
   });
   return matches.length;
@@ -1030,7 +1030,7 @@ function homePage() {
         <div class="section-head">
           <div class="section-title">
             <div class="kicker">Nasıl işliyor?</div>
-            <h2>Alıcıdan satıcıya uçtan uca, güvenli ve adım adım.</h2>
+            <h2>Talebini bırakmandan aranmana kadar güvenli ve adım adım.</h2>
           </div>
         </div>
         ${howSteps()}
@@ -1081,7 +1081,7 @@ function howSteps() {
   </svg>`;
   const steps = [
     [illus1, "Talebini oluştur", "Şehir, ilçe, bütçe/kira, oda, m2 ve zaman belirlenir; e-posta doğrulamasıyla yayına girer."],
-    [illus2, "Talebin duyurulur", "Kriterine uyan ev sahipleri, satıcılar ve onaylı danışmanlar talebinden haberdar olur. Kimliğin havuzda gizli kalır."],
+    [illus2, "Talebin duyurulur", "Kriterine uyan ev sahipleri, evine alıcı arayanlar ve onaylı danışmanlar talebinden haberdar olur. Kimliğin havuzda gizli kalır."],
     [illus3, "Üyelikle iletişim açılır", "Ücretli üye veya onaylı danışman, talep sahibinin telefon ve e-postasını görüntüler; her görüntülemede talep sahibine haber verilir."],
     [illus4, "Doğrudan anlaş", "Fiyata, pazarlığa veya sözleşmeye karışmayız; şartları doğrudan siz belirlersiniz."]
   ];
@@ -1660,7 +1660,7 @@ function authLoginPage() {
   // Google donusunde hata olduysa kullaniciya nedenini goster (#/giris?google=hata gibi).
   const gErrCode = new URLSearchParams((location.hash.split("?")[1] || "")).get("google") || "";
   const gErrText = { hata: "Google ile giriş tamamlanamadı. Lütfen tekrar deneyin.", dogrulanmamis: "Google hesabının e-postası doğrulanmamış görünüyor.", pasif: "Bu üyelik aktif değil. Destek ile iletişime geçin." }[gErrCode] || "";
-  return publicShell("Giriş yap", "Üyeliğinle panele dön; alıcı, satıcı, kiracı ve ev sahibi akışına devam et.", `
+  return publicShell("Giriş yap", "Üyeliğinle panele dön; kiracı, konut alıcısı, ev sahibi ve danışman akışına devam et.", `
     <div class="auth-layout auth-layout-narrow">
       <form class="panel auth-panel" onsubmit="KT.login(event)">
         ${gErrText ? `<div class="error show" style="margin-bottom:12px">${gErrText}</div>` : ""}
@@ -1822,7 +1822,7 @@ function publicPage(kind) {
       <div class="grid grid-3">
         ${featureCard("key", "Talebini aç", "Bölge, bütçe ve özelliklerini tek kartta toparla.")}
         ${featureCard("card", "Bütçeni beyan et", "Belge yüklemeden bütçe aralığını, peşinatını ve alım zamanını belirt.")}
-        ${featureCard("chat", "Aranmayı bekle", "Talebine uygun satıcılar ve onaylı danışmanlar iletişim bilgini görüntüler ve seni doğrudan arar.")}
+        ${featureCard("chat", "Aranmayı bekle", "Talebine uygun evine alıcı arayanlar ve onaylı danışmanlar iletişim bilgini görüntüler ve seni doğrudan arar.")}
       </div>
       <div class="section-actions"><button class="btn btn-primary" onclick="KT.startRegistration('buyer')">Konut alıcısı olarak üye ol</button></div>
     `);
@@ -1920,7 +1920,7 @@ function packageOfferPage() {
 
 function faq() {
   const rows = [
-    ["Konuttalebi nedir?", "Ev almak veya kiralamak isteyenlerin talep bıraktığı ters ilan platformudur. Sitede ilan yoktur; ev sahipleri, satıcılar ve onaylı emlak danışmanları talep havuzunu inceler, üyelikle talep sahibinin iletişim bilgisini görüntüler ve doğrudan arar. Fiyata, pazarlığa ve sözleşmeye karışmayız."],
+    ["Konuttalebi nedir?", "Ev almak veya kiralamak isteyenlerin talep bıraktığı ters ilan platformudur. Sitede ilan yoktur; ev sahipleri, evine alıcı arayanlar ve onaylı emlak danışmanları talep havuzunu inceler, üyelikle talep sahibinin iletişim bilgisini görüntüler ve doğrudan arar. Fiyata, pazarlığa ve sözleşmeye karışmayız."],
     ["Belge yüklemem gerekiyor mu?", "Talep bırakanlardan belge istenmez; bütçe/kira aralığını ve tercihlerini beyan edersin. Yalnızca emlak danışmanları, Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle onaylanır."],
     ["Telefonum ne zaman görünür?", "Telefonun ve e-postan talep kartında görünmez. Yalnızca ücretli üyeler ve onaylı danışmanlar, seninle iletişime geçmek amacıyla görüntüleyebilir; her görüntülemede sana haber veririz."],
     ["Emlak danışmanları kullanabilir mi?", "Evet. Danışman üyeliği için Sorumlu Emlak Danışmanı (Seviye 5) belgesi gerekir; belge onaylanmadan iletişim bilgisi görüntülenemez."],
@@ -2187,7 +2187,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/admin/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/admin/ilanlar", "İlan Arşivi", "home"],
       ["dashboard/admin/epostalar", "E-postalar", "mail"],
-      ["dashboard/admin/belgeler", "Satıcı Belgeleri", "file"],
+      ["dashboard/admin/belgeler", "Üye Belgeleri", "file"],
       ["dashboard/admin/sikayetler", "Şikayetler", "alert"],
       ["dashboard/admin/risk", "Risk Paneli", "shield"],
       ["dashboard/admin/odemeler", "Ödemeler", "card"],
@@ -2733,7 +2733,7 @@ function adminOverview() {
             </div>`).join("") || `<p class="muted">Henüz kaynak verisi yok.</p>`}
         </div>
       </section>
-      <section class="panel"><h3>Bekleyen satıcı belgeleri</h3><div class="list" style="margin-top:12px">${(state.verificationDocuments || []).filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni satıcı belgesi gelirse burada görünür.")}</div></section>
+      <section class="panel"><h3>Bekleyen üye belgeleri</h3><div class="list" style="margin-top:12px">${(state.verificationDocuments || []).filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni satıcı belgesi gelirse burada görünür.")}</div></section>
     </div>
   `;
 }
@@ -2825,7 +2825,7 @@ function adminEmails() {
   const bekleyen = (state.users || []).filter((u) => !u.emailVerified && !u.epostaMuaf && u.emailVerifyDeadline);
   const yakin = bekleyen.filter((u) => { const k = epostaKalanSaat(u); return k !== null && k > 0 && k <= 24; });
   return `
-    ${pageHead("E-posta Outbox", "Uygun alıcı talebi veya satıcı ilanı girildiğinde hazırlanan anlık e-postalar.")}
+    ${pageHead("E-posta Outbox", "Uygun talep girildiğinde hazırlanan anlık e-postalar.")}
     <section class="panel" style="margin-bottom:14px">
       <h3>E-posta doğrulama hatırlatması</h3>
       <p class="muted" style="margin:8px 0 12px">
@@ -2845,7 +2845,7 @@ function adminEmails() {
 
 function adminDocuments() {
   return `
-    ${pageHead("Satıcı Belgeleri", "Tapu, yetki ve kurumsal satıcı belgeleri sadece yetkili admin/reviewer tarafından incelenir.")}
+    ${pageHead("Üye Belgeleri", "Tapu, yetki ve kurumsal belgeler sadece yetkili admin/reviewer tarafından incelenir.")}
     <div class="list">${state.verificationDocuments.map((doc) => documentRow(doc, true)).join("")}</div>
   `;
 }
@@ -3238,7 +3238,7 @@ function budgetDeclarationPage(userId) {
         <div>
           <span class="badge ${badgeForProfile(profile)}">${icon("card", 13)} ${escapeHtml(profile.verificationLevel)}</span>
           <h3 style="margin-top:12px">Beyan görünürlüğü: ${profile.budgetTrustScore}/100</h3>
-          <p class="muted">Bu alanda belge yükleme yoktur. Satıcılar yalnızca bütçe aralığını, peşinat/nakit-kredi tercihini ve talep özetini görür.</p>
+          <p class="muted">Bu alanda belge yükleme yoktur. Üyeler yalnızca bütçe aralığını, peşinat/nakit-kredi tercihini ve talep özetini görür.</p>
           <div class="budget-meter"><span style="width:${Math.min(100, profile.budgetTrustScore || 40)}%"></span></div>
         </div>
         <div class="budget-summary-card">
@@ -3253,7 +3253,7 @@ function budgetDeclarationPage(userId) {
     </section>
     <section class="panel">
       <h3>Beyanını güncelle</h3>
-      <p class="muted" style="margin:6px 0 16px">Bu bilgiler satıcılara yaklaşık bütçe niyeti olarak gösterilir; belge veya dosya istenmez.</p>
+      <p class="muted" style="margin:6px 0 16px">Bu bilgiler üyelere yaklaşık bütçe niyeti olarak gösterilir; belge veya dosya istenmez.</p>
       <div class="form-grid">
         ${field("Minimum bütçe", "bd-min", "number", min || 3000000)}
         ${field("Maksimum bütçe", "bd-max", "number", max || 5000000)}
@@ -3271,7 +3271,7 @@ function budgetDeclarationPage(userId) {
       <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveBudgetDeclaration()">${icon("check", 16)} Bütçe beyanımı kaydet</button></div>
     </section>
     <section class="panel">
-      <h3>Satıcıya nasıl görünür?</h3>
+      <h3>Üyeye nasıl görünür?</h3>
       <div class="list" style="margin-top:12px">${userDemands.slice(0, 2).map((demand) => demandCard(demand, { sample: true })).join("") || empty("Henüz talep yok", "Talep oluşturduğunda bütçe beyanın bu kartla birlikte görünür.")}</div>
     </section>
   `;
@@ -4841,7 +4841,7 @@ window.KT = {
       ? money(it.price) + (rent ? " / ay" : "")
       : money(it.minBudget) + " – " + money(it.maxBudget) + (rent ? " / ay" : "");
     const ownerLine = owner ? `${escapeHtml(owner.name || "—")} · ${escapeHtml(owner.phone || "—")} · ${escapeHtml(owner.email || "—")}` : "—";
-    const ownerLabel = type === "property" ? "İlan sahibi (satıcı)" : "Talep sahibi (alıcı)";
+    const ownerLabel = type === "property" ? "İlan sahibi (arşiv)" : "Talep sahibi";
     const old = document.getElementById("kt-admin-detail"); if (old) old.remove();
     const ov = document.createElement("div");
     ov.id = "kt-admin-detail";

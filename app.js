@@ -831,12 +831,16 @@ function homePage() {
       <div class="hero-inner">
         <div class="hero-copy">
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
-          <h1>Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
-          <p>Ev al, sat, kirala veya kiracı bul — talebini oluştur, sana uygun mülk sahibinin iletişim bilgisine üyelikle ulaş, gerisini doğrudan siz konuşun. Aracı yok, komisyon yok.</p>
+          <h1>Bırak, seni bulsunlar.</h1>
+          <p>Yüzlerce ilanı karıştırmak yerine ne aradığını bir kez yaz; ev sahipleri sana teklif göndersin. Kiracı ve alıcı tarafı için ücretsiz, komisyon yok.</p>
           <div class="hero-actions">
-            <button class="btn btn-primary" onclick="KT.startRegistration('buyer')">${icon("key", 17)} Alıcı olarak üye ol</button>
-            <button class="btn btn-secondary" onclick="KT.startRegistration('seller')">${icon("home", 17)} Satıcı olarak üye ol</button>
+            <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
+            <a class="btn btn-secondary" href="/evine-kiraci-bul">${icon("home", 17)} Evime kiracı arıyorum</a>
           </div>
+          <p style="margin-top:14px;font-size:14px;color:#cdd9e6">
+            Ev almak veya satmak mı istiyorsun?
+            <a href="#/uye-ol" style="color:#e6c98a;font-weight:600;text-decoration:underline">Buradan devam et</a>
+          </p>
           <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:#cdd9e6;font-weight:600;font-size:14px">
             <span>${icon("card", 15)} Belge istenmez</span>
             <span>${icon("lock", 15)} İletişim açık rızayla</span>

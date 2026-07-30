@@ -990,8 +990,8 @@ function homePage() {
           <article class="card role-area">
             <span class="role-ic role-ic-blue">${icon("key", 26)}</span>
             <h3>Ev Al</h3>
-            <p>Satın almak istediğin evi tarif et, talebini oluştur; sana uygun mülk sahibine üyelikle ulaş, doğrudan görüş. Belge istenmez, sadece bütçe beyanı.</p>
-            <ul class="role-points"><li>Bütçe aralığı ve peşinat beyanı</li><li>Bölge, oda ve tipe göre eşleşme</li><li>Mülk sahibiyle doğrudan iletişim</li></ul>
+            <p>Satın almak istediğin evi tarif et, talebini bırak; evine alıcı arayanlar ve onaylı danışmanlar iletişim bilgini görüntüleyip seni doğrudan arasın. Belge istenmez, sadece bütçe beyanı. Tamamen ücretsiz.</p>
+            <ul class="role-points"><li>Bütçe aralığı ve peşinat beyanı</li><li>Talebin kriterine uyan üyelere duyurulur</li><li>Seni doğrudan ararlar</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('buyer','SALE')">${icon("key", 16)} Ev Al — talep oluştur</button>
           </article>
           <article class="card role-area">

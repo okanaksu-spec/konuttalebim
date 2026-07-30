@@ -1198,6 +1198,61 @@ function regAsideHTML(sel) {
     <p style="font-size:14px;margin-top:16px">Zaten üyeysen <a href="#/giris">giriş yap</a>.</p>`;
 }
 
+/* ==========================================================================
+   IZIN BLOGU (2026-07-30 KVKK yapisi)
+   --------------------------------------------------------------------------
+   Uc kayit formunda da AYNI blok kullanilir; kopyalanirsa metinler zamanla
+   birbirinden ayrilir ve ayni site iki farkli riza toplamis olur.
+
+   Yapinin hukuki mantigi (Kurul'un aydinlatma/riza ayrimi karari):
+   - Kullanim Kosullari = SOZLESME -> kutu var, zorunlu.
+   - KVKK Aydinlatma + Cerez = BILGILENDIRME -> kutu YOK, yalnizca baglanti.
+     Eski halde "KVKK metnini kabul ediyorum" yazdiriliyordu; aydinlatma
+     onaylatilan bir belge degildir, bu duzeltildi.
+   - Uc istege bagli acik riza: isaretsiz baslar, hicbiri hizmetin sarti
+     degildir. "Tumunu sec" sag ustte belirgin bir dugmedir (Okan karari);
+     yalnizca istege bagli kutulari isaretler, zorunlulara dokunmaz.
+   - Is ortaklari kutusu alicilari ADIYLA sayar; "ve benzeri" gibi acik uclu
+     ifade KULLANILMAZ (battaniye riza gecersizlik riski). TCKN bu kapsamda
+     aktarilmaz - bu cumle kutunun icinde acikca yazilidir.
+   ========================================================================== */
+function izinBloguHTML(pre) {
+  return `
+    <div class="field full">
+      <label class="check"><input id="${pre}-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>'nı okudum ve kabul ediyorum. Eşleştiğim tarafın, onay vermem hâlinde iletişim bilgilerimi görebileceğini biliyorum. <span style="color:#c0392b">*</span></span></label>
+    </div>
+    <div class="field full">
+      <div class="notice" style="margin:0;font-size:13px">
+        Kişisel verilerinin nasıl işlendiğine dair bilgilendirme:
+        <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ·
+        <a href="#/cerez-politikasi" target="_blank">Çerez Politikası</a>
+      </div>
+    </div>
+    <div class="field full" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:-6px">
+      <span class="muted" style="font-size:12.5px;text-transform:uppercase;letter-spacing:.04em">İsteğe bağlı izinler — işaretlemeden de üye olursun</span>
+      <button type="button" id="${pre}-izin-tumu" class="btn btn-small btn-outline" style="flex:none" onclick="KT.izinTumunuSec('${pre}')">Tümünü seç</button>
+    </div>
+    <div class="field full">
+      <label class="check"><input id="${pre}-personalization" type="checkbox" class="${pre}-izin"><span style="font-weight:500;line-height:1.55">Pazarlama ve kişiselleştirme. Kimlik, iletişim, talep ve tercih bilgilerimin; Konuttalebi'nin gayrimenkul, konut projeleri, finansman ve konutla bağlantılı ürün ve hizmetlerinin tanıtılması, bana özel tekliflerin oluşturulması ve tercihlerin analiz edilmesi amacıyla işlenmesine açık rıza veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+    </div>
+    <div class="field full">
+      <label class="check"><input id="${pre}-partner" type="checkbox" class="${pre}-izin"><span style="font-weight:500;line-height:1.55">İş ortaklarına aktarım. İletişim ve konut talep/tercih bilgilerimin; kredi teklifi için bankalara, katılım bankalarına ve yetkili finansman kuruluşlarına; proje tanıtımı ve teklif için konut projesi geliştiren firmalara; konut, DASK ve eşya sigortası teklifi için sigorta şirketleri ve yetkili acentelerine; taşınma teklifi için nakliyat firmalarına; abonelik teklifleri için elektrik, doğalgaz ve internet sağlayıcılarına aktarılmasına açık rıza veriyorum. T.C. kimlik numaram bu kapsamda aktarılmaz. <a href="#/kvkk" target="_blank">Tam metin</a> <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+    </div>
+    <div class="field full">
+      <label class="check"><input id="${pre}-marketing" type="checkbox" class="${pre}-izin"><span style="font-weight:500;line-height:1.55">Ticari elektronik ileti. Konuttalebi'nin kampanya, fırsat ve duyuruları hakkında bana e-posta, SMS, telefon araması ve mobil bildirim yoluyla ileti göndermesini onaylıyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
+    </div>`;
+}
+
+// Formdan uc iznin degerini okur; kayit uclarina gonderilecek govdeye eklenir.
+function izinDegerleri(pre) {
+  const oku = (id) => { const e = document.getElementById(id); return e ? e.checked : false; };
+  return {
+    personalizationConsent: oku(`${pre}-personalization`),
+    partnerTransferConsent: oku(`${pre}-partner`),
+    marketingConsent: oku(`${pre}-marketing`),
+  };
+}
+
 function authRegisterPage(roleKey = "buyer") {
   const base = ["buyer", "seller", "agent"].includes(roleKey) ? roleKey : "buyer";
   const selectedRole = base === "agent" ? "agent"
@@ -1315,12 +1370,7 @@ function authRegisterPage(roleKey = "buyer") {
                 daha isabetli eşleştirmek için kullanılır. Boş bırakabilirsin.
               </div>
             </div>
-            <div class="field full">
-              <label class="check"><input id="r-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Eşleştiğim ve iletişim bilgilerini görme üyeliği olan tarafın iletişim bilgilerimi görebileceğini onaylıyorum. <span style="color:#c0392b">*</span></span></label>
-            </div>
-            <div class="field full">
-              <label class="check"><input id="r-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti (e-posta/SMS) gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
-            </div>
+            ${izinBloguHTML("r")}
           </div>
           <div id="r-error2" class="error"></div>
           <div class="form-actions">
@@ -1489,12 +1539,7 @@ function guestDemandStep2() {
         <div class="field full">
           <label class="check"><input id="g-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span style="color:#c0392b">*</span></span></label>
         </div>
-        <div class="field full">
-          <label class="check"><input id="g-terms" type="checkbox"><span style="font-weight:500;line-height:1.55"><a href="#/kullanim-sartlari" target="_blank">Kullanım Koşulları</a>, <a href="#/kvkk" target="_blank">KVKK Aydınlatma Metni</a> ve <a href="#/cerez-politikasi" target="_blank">Gizlilik/Çerez Politikası</a>'nı okudum ve kabul ediyorum. Talebimin ilgili ev sahiplerine <strong>iletişim bilgim gizli kalacak şekilde</strong> gösterileceğini biliyorum. <span style="color:#c0392b">*</span></span></label>
-        </div>
-        <div class="field full">
-          <label class="check"><input id="g-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya ve fırsatlardan haberdar olmak için ticari elektronik ileti gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
-        </div>
+        ${izinBloguHTML("g")}
         <div id="g-error2" class="form-error"></div>
         <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" type="submit" id="g-submit">Talebimi yayına al</button>
@@ -1666,9 +1711,7 @@ function googleCompletePage() {
           <div class="field full">
             <label class="check"><input id="gc-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin kimlik doğrulama amacıyla işlenmesine açık rıza veriyorum.</span></label>
           </div>
-          <div class="field full">
-            <label class="check"><input id="gc-marketing" type="checkbox"><span style="font-weight:500;line-height:1.55">Kampanya, duyuru ve fırsatlardan haberdar olmak için ticari elektronik ileti gönderilmesine izin veriyorum. <span class="muted" style="font-weight:400">(İsteğe bağlı)</span></span></label>
-          </div>
+          ${izinBloguHTML("gc")}
         </div>
         <div id="gc-error" class="error"></div>
         <div class="form-actions">
@@ -1991,10 +2034,36 @@ function legalPage(kind) {
       </ul>
       <h3>7. Aktarım (KVKK m.8-9)</h3>
       <p>Veriler amaçla sınırlı olarak; ödeme kuruluşu (${C.odeme}), barındırma/altyapı ve e-posta/SMS sağlayıcıları, mali müşavir ve hukuk danışmanları ile yetkili kamu kurum ve kuruluşlarıyla (ör. adli merciler, BTK) paylaşılabilir. Verileriniz pazarlama amacıyla üçüncü kişilere <strong>satılmaz</strong>. Eşleşmede yalnızca ilgili iletişim bilgisi, üyeliği olan tarafa açılır.</p>
+      <h3>7a. Açık Rızaya Bağlı Aktarım — İş Ortakları</h3>
+      <p><strong>Yalnızca ayrıca açık rıza vermeniz hâlinde</strong>; iletişim bilgileriniz (ad-soyad, telefon, e-posta, şehir) ve konut talep/tercih bilgileriniz (aradığınız konut tipi, bölge, bütçe/kira aralığı, taşınma veya satın alma zamanlaması) aşağıdaki alıcı gruplarına, karşılarında yazan amaçla sınırlı olarak aktarılabilir:</p>
+      <ul class="legal-list">
+        <li><strong>Bankalar, katılım bankaları ve kanunen yetkili finansman kuruluşları:</strong> size kredi ve finansman teklifi sunulabilmesi.</li>
+        <li><strong>Konut projesi geliştiren firmalar:</strong> konut projeleri hakkında tanıtım ve teklif sunulabilmesi.</li>
+        <li><strong>Sigorta şirketleri ve yetkili sigorta acenteleri:</strong> konut, DASK ve eşya sigortası teklifi sunulabilmesi.</li>
+        <li><strong>Taşınma ve nakliyat hizmeti veren firmalar:</strong> taşınma hizmeti teklifi sunulabilmesi.</li>
+        <li><strong>Elektrik, doğalgaz ve internet aboneliği sağlayıcıları:</strong> yeni adresinize yönelik abonelik teklifleri sunulabilmesi.</li>
+      </ul>
+      <p><strong>T.C. kimlik numaranız ve doğum tarihiniz bu kapsamda hiçbir alıcıya aktarılmaz.</strong> Bu izin isteğe bağlıdır; vermemeniz platformu kullanmanızı hiçbir şekilde etkilemez. İzninizi dilediğiniz zaman hesap ayarlarınızdan veya ${C.email} adresine yazarak geri çekebilirsiniz; geri çekme, o ana kadarki aktarımların hukuka uygunluğunu etkilemez. Aktarım yapılan kuruluşlar, kendi veri işleme faaliyetleri bakımından ayrı veri sorumlusudur.</p>
       <h3>8. Saklama Süresi</h3>
       <p>Veriler, işleme amacının gerektirdiği ve mevzuatın öngördüğü süre boyunca saklanır; süre sonunda resen veya talebiniz üzerine silinir, yok edilir ya da anonimleştirilir.</p>
       <h3>9. Haklarınız (KVKK m.11)</h3>
-      <p>Kişisel veri sahibi olarak; verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını ve amaca uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini, şartlar oluştuğunda silinmesini/yok edilmesini isteme, otomatik analiz sonucu aleyhinize çıkan bir sonuca itiraz etme ve kanuna aykırı işleme nedeniyle zararınızın giderilmesini talep etme haklarına sahipsiniz. Başvurularınız ${C.email} üzerinden en geç <strong>30 gün</strong> içinde ücretsiz sonuçlandırılır.</p>` },
+      <p>Kişisel veri sahibi olarak; verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacını ve amaca uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini, şartlar oluştuğunda silinmesini/yok edilmesini isteme, otomatik analiz sonucu aleyhinize çıkan bir sonuca itiraz etme ve kanuna aykırı işleme nedeniyle zararınızın giderilmesini talep etme haklarına sahipsiniz. Başvurularınız ${C.email} üzerinden en geç <strong>30 gün</strong> içinde ücretsiz sonuçlandırılır.</p>
+      <hr style="margin:28px 0;border:none;border-top:1px solid #e5eaf0">
+      <p class="muted" style="font-size:13.5px">Aşağıdaki üç metin, yukarıdaki aydınlatmadan <strong>ayrı</strong> birer açık rıza / onay beyanıdır. Kayıt sırasında veya hesap ayarlarından, her biri için ayrı ve isteğe bağlı olarak onay verebilirsiniz; hiçbiri platformu kullanmanın şartı değildir.</p>
+      <h3>Ek-1: Pazarlama ve Kişiselleştirme Açık Rıza Metni</h3>
+      <p>Kimlik (ad-soyad), iletişim (e-posta, telefon, şehir), üyelik, gayrimenkul talep ve tercih, bütçe/kira aralığı, işlem ve platform kullanım bilgilerimin; ${C.unvan} tarafından gayrimenkul, konut projeleri, finansman ve konutla bağlantılı ürün ve hizmetlerin tanıtılması, bana özel teklif ve kampanyaların oluşturulması, kullanıcı tercihlerinin analiz edilmesi ve pazarlama faaliyetlerinin geliştirilmesi amaçlarıyla işlenmesine açık rıza veriyorum. Bu rıza kapsamında verilerim üçüncü kişilere aktarılmaz; aktarım ayrı bir rızaya tabidir. Rızamı dilediğim zaman hesap ayarlarından veya ${C.email} adresine yazarak geri çekebilirim.</p>
+      <h3>Ek-2: İş Ortaklarına Aktarım Açık Rıza Metni</h3>
+      <p>İletişim bilgilerimin (ad-soyad, telefon, e-posta, şehir) ve konut talep/tercih bilgilerimin (aradığım konut tipi, bölge, bütçe veya kira aralığı, taşınma/satın alma zamanlaması); yalnızca aşağıda sayılan alıcı gruplarına ve karşılarında yazan amaçlarla sınırlı olarak aktarılmasına açık rıza veriyorum:</p>
+      <ul class="legal-list">
+        <li>Türkiye'de faaliyet gösteren <strong>bankalar, katılım bankaları ve kanunen yetkili finansman kuruluşlarına</strong> — kredi ve finansman teklifi sunulabilmesi;</li>
+        <li><strong>Konut projesi geliştiren firmalara</strong> — konut projeleri hakkında tanıtım ve teklif sunulabilmesi;</li>
+        <li><strong>Sigorta şirketleri ve yetkili sigorta acentelerine</strong> — konut, DASK ve eşya sigortası teklifi sunulabilmesi;</li>
+        <li><strong>Taşınma ve nakliyat hizmeti veren firmalara</strong> — taşınma hizmeti teklifi sunulabilmesi;</li>
+        <li><strong>Elektrik, doğalgaz ve internet aboneliği sağlayıcılarına</strong> — abonelik teklifleri sunulabilmesi.</li>
+      </ul>
+      <p><strong>T.C. kimlik numaram ve doğum tarihim bu kapsamda aktarılmaz.</strong> Bu aktarımın tek başına kredi başvurusu, kredi onayı veya herhangi bir sözleşme kurulması anlamına gelmediğini; aktarım yapılan kuruluşların kendi süreçleri bakımından ayrı veri sorumlusu olduğunu; rızamı dilediğim zaman hesap ayarlarından veya ${C.email} adresine yazarak geri çekebileceğimi biliyorum.</p>
+      <h3>Ek-3: Ticari Elektronik İleti Onay Metni</h3>
+      <p>${C.unvan}'nin gayrimenkul, konut projeleri, finansman ve konutla bağlantılı ürün, hizmet, kampanya, avantaj ve fırsatları hakkında tarafıma <strong>e-posta, SMS, telefon araması ve mobil bildirim</strong> kanalları üzerinden ticari elektronik ileti göndermesini onaylıyorum. Bu onayı dilediğim zaman hesap ayarlarından, iletideki abonelikten çıkma bağlantısından veya ${C.email} adresine yazarak geri alabilirim.</p>` },
     "cerez-politikasi": { t: "Çerez (Cookie) Politikası", s: "Sitede kullanılan çerezler ve yönetimi hakkında.", h: `
       <p>Konuttalebi, hizmetin çalışması ve kullanıcı deneyiminin iyileştirilmesi için çerez (cookie) kullanır. Aşağıda çerez türleri ve yönetimi açıklanmıştır.</p>
       <h3>Çerez Türleri</h3>
@@ -3213,6 +3282,31 @@ function settingsPage(user) {
       </div>
       <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveNotifyPrefs()">${icon("check", 16)} Tercihleri kaydet</button></div>
     </section>
+
+    <section class="panel" style="margin-top:16px">
+      <h3 style="margin:0 0 6px">Açık rıza tercihleri</h3>
+      <p class="muted" style="margin:0 0 14px;font-size:13.5px">
+        Bu izinler isteğe bağlıdır; kapatman siteyi kullanmanı etkilemez. Her değişiklik tarihiyle kayda geçer.
+      </p>
+      <div class="check-grid" style="grid-template-columns:1fr">
+        <label class="check" style="align-items:flex-start">
+          <input id="iz-personalization" type="checkbox" ${user.personalizationConsent ? "checked" : ""}>
+          <span><strong>Pazarlama ve kişiselleştirme</strong><br>
+          <span class="muted" style="font-size:13px">Bilgilerinin, Konuttalebi'nin gayrimenkul, konut projeleri, finansman ve konutla bağlantılı ürün ve hizmetlerinin tanıtımı ile sana özel tekliflerin oluşturulması amacıyla işlenmesi.</span></span>
+        </label>
+        <label class="check" style="align-items:flex-start">
+          <input id="iz-partner" type="checkbox" ${user.partnerTransferConsent ? "checked" : ""}>
+          <span><strong>İş ortaklarına aktarım</strong><br>
+          <span class="muted" style="font-size:13px">İletişim ve konut talep/tercih bilgilerinin; teklif sunulabilmesi için bankalara ve finansman kuruluşlarına, konut projesi geliştiren firmalara, sigorta şirketlerine, nakliyat firmalarına ve abonelik sağlayıcılarına aktarılması. T.C. kimlik numaran bu kapsamda aktarılmaz. <a href="#/kvkk" target="_blank">Tam metin</a></span></span>
+        </label>
+        <label class="check" style="align-items:flex-start">
+          <input id="iz-marketing" type="checkbox" ${user.marketingConsent ? "checked" : ""}>
+          <span><strong>Ticari elektronik ileti</strong><br>
+          <span class="muted" style="font-size:13px">Kampanya, fırsat ve duyurular hakkında e-posta, SMS, telefon araması ve mobil bildirim gönderilmesi.</span></span>
+        </label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveConsents()">${icon("check", 16)} İzinleri kaydet</button></div>
+    </section>
   `;
 }
 
@@ -3704,8 +3798,8 @@ window.KT = {
     const phone = g("gc-phone").trim();
     const city = g("gc-city");
     const roleKey = g("gc-role") || "buyer";
-    const marketingConsent = (document.getElementById("gc-marketing") || {}).checked || false;
     if (name.length < 3) return showFormError("gc-error", "Ad Soyad en az 3 karakter olmalı.");
+    if (!(document.getElementById("gc-terms") || {}).checked) return showFormError("gc-error", "Üyelik için Kullanım Koşulları'nı kabul etmelisin.");
     if (phone.replace(/\D/g, "").length < 10) return showFormError("gc-error", "Geçerli bir telefon numarası gir.");
     const tckn = ((document.getElementById("gc-tckn") || {}).value || "").replace(/\D/g, "");
     const birthDate = (document.getElementById("gc-birth") || {}).value || "";
@@ -3713,7 +3807,7 @@ window.KT = {
     if (tckn && !tcknGecerliMi(tckn)) return showFormError("gc-error", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
     if ((tckn || birthDate) && !identityConsent) return showFormError("gc-error", "Kimlik bilgilerinin işlenmesi için açık rıza kutusunu işaretlemelisin.");
     const btn = event.submitter; if (btn) btn.disabled = true;
-    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), marketingConsent, tckn, birthDate, identityConsent, attribution: attribution() });
+    const r = await api("/auth/google/complete", "POST", { name, phone, city, role: roleForKey(roleKey), ...izinDegerleri("gc"), tckn, birthDate, identityConsent, attribution: attribution() });
     if (btn) btn.disabled = false;
     if (!r.ok) return showFormError("gc-error", (r.data && r.data.error) || "Üyelik tamamlanamadı.");
     ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: city, yontem: "google" });
@@ -3803,6 +3897,19 @@ window.KT = {
     h.textContent = eksik.length ? `Eksik: ${eksik.join(", ")}` : "Şifre kurallara uygun.";
     h.style.color = eksik.length ? "#c0392b" : "#2f8f4e";
   },
+  /* ---------- IZIN BLOGU ---------- */
+  // "Tumunu sec" YALNIZCA istege bagli uc izni isaretler; zorunlu kutulara
+  // (kosullar, kimlik rizasi) dokunmaz — zorunlu islemler toplu onaya
+  // katilamaz. Hepsi seciliyken tekrar basilirsa temizler.
+  izinTumunuSec(pre) {
+    const kutular = [...document.querySelectorAll(`.${pre}-izin`)];
+    if (!kutular.length) return;
+    const hepsiSecili = kutular.every((k) => k.checked);
+    kutular.forEach((k) => { k.checked = !hepsiSecili; });
+    const btn = document.getElementById(`${pre}-izin-tumu`);
+    if (btn) btn.textContent = hepsiSecili ? "Tümünü seç" : "Seçimi kaldır";
+  },
+
   /* ---------- MISAFIR TALEP AKISI ---------- */
   // Form dolduruldugu an bir kez olay gonderilir: kac kisi baslayip
   // bitirmedigini gorebilmek icin. Donusum degil, yalnizca huni olcumu.
@@ -3862,7 +3969,7 @@ window.KT = {
     })();
     if (sifreEksik) return showFormError("g-error2", sifreEksik);
     if (!chk("g-identity-consent")) return showFormError("g-error2", "Kimlik bilgilerinin işlenmesi için açık rıza gerekiyor.");
-    if (!chk("g-terms")) return showFormError("g-error2", "Kullanım koşullarını ve KVKK metnini onaylaman gerekiyor.");
+    if (!chk("g-terms")) return showFormError("g-error2", "Kullanım Koşulları'nı kabul etmelisin.");
 
     // Girilen kisisel alanlar saklanir: "e-postami yanlis yazdim" dendiginde
     // veya bir hata dondugunde kullanici hicbir seyi yeniden yazmasin.
@@ -3874,7 +3981,7 @@ window.KT = {
       ...misafirVeri,
       name, email, phone, password, tckn, birthDate: birth,
       identityConsent: true, termsAccepted: true,
-      marketingConsent: chk("g-marketing"),
+      ...izinDegerleri("g"),
       attribution: attribution(),
     });
     if (btn) { btn.disabled = false; btn.textContent = "Talebimi yayına al"; }
@@ -3970,7 +4077,7 @@ window.KT = {
     uiTxMode = (roleKey === "tenant" || roleKey === "landlord") ? "RENT" : "SALE";
     const accepted = (document.getElementById("r-terms") || {}).checked || false;
     if (!accepted)
-      return showFormError("r-error2", "Üyelik için Kullanım Koşulları ve KVKK metnini kabul etmelisin.");
+      return showFormError("r-error2", "Üyelik için Kullanım Koşulları'nı kabul etmelisin.");
     const payload = {
       name: g("r-name"),
       email: normalizeEmail(g("r-email")),
@@ -3978,7 +4085,7 @@ window.KT = {
       city: g("r-city"),
       role: roleForKey(roleKey),
       password: (document.getElementById("r-password") || {}).value || "",
-      marketingConsent: (document.getElementById("r-marketing") || {}).checked || false,
+      ...izinDegerleri("r"),
       tckn: g("r-tckn").replace(/\D/g, ""),
       birthDate: g("r-birth"),
       identityConsent: (document.getElementById("r-identity-consent") || {}).checked || false,
@@ -4101,6 +4208,17 @@ window.KT = {
     await refreshState();
     toast("Doğrulama bağlantısı gönderildi. Gelen kutunu kontrol et.");
     render();
+  },
+  async saveConsents() {
+    const chk = (id) => { const e = document.getElementById(id); return e ? e.checked : false; };
+    const r = await api("/izinler", "PATCH", {
+      personalizationConsent: chk("iz-personalization"),
+      partnerTransferConsent: chk("iz-partner"),
+      marketingConsent: chk("iz-marketing"),
+    });
+    if (!r.ok) return toast((r.data && r.data.error) || "İzinler kaydedilemedi.");
+    await refreshState();
+    toast("İzin tercihlerin kaydedildi.");
   },
   async saveNotifyPrefs() {
     const chk = (id) => { const el = document.getElementById(id); return el ? el.checked : true; };

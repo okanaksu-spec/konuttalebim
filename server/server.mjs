@@ -2721,18 +2721,18 @@ function tryCityPage(req, res, pathname) {
 
 
 // --- Emlak danismanlari inis sayfasi (KUYRUK AJANS->TASARIM #34) -----------
-// Gecici title/meta TASARIM'indir; AJANS onayli set gelince birebir degisir
-// (SAYFA HARITASI kurali). Sitemap'e AJANS onayindan sonra eklenecek.
+// Title/meta/H1: SAYFA HARITASI satir 23, AJANS onayli (Onay ✅, 2026-07-31).
+// Birebir uygulanir, serbestce degistirilmez. Sitemap'te kayitli.
 function danismanPage(res) {
   const html = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Emlak Danışmanları İçin | Konuttalebi</title>
-<meta name="description" content="Seviye 5 belgeli emlak danışmanları için talep havuzu: kiralık ve satın alma taleplerini incele, talep sahibine doğrudan ulaş. Belgeni yükle, onayla başla.">
+<title>Emlak Danışmanı Müşteri Bulma: Hazır Talepler | Konuttalebi</title>
+<meta name="description" content="Soğuk arama yapmadan müşteri bul. Kiracı ve alıcılar ne aradığını yazdı; belgeli danışman olarak bölgendeki hazır talepleri gör, doğrudan iletişime geç.">
 <link rel="canonical" href="https://konuttalebi.com/emlak-danismanlari-icin">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Konuttalebi">
-<meta property="og:title" content="Emlak Danışmanları İçin | Konuttalebi">
-<meta property="og:description" content="Seviye 5 belgeli emlak danışmanları için talep havuzu: talepleri incele, talep sahibine doğrudan ulaş.">
+<meta property="og:title" content="Emlak Danışmanı Müşteri Bulma: Hazır Talepler | Konuttalebi">
+<meta property="og:description" content="Soğuk arama yapmadan müşteri bul. Kiracı ve alıcılar ne aradığını yazdı; belgeli danışman olarak bölgendeki hazır talepleri gör, doğrudan iletişime geç.">
 <meta property="og:url" content="https://konuttalebi.com/emlak-danismanlari-icin">
 <meta property="og:image" content="https://konuttalebi.com/assets/og-image.png">
 <style>
@@ -2753,7 +2753,7 @@ h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
 </style></head>
 <body><div class="wrap">
 <a class="logo" href="/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
-<h1>Emlak danışmanları için talep havuzu</h1>
+<h1>Müşteri talepleri burada — portföyüne uyanı sen seç.</h1>
 <p class="lead">Konuttalebi'nde ilan yok; ev arayanlar ve konut alıcıları talep bırakır. Onaylı danışman olarak bu talepleri incelersin, sana uyanların iletişim bilgisini üyelikle görüntüler ve talep sahibini doğrudan ararsın.</p>
 <div class="kart"><h2>Nasıl çalışır?</h2>
 <div class="adim"><span class="no">1</span><p>Danışman olarak üye ol ve Sorumlu Emlak Danışmanı (Seviye 5) belgeni yükle.</p></div>

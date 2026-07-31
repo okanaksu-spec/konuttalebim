@@ -428,6 +428,10 @@ async function epostaTaramasi() {
   catch (e) { console.error("[talep] misafir temizligi hatasi:", e && e.message); }
   try { danismanBelgeTaramasi(); }
   catch (e) { console.error("[belge] danisman taramasi hatasi:", e && e.message); }
+  try { talepSuresiTaramasi(); }
+  catch (e) { console.error("[talep] sure taramasi hatasi:", e && e.message); }
+  try { dogumGunuTaramasi(); }
+  catch (e) { console.error("[mail] dogum gunu taramasi hatasi:", e && e.message); }
   if (hatirlatilan) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${hatirlatilan} kisi`);
   if (askiyaAlinan) console.log(`[uyelik] sure dolumu nedeniyle askiya alinan: ${askiyaAlinan} hesap`);
   if (temizlenen) console.log(`[talep] dogrulanmayan misafir talebi silindi: ${temizlenen}`);
@@ -1230,7 +1234,87 @@ function talepKaydet(d, imageData, durum) {
  * ancak e-posta dogrulandiktan sonra calisir. Ayni kodun iki yerde kopyalanmasi
  * zamanla iki akisin farkli davranmasina yol acardi.
  */
+// ---------- Faz 4: 60 gun talep suresi (saatlik tarama) ----------
+// Modelin can damari taze talep: odeme yapan uyeye bayat havuz gosterilmez.
+// Sure COALESCE(renewedAt, createdAt) + 60 gun. 7 gun kala tek seferlik
+// "hala ariyor musun?" uyarisi; dolunca PAUSED + yenileme cagrisi.
+function talepSuresiTaramasi() {
+  const bugun = today();
+  const g = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  const aktifler = db.prepare("SELECT id,buyerId,title,createdAt,renewedAt,expiryWarnedAt FROM demands WHERE status='ACTIVE'").all();
+  for (const d of aktifler) {
+    const baslangic = String(d.renewedAt || d.createdAt || bugun).slice(0, 10);
+    if (baslangic <= g(60)) {
+      db.prepare("UPDATE demands SET status='PAUSED' WHERE id=?").run(d.id);
+      notify(d.buyerId, "DEMAND_EXPIRED", "Talebinin süresi doldu",
+        `"${d.title}" 60 günü doldurduğu için yayından alındı. Hâlâ arıyorsan panelinden tek tıkla yenileyebilirsin; talebin yeniden yayına girer.`, "dashboard/alici/talepler");
+      queueEmail(d.buyerId, "Talebinin süresi doldu — hâlâ arıyor musan yenile",
+        `"${d.title}" talebin 60 günü doldurduğu için yayından alındı. Hâlâ ev arıyorsan panelindeki Taleplerim sayfasından "Yenile" düğmesine basman yeterli — talebin 60 gün daha yayında kalır ve kriterine uyan üyelere yeniden duyurulur.`,
+        "dashboard/alici/talepler", "Talep süresi doldu", "Aradığını bulmanı dileriz.", "tx");
+    } else if (baslangic <= g(53) && !d.expiryWarnedAt) {
+      db.prepare("UPDATE demands SET expiryWarnedAt=? WHERE id=?").run(bugun, d.id);
+      notify(d.buyerId, "DEMAND_EXPIRY_SOON", "Hâlâ arıyor musun?",
+        `"${d.title}" talebinin süresi 7 gün içinde doluyor. Hâlâ arıyorsan panelinden yenile; bulduysan talebini kapatabilirsin.`, "dashboard/alici/talepler");
+      queueEmail(d.buyerId, "Hâlâ arıyor musun? Talebinin süresi doluyor",
+        `"${d.title}" talebinin 60 günlük yayın süresi 7 gün içinde doluyor. Hâlâ ev arıyorsan panelindeki Taleplerim sayfasından "Yenile" de — talebin kesintisiz yayında kalır. Aradığını bulduysan hiçbir şey yapmana gerek yok; süre dolunca talebin kendiliğinden yayından kalkar.`,
+        "dashboard/alici/talepler", "Talep süresi uyarısı", "Kolay gelsin.", "tx");
+    }
+  }
+}
+
+// ---------- Okan istegi (31 Tem): dogum gunu kutlama maili ----------
+// Her sabah TR saatiyle ~09:00'da (06 UTC penceresi) o gun dogmus uyelere
+// kutlama gider. Yilda bir kez (birthdayMailedAt yil kontrolu). Dogum tarihi
+// kimlik dogrulama amaciyla alindigi icin kutlama yalnizca PAZARLAMA iznine
+// benzer sekilde notifyMatch izni acik uyelere gider; ayar kapaliysa gitmez.
+function dogumGunuTaramasi() {
+  if (new Date().getUTCHours() !== 6) return; // gunun tek penceresi
+  const bugun = today();                       // YYYY-MM-DD
+  const ayGun = bugun.slice(5);                // MM-DD
+  const yil = bugun.slice(0, 4);
+  const kisiler = db.prepare(
+    "SELECT id,name FROM users WHERE birthDate IS NOT NULL AND substr(birthDate,6,5)=? AND status='ACTIVE' AND role<>'ADMIN'"
+  ).all(ayGun);
+  let n = 0;
+  for (const u of kisiler) {
+    const son = db.prepare("SELECT birthdayMailedAt FROM users WHERE id=?").get(u.id).birthdayMailedAt || "";
+    if (son.slice(0, 4) === yil) continue;     // bu yil zaten kutlandi
+    if (!mailIzniVar(u.id, "match")) continue; // bildirim tercihi kapaliysa gitmez
+    db.prepare("UPDATE users SET birthdayMailedAt=? WHERE id=?").run(bugun, u.id);
+    const ad = (u.name || "").split(" ")[0] || "";
+    queueEmail(u.id, `İyi ki doğdun${ad ? ", " + ad : ""}! 🎂`,
+      `Bugün senin günün — doğum gününü içtenlikle kutlarız. Yeni yaşının sağlık, huzur ve güzel haberlerle geçmesini dileriz. Umarız bu yıl aradığın eve de kavuşursun; biz buradayız, talebini her an tazeleyebilirsin.`,
+      "dashboard", "Doğum günü kutlaması", "Nice mutlu yıllara — Konuttalebi ekibi", "match");
+    n++;
+  }
+  if (n) console.log(`[mail] dogum gunu kutlamasi gonderildi: ${n} uye`);
+}
+
+// Faz 4: gercekdisi talep bayragi — basit kurallar (senaryo karari).
+// Supheli talep yayina CIKMAZ: PAUSED kalir, admin onayina duser.
+function talepSupheliMi(d) {
+  const kira = (d.transactionType || "SALE") === "RENT";
+  const max = +d.maxBudget || 0;
+  if (kira && max > 0 && max < 2000) return "Aylık kira üst sınırı gerçekçi değil (2.000 TL altı).";
+  if (!kira && max > 0 && max < 250000) return "Satın alma bütçesi gerçekçi değil (250 bin TL altı).";
+  return "";
+}
+
 function talebiYayinaAl(d) {
+  // Faz 4: supheli talep yayilmadan durdurulur.
+  const suphe = talepSupheliMi(d);
+  if (suphe) {
+    db.prepare("UPDATE demands SET status='PAUSED' WHERE id=?").run(d.id);
+    db.prepare("INSERT INTO abuse_signals (id,userId,type,score,metadata,createdAt) VALUES (?,?,?,?,?,?)")
+      .run(uid("ab"), d.buyerId, "SUSPICIOUS_DEMAND", 60, `${d.id}: ${suphe}`, today());
+    notify(d.buyerId, "DEMAND_UNDER_REVIEW", "Talebin incelemeye alındı",
+      "Talebindeki bütçe bilgisi kontrol gerektiriyor. İncelendikten sonra yayına alınacak; gerekirse talebini düzenleyebilirsin.", "dashboard/alici/talepler");
+    const admins = db.prepare("SELECT id FROM users WHERE role='ADMIN'").all();
+    for (const a of admins) notify(a.id, "DEMAND_FLAGGED", "İncelenecek talep",
+      `"${d.title}" — ${suphe}`, "dashboard/admin/talepler");
+    addAudit(d.buyerId, "DEMAND_FLAGGED", "Demand", d.id, suphe);
+    return;
+  }
   // 2.0: Ilan kalkti. Eslesme artik "talep <-> uyenin kayitli kriteri".
   // Kriterine uyan her uyeye bildirim + (izinliyse) e-posta ozeti gider.
   const kriterler = db.prepare("SELECT * FROM saved_searches").all();
@@ -1691,9 +1775,16 @@ async function handleApi(req, res, url) {
     // Talep gecerliligi hesap acmadan once kontrol edilir: gecersiz formda
     // ortada sahipsiz bir uyelik kalmasin.
     const gecici = talepNesnesiKur(body, "gecici");
-    gecici.transactionType = "RENT";     // bu sayfa yalnizca kiracı tarafi icin
+    // Faz 4: ayni sayfa iki modda calisir — kiralik (varsayilan) ve satin alma.
+    const misafirTx = body.transactionType === "SALE" ? "SALE" : "RENT";
+    gecici.transactionType = misafirTx;
+    let krediCevap = null;
+    if (misafirTx === "SALE") {
+      krediCevap = body.creditInterest === "EVET" ? "EVET" : body.creditInterest === "HAYIR" ? "HAYIR" : null;
+      if (!krediCevap) return err(res, 400, "Banka kredisi sorusunu yanıtla (Evet veya Hayır).");
+    }
     if (!gecici.minBudget || !gecici.maxBudget || gecici.maxBudget < gecici.minBudget)
-      return err(res, 400, "Geçerli bir aylık kira aralığı gir.");
+      return err(res, 400, misafirTx === "RENT" ? "Geçerli bir aylık kira aralığı gir." : "Geçerli bir bütçe aralığı gir.");
     if (!gecici.city) return err(res, 400, "Hangi ilde ev aradığını seç.");
 
     const uid_ = uid("u");
@@ -1712,9 +1803,10 @@ async function handleApi(req, res, url) {
 
     // Talep, kullanicinin gercek id'siyle yeniden kurulur ve BEKLEMEDE yazilir.
     const d = talepNesnesiKur(body, uid_);
-    d.transactionType = "RENT";
+    d.transactionType = misafirTx; // Faz 4: RENT veya SALE
     if (!d.title) d.title = talepBasligiUret(d);
     talepKaydet(d, cleanImage(body.imageData), "PENDING_VERIFY");
+    if (krediCevap) db.prepare("UPDATE demands SET creditInterest=? WHERE id=?").run(krediCevap, d.id);
     addAudit(uid_, "DEMAND_CREATED_PENDING", "Demand", d.id, `${d.title} — e-posta doğrulaması bekliyor.`);
 
     // Dogrulama baglantisi. Hos geldin maili GONDERILMEZ: dogrulanana kadar
@@ -2034,6 +2126,9 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     if (!d.title || !d.minBudget || !d.maxBudget || d.maxBudget < d.minBudget || d.description.length < 20)
       return err(res, 400, "Başlık, geçerli bütçe ve en az 20 karakter açıklama gerekli.");
     talepKaydet(d, cleanImage(body.imageData), "ACTIVE");
+    // Faz 4: ev almak isteyene banka kredisi sorusu (EVET/HAYIR; veri bankasi stratejisi).
+    if ((d.transactionType || "SALE") === "SALE" && ["EVET", "HAYIR"].includes(body.creditInterest))
+      db.prepare("UPDATE demands SET creditInterest=? WHERE id=?").run(body.creditInterest, d.id);
     talebiYayinaAl(d);
     addAudit(user.id, "DEMAND_CREATED", "Demand", d.id, d.title);
     return ok(res, { id: d.id });
@@ -2075,6 +2170,30 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   }
 
   // --- iletisimi gor: modelin yeni kalbi (giris gerekli) ---
+  // --- Faz 4: talebi yenile (60 gunluk sureyi bastan baslatir) ---
+  if (seg[0] === "demands" && seg[2] === "renew" && method === "POST") {
+    const d = db.prepare("SELECT * FROM demands WHERE id=?").get(seg[1]);
+    if (!d) return err(res, 404, "Talep bulunamadı.");
+    if (d.buyerId !== user.id && user.role !== "ADMIN") return err(res, 403, "Yalnızca talep sahibi yenileyebilir.");
+    if (d.status === "REMOVED") return err(res, 400, "Bu talep yönetici tarafından kaldırılmış; yenilenemez.");
+    db.prepare("UPDATE demands SET status='ACTIVE', renewedAt=?, expiryWarnedAt=NULL WHERE id=?").run(today(), d.id);
+    addAudit(user.id, "DEMAND_RENEWED", "Demand", d.id, "Talep yenilendi; 60 günlük süre yeniden başladı.");
+    return ok(res);
+  }
+
+  // --- Faz 4: talep sikayeti (havuzdaki Bildir dugmesi) ---
+  if (seg[0] === "demands" && seg[2] === "report" && method === "POST") {
+    if (!rateLimit(`sikayet:${user.id}`, 5, 60 * 60 * 1000)) return err(res, 429, "Çok fazla şikayet gönderdin; bir süre sonra tekrar dene.");
+    const d = db.prepare("SELECT id,buyerId,title FROM demands WHERE id=?").get(seg[1]);
+    if (!d) return err(res, 404, "Talep bulunamadı.");
+    const sebep = String(body.reason || "").trim().slice(0, 60) || "Belirtilmedi";
+    const aciklama = String(body.description || "").trim().slice(0, 500);
+    db.prepare("INSERT INTO complaints (id,reporterId,reportedUserId,reason,description,status,priority,createdAt) VALUES (?,?,?,?,?,?,?,?)")
+      .run(uid("c"), user.id, d.buyerId, sebep, `Talep: ${d.title} (${d.id}). ${aciklama}`, "OPEN", "Orta", today());
+    addAudit(user.id, "COMPLAINT_CREATED", "Demand", d.id, sebep);
+    return ok(res);
+  }
+
   // Kosullar: SELLER/AGENT rolu + aktif iletisim uyeligi (admin muaf).
   // Danisman belge onayi Faz 3'te devreye girecek (14 gun gecis karari).
   if (seg[0] === "demands" && seg[2] === "contact" && method === "POST") {

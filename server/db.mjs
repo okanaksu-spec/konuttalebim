@@ -89,6 +89,10 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS entitlements (
   id TEXT PRIMARY KEY, userId TEXT, planId TEXT, activeFrom TEXT, activeTo TEXT
 );
+CREATE TABLE IF NOT EXISTS complaints (
+  id TEXT PRIMARY KEY, reporterId TEXT, reportedUserId TEXT, reason TEXT,
+  description TEXT, status TEXT DEFAULT 'OPEN', priority TEXT DEFAULT 'Orta', createdAt TEXT
+);
 CREATE TABLE IF NOT EXISTS verification_documents (
   id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
   riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT,
@@ -260,6 +264,18 @@ for (const alter of [
   "ALTER TABLE verification_documents ADD COLUMN fileName TEXT",
   "ALTER TABLE verification_documents ADD COLUMN rejectReason TEXT",
   "ALTER TABLE verification_documents ADD COLUMN createdAt TEXT",
+]) { try { db.exec(alter); } catch { /* sutun zaten var */ } }
+
+// ---------- Faz 4 (2.0) kolonlari ----------
+// renewedAt: talep yenilenince dolar; 60 gunluk sure COALESCE(renewedAt,createdAt)'ten sayilir.
+// expiryWarnedAt: "sure doluyor" uyarisinin tekrarlanmamasi icin.
+// creditInterest: ev almak isteyene "Banka kredisi kullanmayi dusunuyor musun?" (EVET/HAYIR — Okan karari, Kararsizim yok).
+// birthdayMailedAt: dogum gunu kutlamasi yilda bir gitsin diye son gonderim tarihi.
+for (const alter of [
+  "ALTER TABLE demands ADD COLUMN renewedAt TEXT",
+  "ALTER TABLE demands ADD COLUMN expiryWarnedAt TEXT",
+  "ALTER TABLE demands ADD COLUMN creditInterest TEXT",
+  "ALTER TABLE users ADD COLUMN birthdayMailedAt TEXT",
 ]) { try { db.exec(alter); } catch { /* sutun zaten var */ } }
 
 // ---------- Kullanici verisi temizligi ----------

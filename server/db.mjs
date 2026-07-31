@@ -91,7 +91,8 @@ CREATE TABLE IF NOT EXISTS entitlements (
 );
 CREATE TABLE IF NOT EXISTS verification_documents (
   id TEXT PRIMARY KEY, userId TEXT, type TEXT, status TEXT DEFAULT 'PENDING',
-  riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT
+  riskScore INTEGER DEFAULT 0, reviewedById TEXT, reviewedAt TEXT,
+  fileData TEXT, fileName TEXT, rejectReason TEXT, createdAt TEXT
 );
 CREATE TABLE IF NOT EXISTS email_verifications (
   tokenHash TEXT PRIMARY KEY, userId TEXT, email TEXT,
@@ -238,6 +239,28 @@ try {
   db.exec("UPDATE users SET epostaMuaf=1");
   console.log(`[db] E-posta dogrulama duvari: mevcut ${n} hesap muaf isaretlendi.`);
 } catch { /* sutun zaten var - gecis daha once yapildi, dokunma */ }
+
+// ---------- Faz 3 (2.0): Danisman Seviye 5 belge dogrulamasi ----------
+// agentApproved: 1 = belgesi onaylandi, iletisim acabilir.
+// agentDocDeadline: yalnizca GECIS donemindeki mevcut danismanlar icin dolu —
+// Okan karari (senaryo #3): belge gelene kadar 14 gun tolerans, sonra iletisim
+// acma kapanir. Yeni kayit olan danismanda deadline YOKTUR; belge onayi sarttir.
+// ALTER ilk calismada basarili oldugu icin UPDATE de yalnizca bir kez calisir.
+try {
+  db.exec("ALTER TABLE users ADD COLUMN agentApproved INTEGER DEFAULT 0");
+  db.exec("ALTER TABLE users ADD COLUMN agentDocDeadline TEXT");
+  const son = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+  const n = db.prepare("UPDATE users SET agentDocDeadline=? WHERE role='AGENT'").run(son).changes;
+  console.log(`[db] Faz 3 gecisi: ${n} mevcut danismana belge icin 14 gun sure verildi (son: ${son}).`);
+} catch { /* sutunlar zaten var - gecis daha once yapildi */ }
+
+// verification_documents'a dosya alanlari (eski kurulumlar icin).
+for (const alter of [
+  "ALTER TABLE verification_documents ADD COLUMN fileData TEXT",
+  "ALTER TABLE verification_documents ADD COLUMN fileName TEXT",
+  "ALTER TABLE verification_documents ADD COLUMN rejectReason TEXT",
+  "ALTER TABLE verification_documents ADD COLUMN createdAt TEXT",
+]) { try { db.exec(alter); } catch { /* sutun zaten var */ } }
 
 // ---------- Kullanici verisi temizligi ----------
 // Verilen kullanicilara ait TUM kayitlari siler. Ortak yardimci.

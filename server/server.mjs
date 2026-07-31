@@ -426,10 +426,52 @@ async function epostaTaramasi() {
   let temizlenen = 0;
   try { temizlenen = misafirTalepTemizle(); }
   catch (e) { console.error("[talep] misafir temizligi hatasi:", e && e.message); }
+  try { danismanBelgeTaramasi(); }
+  catch (e) { console.error("[belge] danisman taramasi hatasi:", e && e.message); }
   if (hatirlatilan) console.log(`[mail] e-posta dogrulama hatirlatmasi: ${hatirlatilan} kisi`);
   if (askiyaAlinan) console.log(`[uyelik] sure dolumu nedeniyle askiya alinan: ${askiyaAlinan} hesap`);
   if (temizlenen) console.log(`[talep] dogrulanmayan misafir talebi silindi: ${temizlenen}`);
   return { hatirlatilan, askiyaAlinan, temizlenen };
+}
+
+// ---------- Faz 3: danisman belge taramasi (saatlik) ----------
+// 1) KVKK hijyeni: reddedilen Seviye 5 dosyasi 30 gun sonra silinir (kayit kalir,
+//    dosya icerigi NULL olur) — senaryo karari.
+// 2) Gecis uyarilari: 14 gunluk deadline'a <=3 gun kalan onaysiz danismanlara tek
+//    seferlik hatirlatma; sure dolanlara tek seferlik "iletisim kapandi" bildirimi.
+//    Tek seferlik'lik ayni tipte bildirim var mi kontroluyle saglanir (dedupe).
+function danismanBelgeTaramasi() {
+  const sinir = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const silinen = db.prepare(
+    "UPDATE verification_documents SET fileData=NULL WHERE status='REJECTED' AND fileData IS NOT NULL AND reviewedAt <= ?"
+  ).run(sinir).changes;
+  if (silinen) console.log(`[belge] 30 gunu dolan ${silinen} reddedilmis belge dosyasi silindi.`);
+
+  const bugun = today();
+  const esik = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  const gecisdekiler = db.prepare(
+    "SELECT id,name FROM users WHERE role='AGENT' AND agentApproved=0 AND agentDocDeadline IS NOT NULL"
+  ).all();
+  const bildirimVar = (uid2, tip) =>
+    db.prepare("SELECT COUNT(*) c FROM notifications WHERE userId=? AND type=?").get(uid2, tip).c > 0;
+  for (const u of gecisdekiler) {
+    const dl = db.prepare("SELECT agentDocDeadline dl FROM users WHERE id=?").get(u.id).dl;
+    if (dl < bugun) {
+      if (!bildirimVar(u.id, "AGENT_DOC_DEADLINE_PASSED")) {
+        notify(u.id, "AGENT_DOC_DEADLINE_PASSED", "Belge süren doldu — iletişim açma kapandı",
+          "Sorumlu Emlak Danışmanı belgeni 14 günlük geçiş süresinde yüklemedin. İletişim bilgisi görüntüleme kapatıldı; belgeni yükleyip onaylandığında yeniden açılır.", "dashboard/satici/dogrulama");
+        queueEmail(u.id, "Belge süren doldu — iletişim açma kapandı",
+          "Sorumlu Emlak Danışmanı (Seviye 5) belgen için tanınan 14 günlük süre doldu. Talep sahiplerinin iletişim bilgisini görüntüleme özelliğin kapatıldı. Panelinden belgeni yüklediğinde ve onaylandığında özellik yeniden açılır.",
+          "dashboard/satici/dogrulama", "Danışman belge süresi doldu", "Belgeni bekliyoruz.", "tx");
+      }
+    } else if (dl <= esik && !bildirimVar(u.id, "AGENT_DOC_DEADLINE_SOON")) {
+      notify(u.id, "AGENT_DOC_DEADLINE_SOON", "Belge için son günler",
+        `Sorumlu Emlak Danışmanı belgeni en geç ${dl} tarihine kadar yüklemelisin; yoksa iletişim bilgisi görüntüleme kapanır.`, "dashboard/satici/dogrulama");
+      queueEmail(u.id, "Danışman belgen için son günler",
+        `Sorumlu Emlak Danışmanı (Seviye 5) belgeni en geç ${dl} tarihine kadar yüklemen gerekiyor. Süre dolarsa talep sahiplerinin iletişim bilgisini görüntüleme özelliğin, belgen onaylanana dek kapanır. Belge e-Devlet üzerinden barkodlu alınabilir (PDF, JPG veya PNG, en fazla 5 MB).`,
+        "dashboard/satici/dogrulama", "Danışman belge hatırlatması", "Belgeni bekliyoruz.", "tx");
+    }
+  }
 }
 setInterval(() => { epostaTaramasi().catch(() => {}); }, 60 * 60 * 1000).unref?.();
 setTimeout(() => { epostaTaramasi().catch(() => {}); }, 60 * 1000).unref?.();
@@ -904,6 +946,8 @@ function hasContactMembership(userId, role) {
   // (BUYER) hicbir kosulda baskasinin iletisimini goremez - gorulecek ilan yok.
   // Eski plan id'leri geriye uyum icin kabul edilir (mevcut uyelik kirilmasin).
   if (role === "BUYER") return false;
+  // Faz 3: danisman ayrica Seviye 5 belge onayindan gecmis olmali.
+  if (role === "AGENT" && !agentBelgeGecerli(userId)) return false;
   const ids = ["plan-landlord-contact", "plan-seller-contact", "plan-buyer-contact"];
   const ph = ids.map(() => "?").join(",");
   const row = db.prepare(
@@ -911,6 +955,23 @@ function hasContactMembership(userId, role) {
   ).get(userId, ...ids, today());
   return row.c > 0;
 }
+
+// Faz 3: danismanin belge durumu iletisim acmaya uygun mu?
+// - agentApproved=1 -> belge onaylandi, tamam.
+// - Gecis donemi (Okan karari, senaryo #3): 2.0'dan ONCE kayitli danismanlara
+//   14 gunluk agentDocDeadline yazildi; sure dolana kadar belgesiz de acabilir.
+//   Yeni kayit danismanlarda deadline yoktur -> belge onayi sarttir.
+function agentBelgeGecerli(userId) {
+  const u = db.prepare("SELECT agentApproved, agentDocDeadline FROM users WHERE id=?").get(userId);
+  if (!u) return false;
+  if (Number(u.agentApproved) === 1) return true;
+  return Boolean(u.agentDocDeadline && u.agentDocDeadline >= today());
+}
+
+const SEVIYE5_TIP = "Sorumlu Emlak Danışmanı (Seviye 5)";
+// Turkce karakterler farkli Unicode bicimlerinde gelebilir (İ birlesik/ayrik);
+// birebir esitlik yerine ayirt edici "Seviye 5" parcasina bakilir.
+const seviye5Mi = (t) => String(t || "").includes("Seviye 5");
 
 // Odeme onaylandiginda uyeligi ac, boost uygula, bildir. Idempotent (callback tekrar gelebilir).
 function fulfillPayment(pid) {
@@ -1012,7 +1073,10 @@ function buildState(user) {
       // Duvar oncesi kayitli hesaplar: dogrulama zorunlulugu ve aski disinda.
       epostaMuaf: (self || isAdmin) ? (u.epostaMuaf ? 1 : 0) : undefined,
       // Dolu ise aski sebebi sure dolumudur (yonetici karari degil).
-      autoSuspendedAt: (self || isAdmin) ? (u.autoSuspendedAt || "") : undefined
+      autoSuspendedAt: (self || isAdmin) ? (u.autoSuspendedAt || "") : undefined,
+      // Faz 3: danisman belge durumu (kendisi + admin; havuzda rozet icin approved herkese acik).
+      agentApproved: u.role === "AGENT" ? (u.agentApproved ? 1 : 0) : undefined,
+      agentDocDeadline: (self || isAdmin) ? (u.agentDocDeadline || "") : undefined
     };
   });
 
@@ -1064,11 +1128,16 @@ function buildState(user) {
     offers: myOffers,
     matches: myMatches,
     messages: myMessages,
+    // fileData state'e BILEREK konmaz (megabaytlarca base64 her state cagrisini
+    // sisirirdi); dosya ayri uctan indirilir: GET /verification-documents/:id/file
     verificationDocuments: !user
       ? []
-      : (["ADMIN", "REVIEWER"].includes(user.role)
-        ? all("verification_documents")
-        : all("verification_documents").filter((d) => d.userId === user.id)),
+      : (() => {
+        const q = "SELECT id,userId,type,status,riskScore,reviewedById,reviewedAt,fileName,rejectReason,createdAt, (fileData IS NOT NULL) AS hasFile FROM verification_documents";
+        return ["ADMIN", "REVIEWER"].includes(user.role)
+          ? db.prepare(q).all()
+          : db.prepare(q + " WHERE userId=?").all(user.id);
+      })(),
     notifications: myNotifications,
     emailOutbox: isAdmin ? all("email_outbox") : [],
     // Telefon dogrulama kayitlari yalnizca admin panelinde gorunur.
@@ -2014,6 +2083,10 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     const d = db.prepare("SELECT * FROM demands WHERE id=?").get(seg[1]);
     if (!d || d.status !== "ACTIVE") return err(res, 404, "Talep bulunamadı veya yayında değil.");
     if (d.buyerId === user.id) return err(res, 400, "Bu talep zaten sana ait.");
+    // Faz 3: danismanin belge engeli uyelik engelinden AYRI anlatilir ki
+    // kullanici yanlislikla paket satin almaya yonlendirilmesin.
+    if (user.role === "AGENT" && !agentBelgeGecerli(user.id))
+      return err(res, 403, "Sorumlu Emlak Danışmanı (Seviye 5) belgen onaylanmadan iletişim bilgisi görüntüleyemezsin. Belgeni panelindeki Danışman Doğrulama sayfasından yükleyebilirsin.");
     if (user.role !== "ADMIN" && !hasContactMembership(user.id, user.role))
       return err(res, 402, "İletişim bilgisini görmek için aktif bir üyelik gerekiyor. Paketleri fiyatlandırma sayfasında bulabilirsin.");
     const sahip = db.prepare("SELECT name,phone,email FROM users WHERE id=?").get(d.buyerId);
@@ -2245,6 +2318,10 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(body.planId);
     if (!plan) return err(res, 404, "Paket bulunamadı.");
     if (!plan.price || plan.price <= 0) return err(res, 400, "Bu paket ücretsiz; ödeme gerekmez.");
+    // Faz 3 (senaryo D): danisman, belgesi onaylanmadan danisman uyeligi satin alamaz.
+    // Gecis donemindeki mevcut danismanlar (deadline sure iciyse) muaftir.
+    if (plan.id === "plan-pro" && user.role === "AGENT" && !agentBelgeGecerli(user.id))
+      return err(res, 403, "Danışman üyeliği satın almadan önce Sorumlu Emlak Danışmanı (Seviye 5) belgenin onaylanması gerekiyor. Belgeni Danışman Doğrulama sayfasından yükle.");
     const pid = uid("pay").replace(/[^a-zA-Z0-9]/g, "");
     const boostType = (plan.id === "plan-buyer-boost" || plan.id === "plan-seller-boost") ? (body.itemType || null) : null;
     const boostId = boostType ? (body.itemId || null) : null;
@@ -2272,29 +2349,81 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     }
   }
 
-  // --- satici/danisman dogrulama belgesi yukle ---
+  // --- uye/danisman dogrulama belgesi yukle ---
+  // Faz 3: danisman Seviye 5 belgesi GERCEK dosya ister (e-Devlet barkodlu,
+  // PDF/JPG/PNG, en fazla 5 MB). Dosya data URL olarak saklanir; havuza ve
+  // state'e asla cikmaz, yalnizca sahibi ve admin ayri uctan indirir.
   if (seg[0] === "verification-documents" && method === "POST" && seg.length === 1) {
-    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı veya emlak danışmanı belge yükleyebilir.");
+    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece üye tarafı belge yükleyebilir.");
     const type = (body.type || "Tapu / yetki belgesi").toString().trim().slice(0, 120) || "Tapu / yetki belgesi";
+    const seviye5 = seviye5Mi(type);
+    let fileData = null, fileName = null;
+    if (seviye5) {
+      if (user.role !== "AGENT") return err(res, 403, "Seviye 5 belgesini yalnızca emlak danışmanı yükleyebilir.");
+      fileData = String(body.fileData || "");
+      fileName = String(body.fileName || "belge").slice(0, 120);
+      const m = fileData.match(/^data:(application\/pdf|image\/jpeg|image\/png);base64,[A-Za-z0-9+/=]+$/);
+      if (!m) return err(res, 400, "Belge PDF, JPG veya PNG olmalı.");
+      if (fileData.length > 7 * 1024 * 1024) return err(res, 400, "Belge en fazla 5 MB olabilir.");
+      // Bekleyen eski Seviye 5 belgesi varsa kapat: tek aktif basvuru kalsin.
+      db.prepare("UPDATE verification_documents SET status='SUPERSEDED', fileData=NULL WHERE userId=? AND type LIKE '%Seviye 5%' AND status='PENDING'")
+        .run(user.id);
+    }
     const id = uid("doc");
     const risk = Math.floor(Math.random() * 25) + 10;
-    db.prepare("INSERT INTO verification_documents (id,userId,type,status,riskScore,reviewedById,reviewedAt) VALUES (?,?,?,?,?,?,?)")
-      .run(id, user.id, type, "PENDING", risk, null, null);
+    db.prepare("INSERT INTO verification_documents (id,userId,type,status,riskScore,reviewedById,reviewedAt,fileData,fileName,rejectReason,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+      .run(id, user.id, type, "PENDING", risk, null, null, fileData, fileName, null, today());
     addAudit(user.id, "DOCUMENT_SUBMITTED", "VerificationDocument", id, type);
+    if (seviye5) notify(user.id, "AGENT_DOC_RECEIVED", "Belgen alındı",
+      "Sorumlu Emlak Danışmanı belgen incelemeye alındı. Onaylanınca haber vereceğiz.", "dashboard/satici/dogrulama");
     return ok(res, { id });
   }
 
+  // --- belge dosyasini indir (yalnizca sahibi veya admin/reviewer) ---
+  if (seg[0] === "verification-documents" && seg[2] === "file" && method === "GET") {
+    const doc = db.prepare("SELECT * FROM verification_documents WHERE id=?").get(seg[1]);
+    if (!doc || !doc.fileData) return err(res, 404, "Belge dosyası bulunamadı.");
+    if (doc.userId !== user.id && !["ADMIN", "REVIEWER"].includes(user.role))
+      return err(res, 403, "Bu belgeyi görüntüleme yetkin yok.");
+    addAudit(user.id, "DOCUMENT_VIEWED", "VerificationDocument", doc.id, "Belge dosyası görüntülendi.");
+    return ok(res, { fileData: doc.fileData, fileName: doc.fileName || "belge" });
+  }
+
   // --- admin/moderator belge inceleme ---
+  // Faz 3: Seviye 5 belgesinde onay users.agentApproved'i acar, red sebep ister.
   if (seg[0] === "documents" && seg[2] === "review" && method === "POST") {
     if (!["ADMIN", "REVIEWER"].includes(user.role)) return err(res, 403, "Bu işlem için yetkiniz yok.");
     const doc = db.prepare("SELECT * FROM verification_documents WHERE id = ?").get(seg[1]);
     if (!doc) return err(res, 404, "Belge bulunamadı.");
     const status = ["APPROVED", "REJECTED"].includes(body.status) ? body.status : "APPROVED";
-    db.prepare("UPDATE verification_documents SET status=?, reviewedById=?, reviewedAt=? WHERE id=?")
-      .run(status, user.id, today(), doc.id);
-    notify(doc.userId, `DOCUMENT_${status}`, status === "APPROVED" ? "Belgen onaylandı" : "Belgen reddedildi",
-      status === "APPROVED" ? "Doğrulama belgen onaylandı." : "Doğrulama belgen reddedildi, tekrar yükleyebilirsin.", "dashboard/satici/dogrulama");
-    addAudit(user.id, `DOCUMENT_${status}`, "VerificationDocument", doc.id, "Belge durumu güncellendi.");
+    const sebep = String(body.reason || "").trim().slice(0, 300);
+    if (status === "REJECTED" && seviye5Mi(doc.type) && !sebep)
+      return err(res, 400, "Red için sebep yazmalısın; danışmana iletilecek.");
+    db.prepare("UPDATE verification_documents SET status=?, reviewedById=?, reviewedAt=?, rejectReason=? WHERE id=?")
+      .run(status, user.id, today(), sebep || null, doc.id);
+    const sahip = db.prepare("SELECT * FROM users WHERE id=?").get(doc.userId);
+    if (seviye5Mi(doc.type) && sahip) {
+      if (status === "APPROVED") {
+        db.prepare("UPDATE users SET agentApproved=1 WHERE id=?").run(doc.userId);
+        notify(doc.userId, "AGENT_DOC_APPROVED", "Danışman belgen onaylandı",
+          "Sorumlu Emlak Danışmanı belgen onaylandı. Artık üyeliğinle talep sahiplerinin iletişim bilgisini görüntüleyebilirsin.", "dashboard/satici/talepler");
+        queueEmail(doc.userId, "Danışman belgen onaylandı",
+          "Sorumlu Emlak Danışmanı (Seviye 5) belgen incelendi ve onaylandı. Danışman üyeliğinle talep havuzundaki iletişim bilgilerini görüntüleyebilirsin.",
+          "dashboard/satici/talepler", "Danışman belge onayı", "İyi çalışmalar dileriz.", "tx");
+      } else {
+        db.prepare("UPDATE users SET agentApproved=0 WHERE id=?").run(doc.userId);
+        notify(doc.userId, "AGENT_DOC_REJECTED", "Danışman belgen reddedildi",
+          `Belgen şu sebeple reddedildi: ${sebep}. Yeni belge yükleyebilirsin; reddedilen dosya 30 gün içinde silinir.`, "dashboard/satici/dogrulama");
+        queueEmail(doc.userId, "Danışman belgen reddedildi",
+          `Sorumlu Emlak Danışmanı belgen reddedildi. Sebep: ${sebep}. Panelinden yeni belge yükleyebilirsin; reddedilen dosya 30 gün içinde sistemden silinir.`,
+          "dashboard/satici/dogrulama", "Danışman belge reddi", "Yeni belgeni bekliyoruz.", "tx");
+      }
+    } else {
+      notify(doc.userId, `DOCUMENT_${status}`, status === "APPROVED" ? "Belgen onaylandı" : "Belgen reddedildi",
+        status === "APPROVED" ? "Doğrulama belgen onaylandı." : "Doğrulama belgen reddedildi, tekrar yükleyebilirsin.", "dashboard/satici/dogrulama");
+    }
+    addAudit(user.id, `DOCUMENT_${status}`, "VerificationDocument", doc.id,
+      seviye5Mi(doc.type) ? `Seviye 5 belgesi: ${status}${sebep ? " — " + sebep : ""}` : "Belge durumu güncellendi.");
     return ok(res);
   }
 

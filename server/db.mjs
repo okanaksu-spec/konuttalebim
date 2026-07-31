@@ -273,6 +273,8 @@ for (const alter of [
 // birthdayMailedAt: dogum gunu kutlamasi yilda bir gitsin diye son gonderim tarihi.
 for (const alter of [
   "ALTER TABLE demands ADD COLUMN renewedAt TEXT",
+  // dogrulamaHatirlatildiAt: misafir talebi 24. saatte tek hatirlatma (KUYRUK #29a).
+  "ALTER TABLE demands ADD COLUMN dogrulamaHatirlatildiAt TEXT",
   "ALTER TABLE demands ADD COLUMN expiryWarnedAt TEXT",
   "ALTER TABLE demands ADD COLUMN creditInterest TEXT",
   "ALTER TABLE users ADD COLUMN birthdayMailedAt TEXT",

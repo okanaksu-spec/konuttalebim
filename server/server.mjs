@@ -395,6 +395,47 @@ function misafirTalepTemizle() {
   return silinen;
 }
 
+
+/**
+ * 24. saat dogrulama hatirlatmasi (KUYRUK #29a).
+ *
+ * Misafir talep akisinda kullanici formu doldurup e-postasini dogrulamazsa talep
+ * 48 saatte silinir (misafirTalepTemizle). Arada hicbir uyari gitmiyordu: kisi
+ * maili gozden kacirdiysa emegi de talebi de sessizce kayboluyordu.
+ *
+ * Kural: talep PENDING_VERIFY, hesap dogrulanmamis, uzerinden 24 saat gecmis ve
+ * daha once hatirlatilmamis (dogrulamaHatirlatildiAt NULL) ise TEK bir mail gider.
+ * 48 saat silme kurali degismedi. Dogrulama baglantisi yeniden uretilir; eski
+ * token gecerliligini korur, iki baglanti da calisir.
+ */
+const HATIRLATMA_SAAT = 24;
+function dogrulamaHatirlatmaTaramasi() {
+  const sinir = new Date(Date.now() - HATIRLATMA_SAAT * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const bekleyen = db.prepare(`
+    SELECT d.id AS demandId, d.createdAt, d.city, d.transactionType,
+           u.id AS userId, u.name, u.email
+    FROM demands d
+    JOIN auth_accounts a ON a.userId = d.buyerId
+    JOIN users u ON u.id = d.buyerId
+    WHERE d.status='PENDING_VERIFY' AND a.emailVerified = 0
+      AND (d.dogrulamaHatirlatildiAt IS NULL OR d.dogrulamaHatirlatildiAt = '')`).all();
+  let gonderilen = 0;
+  for (const b of bekleyen) {
+    if (String(b.createdAt || "") > sinir) continue;   // henuz 24 saat olmamis
+    if (!b.email) continue;
+    try {
+      // Yeni token uret ve maili gonder (ayni altyapi: epostaDogrulamaBaslat).
+      epostaDogrulamaBaslat(b.userId, b.email, b.name || "");
+      db.prepare("UPDATE demands SET dogrulamaHatirlatildiAt=? WHERE id=?").run(now(), b.demandId);
+      gonderilen++;
+    } catch (e) {
+      console.error("[mail] dogrulama hatirlatmasi gonderilemedi:", e && e.message);
+    }
+  }
+  if (gonderilen) console.log(`[mail] 24. saat dogrulama hatirlatmasi: ${gonderilen} talep`);
+  return gonderilen;
+}
+
 async function epostaHatirlatmaTara() {
   const bekleyenler = db.prepare(`
     SELECT u.id, u.name, u.email, u.emailVerifyDeadline
@@ -426,6 +467,8 @@ async function epostaTaramasi() {
   let temizlenen = 0;
   try { temizlenen = misafirTalepTemizle(); }
   catch (e) { console.error("[talep] misafir temizligi hatasi:", e && e.message); }
+  try { dogrulamaHatirlatmaTaramasi(); }
+  catch (e) { console.error("[mail] dogrulama hatirlatma taramasi hatasi:", e && e.message); }
   try { danismanBelgeTaramasi(); }
   catch (e) { console.error("[belge] danisman taramasi hatasi:", e && e.message); }
   try { talepSuresiTaramasi(); }
@@ -478,6 +521,12 @@ function danismanBelgeTaramasi() {
   }
 }
 setInterval(() => { epostaTaramasi().catch(() => {}); }, 60 * 60 * 1000).unref?.();
+// ACILISTA TEK SEFER (2026-07-31 bulgusu): saatlik sayac her yeniden baslatmada
+// sifirlaniyordu. Yogun deploy gunlerinde servis saat dolmadan yeniden basladigi
+// icin tarama hic calismayabiliyordu — sure dolan talepler, dogum gunu ve belge
+// uyarilari atlaniyordu. Acilistan 15 sn sonra bir kez calistirilir; tum
+// taramalar dedupe'lu oldugu icin tekrar calismasi zararsizdir.
+setTimeout(() => { epostaTaramasi().catch(() => {}); }, 15 * 1000).unref?.();
 setTimeout(() => { epostaTaramasi().catch(() => {}); }, 60 * 1000).unref?.();
 
 // ---------- Telefon dogrulama ----------
@@ -2770,10 +2819,52 @@ h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
   res.end(html);
 }
 
+
+// --- SPA rotalari icin gercek adresler (KUYRUK #26 + #30b) --------------------
+// Reklam varliklari /#/uye-ol gibi hash adresler kullaniyordu: Google Ads acilis
+// sayfasi raporunda hash goremiyor, kalite puani ve olcum zayif kaliyor.
+// Bu yollar ayni SPA'yi servis eder; index.html'e iki sey enjekte edilir:
+//   1) window.KT_PATH_ROTA -> app.js hash yoksa bu rotayi acar
+//   2) canonical + noindex -> icerik istemci tarafinda ciziliyor, ince icerik
+//      cezasi almamak icin indekslenmez. Prerender govdesi yazilirsa (AJANS
+//      isterse) noindex kaldirilir.
+const SPA_YOLLARI = {
+  "/uye-ol": "uye-ol",
+  "/giris": "giris",
+  "/fiyatlandirma": "fiyatlandirma",
+  "/nasil-calisir": "nasil-calisir",
+  "/yardim": "yardim",
+  "/talepler": "talepler",
+  "/talep-birak": "talep-birak",
+};
+async function spaYolSayfasi(res, yol, rota, arama) {
+  try {
+    let html = await readFile(join(WEB_DIR, "index.html"), "utf-8");
+    // tx=SALE yalniz misafir talep formunda anlamli; digerlerinde rota sade kalir.
+    const tamRota = rota === "talep-birak" && arama && /tx=SALE/.test(arama) ? `${rota}?tx=SALE` : rota;
+    html = html.replace(
+      '<link rel="canonical" href="https://konuttalebi.com/" />',
+      `<link rel="canonical" href="https://konuttalebi.com${yol}" />`
+    ).replace(
+      '<meta name="robots" content="index, follow" />',
+      '<meta name="robots" content="noindex, follow" />'
+    ).replace(
+      '<script src="./app.js"></script>',
+      `<script>window.KT_PATH_ROTA=${JSON.stringify(tamRota)};</script>\n    <script src="./app.js"></script>`
+    );
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+    return res.end(html);
+  } catch { return notFoundPage(res); }
+}
+
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (tryCityPage(req, res, p)) return;
   if (p === "/emlak-danismanlari-icin" || p === "/emlak-danismanlari-icin/") return danismanPage(res);
+  {
+    const kisa = p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+    if (SPA_YOLLARI[kisa]) return spaYolSayfasi(res, kisa, SPA_YOLLARI[kisa], url.search);
+  }
   if (p === "/") p = "/index.html";
   else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
   else if (p === "/ev-almak-isteyen") p = "/ev-almak-isteyen.html";

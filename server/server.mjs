@@ -265,7 +265,7 @@ function epostaDogrulamaBaslat(userId, email, isim) {
       `Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.`].join("\n\n"),
     "", null, userId);
   // Butonun dogru adrese gitmesi icin baglantiyi HTML icinde degistiriyoruz.
-  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#d6a94a)/, `href="${link}"$1`);
+  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#4f46e5)/, `href="${link}"$1`);
   Promise.resolve()
     .then(() => deliverEmail(userId, email, isim, "Konuttalebi — E-postanı doğrula", htmlLinkli, "E-posta doğrulama"))
     .catch((e) => console.error("[mail] eposta dogrulama gonderilemedi:", e && e.message));
@@ -296,7 +296,7 @@ function epostaHatirlatmaGonder(u) {
       `Doğrulama bağlantın yaklaşık ${kalanSaat} saat sonra geçersiz olacak. Aşağıdaki butona tıklaman yeterli.`,
       "Doğrulamadığında talep ve tekliflerinle ilgili bildirimleri kaçırabilirsin."
     ].join("\n\n"), "", null, u.id);
-  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#d6a94a)/, `href="${link}"$1`);
+  const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#4f46e5)/, `href="${link}"$1`);
   addAudit(u.id, "EMAIL_VERIFY_REMINDER", "User", u.id, `${kalanSaat} saat kala hatırlatma gönderildi.`);
   return deliverEmail(u.id, u.email, u.name, "Konuttalebi — E-postanı doğrulamayı unutma", htmlLinkli, "E-posta doğrulama hatırlatması");
 }
@@ -577,7 +577,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
   const ad = toName ? escapeHtmlSrv(String(toName).split(" ")[0]) : "";
   const konum = [d.city, d.district].filter(Boolean).join(" / ") || "Belirtilmedi";
   const butce = `${paraTR(d.minBudget)} – ${paraTR(d.maxBudget)}${kira ? " / ay" : ""}`;
-  const tur = `${d.roomCount || ""} ${kira ? "kiralık" : "satılık"} ${String(d.propertyType || "konut").toLowerCase()}`.trim();
+  const tur = `${d.roomCount || ""} ${kira ? "kiralık" : "satın alınacak"} ${String(d.propertyType || "konut").toLowerCase()}`.trim();
   const panelUrl = `${APP_URL()}/#/dashboard/alici/taleplerim`;
   const yardimUrl = `${APP_URL()}/#/yardim`;
 
@@ -613,13 +613,13 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
 
   return `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10243a">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:28px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
 
-        <tr><td style="background:#10243a;padding:30px 26px;text-align:center">
-          <div style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.6px;margin-bottom:10px">KONUTTALEBİ</div>
+        <tr><td style="background:#ffffff;padding:24px 26px 18px;text-align:left;border-bottom:1px solid #e2e8f0">
+          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px">Konuttalebi</div>
           <div style="font-size:36px;line-height:1;margin-bottom:10px">&#127881;</div>
           <div style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-.3px">Talebin yayında</div>
           <div style="color:#a8bcd0;font-size:14px;margin-top:6px">Artık teklifler sana gelecek</div>
@@ -643,7 +643,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
           ${kutu}
 
           <div style="text-align:center;margin:22px 0 6px">
-            <a href="${panelUrl}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:14px 30px;border-radius:10px">Talebimi görüntüle</a>
+            <a href="${panelUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px">Talebimi görüntüle</a>
           </div>
 
           <div style="border-top:1px solid #e8edf3;margin-top:24px;padding-top:20px">
@@ -807,9 +807,9 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
           </div>
           ${afterCta}
         </td></tr>
-        <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
-          <p style="margin:0 0 8px;color:#10243a;font-weight:700;font-size:13px">Konuttalebi<br>
-            <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
+        <tr><td style="background:#f8fafc;padding:18px 26px;font-size:12px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0">
+          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">Konuttalebi Ekibi<br>
+            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;Sen aramazsın, teklifler sana gelir.&rdquo;</span></p>
           <a href="${APP_URL()}/#/yardim" style="color:#41556d">Yardım</a> ·
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
           ${unsubUserId ? `<br><br>Bu tür bildirimleri almak istemiyorsan
@@ -821,6 +821,7 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
   </table>
 </body></html>`;
 }
+
 
 async function deliverEmail(userId, toEmail, toName, subject, html, reason, unsubUserId) {
   const key = (process.env.RESEND_API_KEY || "").trim();
@@ -2236,57 +2237,8 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   }
 
   // --- ilan olustur (2.0'da KAPALI - ulasilmaz, tarihce icin duruyor) ---
-  if (seg[0] === "properties" && method === "POST") {
-    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı ilan ekleyebilir.");
-    if (requirePhone(res, user)) return;
-    const id = uid("p");
-    const p = {
-      id, sellerId: user.id, title: (body.title || "").trim(), city: body.city || "İstanbul",
-      district: (body.district || "").trim(), neighborhood: (body.neighborhood || "").trim(),
-      propertyType: body.propertyType || "Daire", roomCount: body.roomCount || "2+1",
-      grossSqm: +body.grossSqm || 0, netSqm: +body.netSqm || 0, buildingAge: body.buildingAge || "0-5",
-      floor: body.floor || "", totalFloors: +body.totalFloors || 0, heatingType: body.heatingType || "Kombi",
-      bathroomCount: +body.bathroomCount || 1, hasBalcony: body.hasBalcony ? 1 : 0, hasParking: body.hasParking ? 1 : 0,
-      hasElevator: body.hasElevator ? 1 : 0, inComplex: body.inComplex ? 1 : 0, dues: +body.dues || 0,
-      occupancyStatus: body.occupancyStatus || "Boş", deedStatus: body.deedStatus || "Kat mülkiyeti",
-      creditEligible: body.creditEligible ? 1 : 0, exchangePossible: body.exchangePossible ? 1 : 0,
-      price: +body.price || 0, negotiable: body.negotiable ? 1 : 0, description: (body.description || "").trim(),
-      photoClass: body.photoClass || "apartment",
-      transactionType: body.transactionType === "RENT" ? "RENT" : "SALE",
-      depositAmount: +body.depositAmount || 0, furnished: body.furnished ? 1 : 0,
-      interiorFeatures: JSON.stringify(Array.isArray(body.interiorFeatures) ? body.interiorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
-      exteriorFeatures: JSON.stringify(Array.isArray(body.exteriorFeatures) ? body.exteriorFeatures.slice(0, 40).map((x) => String(x).slice(0, 40)) : []),
-      mainCategory: MAIN_CATS.includes(body.mainCategory) ? body.mainCategory : "Konut"
-    };
-    if (!p.title || !p.price || p.description.length < 15) return err(res, 400, "Başlık, fiyat ve en az 15 karakter açıklama gerekli.");
-    const pImage = cleanImage(body.imageData);
-    db.prepare("INSERT INTO properties (id,sellerId,title,city,district,neighborhood,propertyType,roomCount,grossSqm,netSqm,buildingAge,floor,totalFloors,heatingType,bathroomCount,hasBalcony,hasParking,hasElevator,inComplex,dues,occupancyStatus,deedStatus,creditEligible,exchangePossible,price,negotiable,description,status,photoClass,imageData,transactionType,depositAmount,furnished,interiorFeatures,exteriorFeatures,mainCategory,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(p.id, p.sellerId, p.title, p.city, p.district, p.neighborhood, p.propertyType, p.roomCount, p.grossSqm, p.netSqm, p.buildingAge, p.floor, p.totalFloors, p.heatingType, p.bathroomCount, p.hasBalcony, p.hasParking, p.hasElevator, p.inComplex, p.dues, p.occupancyStatus, p.deedStatus, p.creditEligible, p.exchangePossible, p.price, p.negotiable, p.description, "ACTIVE", p.photoClass, pImage, p.transactionType, p.depositAmount, p.furnished, p.interiorFeatures, p.exteriorFeatures, p.mainCategory, today());
-    const demands = db.prepare("SELECT * FROM demands WHERE status='ACTIVE'").all();
-    const seen = new Set();
-    let matchCount = 0;
-    for (const d of demands) {
-      const loc = locationNotifyMatch(d, p);       // "mahalle"/"ilce"/"il"/null (konum+butce)
-      if (calculateMatchScore(d, p) >= 70 || loc) {
-        matchCount++;
-        if (!seen.has(d.buyerId)) {
-          seen.add(d.buyerId);
-          const where = loc ? locationLabel(p, loc) : "";
-          const body = where
-            ? `${p.title} — ${where} konumundaki talebinize uyuyor.`
-            : `${p.title} talebinize uyuyor.`;
-          notify(d.buyerId, "NEW_MATCHABLE_PROPERTY", "Talebinize uygun yeni ev", body, "dashboard/alici/teklifler");
-          queueDigest(d.buyerId, "property", "Talebine uygun yeni ev", body, "dashboard/alici/teklifler");
-        }
-      }
-    }
-    if (matchCount > 0) {
-      notify(p.sellerId, "MATCH_FOUND", "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} ${p.transactionType === "RENT" ? "kiracı" : "alıcı"} talebi var. Uygun talepleri görüp özel teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri");
-      queueDigest(p.sellerId, "match", "İlanına uygun talep bulundu", `İlanına uygun ${matchCount} talep bulundu; görüp teklif gönderebilirsin.`, "dashboard/satici/alici-talepleri");
-    }
-    addAudit(user.id, "PROPERTY_CREATED", "Property", id, p.title);
-    return ok(res, { id });
-  }
+// [Faz 5] POST /properties (eski) govdesi silindi - 2.0 sonrasi 410 donen uc.
+
 
   // --- teklif gonder ---
   if (seg[0] === "offers" && method === "POST" && seg.length === 1) {

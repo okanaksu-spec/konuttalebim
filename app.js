@@ -3567,7 +3567,7 @@ function publicDemandCard(d) {
   const rent = d.transactionType === "RENT";
   const loc = [d.city, d.district].filter(Boolean).join(", ") || "Konum belirtilmedi";
   const budget = (d.minBudget || d.maxBudget)
-    ? `${shortMoney(d.minBudget)} – ${shortMoney(d.maxBudget)}${rent ? " ₺/ay" : " ₺"}`
+    ? `${shortMoney(d.minBudget)} – ${shortMoney(d.maxBudget)}${rent ? " / ay" : ""}`
     : "Bütçe belirtilmedi";
   const sqm = (d.minSqm || d.maxSqm) ? `${d.minSqm || "?"}–${d.maxSqm || "?"} m²` : "";
   return `

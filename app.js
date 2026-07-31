@@ -5113,8 +5113,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Cozum: hash'i veri cekmeden ONCE ve history.replaceState ile ayarla.
   // replaceState hashchange TETIKLEMEZ; "location.hash = ..." tetikler.
   if (!location.hash) {
-    try { history.replaceState(null, "", `${location.pathname}${location.search}#/home`); }
-    catch { location.hash = "/home"; }   // cok eski tarayici: eski davranisa dus
+    // Gercek adresle gelindiyse (ornegin /fiyatlandirma) sunucu window.KT_PATH_ROTA
+    // enjekte eder; SPA o rotayi acar. Adres cubugunda yol oldugu gibi kalir —
+    // replaceState hashchange tetiklemez, mukerrer yukleme olmaz. KUYRUK #26.
+    const yolRota = typeof window.KT_PATH_ROTA === "string" && window.KT_PATH_ROTA ? window.KT_PATH_ROTA : "home";
+    try { history.replaceState(null, "", `${location.pathname}${location.search}#/${yolRota}`); }
+    catch { location.hash = "/" + yolRota; }   // cok eski tarayici: eski davranisa dus
   }
   await refreshState();
   render();

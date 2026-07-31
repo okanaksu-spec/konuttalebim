@@ -232,6 +232,7 @@ const CONVERSIONS = {
   ilan_ekle: { label: "vR85COnH7tYcEJvXj6dE", value: 1.0, currency: "TRY" },     // İlan (ev) ekleme
   teklif_gonder: { label: "8xOrCPSGg9ccEJvXj6dE", value: 1.0, currency: "TRY" }, // Teklif gönderme
   odeme: { label: "-cS3CPeGg9ccEJvXj6dE", currency: "TRY" },                     // Ödeme (deger islemden gelir)
+  iletisim_acildi: { label: "hbiFCK3tr9kcEJvXj6dE", value: 1.0, currency: "TRY" }, // İletişim açma (S3 hedefi · KUYRUK #33)
 };
 // Reklam kaynagi: ilk gelisteki gclid/utm parametrelerini sakla (30 gun).
 const ATTR_KEY = "kt-attribution-v1";
@@ -865,7 +866,7 @@ function homePage() {
           <p>Konuttalebi'nde belge istenmez. Bütçe/kira aralığını ve tercihlerini beyan edersin; sistem seni uygun konutlarla eşleştirir. Üyelikle mülk sahibinin iletişim bilgisine ulaşır, fiyata ve pazarlığa karışmadan doğrudan anlaşırsın.</p>
           <div class="color-chip-row">
             <span class="color-chip chip-coral">Talep beyanı</span>
-            <span class="color-chip chip-teal">Talebe özel eşleşme</span>
+            <span class="color-chip chip-teal">Talebe özel bildirim</span>
             <span class="color-chip chip-blue">Doğrudan iletişim</span>
           </div>
         </div>
@@ -1440,7 +1441,7 @@ function guestDemandStep1() {
           <a class="btn btn-outline" href="#/giris">Zaten üyeyim</a>
         </div>
         <p class="muted full" style="font-size:13px;margin:0">
-          Kiracı için tamamen ücretsiz. Komisyon yok. İletişim bilgin, sen onaylamadan kimseye gösterilmez.
+          ${misafirTx() === "SALE" ? "Alıcı" : "Kiracı"} için tamamen ücretsiz. Komisyon yok. İletişim bilgin, sen onaylamadan kimseye gösterilmez.
         </p>
       </form>
     </div>`);
@@ -1582,7 +1583,7 @@ function phoneVerifyPage() {
       </div>
       <aside class="auth-side">
         <span class="badge badge-blue">${icon("shield", 13)} Neden isteniyor?</span>
-        <h3>Gerçek kişilerle eşleşmen için</h3>
+        <h3>Gerçek kişilerle güvenle görüşmen için</h3>
         <ol style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:12px">
           <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">1</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Sahte üyelik ve boş arama trafiği azalır.</span></li>
           <li style="display:flex;gap:10px;align-items:flex-start"><span style="flex:0 0 26px;height:26px;border-radius:8px;background:var(--navy,#10243a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">2</span><span style="color:#33475b;font-size:14.5px;line-height:1.45">Karşı taraf gerçek biriyle konuştuğunu bilir.</span></li>
@@ -3097,7 +3098,7 @@ function adminDemands() {
 
 function notificationsPage(userId) {
   const rows = state.notifications.filter((notification) => notification.userId === userId);
-  return `${pageHead("Bildirimler", "Teklif, eşleşme ve bütçe beyanı güncellemeleri.")}<div class="list">${rows.map((n) => `<article class="notice"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.body)}<br><span class="muted">${n.createdAt}</span></article>`).join("") || empty("Bildirim yok", "Yeni gelişmeler burada görünür.")}</div>`;
+  return `${pageHead("Bildirimler", "Talep ve iletişim güncellemeleri.")}<div class="list">${rows.map((n) => `<article class="notice"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.body)}<br><span class="muted">${n.createdAt}</span></article>`).join("") || empty("Bildirim yok", "Yeni gelişmeler burada görünür.")}</div>`;
 }
 
 function settingsPage(user) {
@@ -3139,7 +3140,7 @@ function settingsPage(user) {
       <div class="check-grid">
         <label class="check">
           <input id="n-match" type="checkbox" ${user.notifyMatch === 0 ? "" : "checked"}>
-          <span><strong>Eşleşme ve iletişim e-postaları</strong><br>
+          <span><strong>Talep ve iletişim e-postaları</strong><br>
           <span class="muted" style="font-size:13px">Teklif geldiğinde, eşleştiğinde ve iletişim bilgileri açıldığında anında haber veririz. Kapatırsan gelişmeleri yalnızca panelden takip edersin.</span></span>
         </label>
         <label class="check">
@@ -3462,7 +3463,7 @@ function emailRow(email) {
         <div class="row-title">${escapeHtml(email.subject)}</div>
         <div class="row-meta">${escapeHtml(email.toName)} · ${escapeHtml(email.toEmail)} · ${escapeHtml(email.createdAt)}</div>
         <p class="row-note">${escapeHtml(email.body)}</p>
-        <p class="helper" style="margin-top:6px">${escapeHtml(email.reason || "Otomatik eşleşme bildirimi")}</p>
+        <p class="helper" style="margin-top:6px">${escapeHtml(email.reason || "Otomatik bildirim")}</p>
       </div>
       <div class="row-side"><span class="badge badge-green">${statusLabel(email.status)}</span><span class="pill">${escapeHtml(email.actionUrl || "-")}</span></div>
     </article>
@@ -3480,7 +3481,7 @@ function statusLabel(status) {
     INTERESTED: "Alıcı ilgileniyor",
     INFO_REQUESTED: "Bilgi istendi",
     DECLINED: "Uygun bulunmadı",
-    MATCHED: "Eşleşme başladı",
+    MATCHED: "İletişim açıldı",
     CONTACT_UNLOCKED: "İletişim açıldı",
     WAITING_BUYER_APPROVAL: "Alıcı onayı bekleniyor",
     WAITING_SELLER_APPROVAL: "Satıcı onayı bekleniyor",
@@ -3502,11 +3503,11 @@ function statusLabel(status) {
 
 // Rotaya gore tarayici sekme basligi. Tek sayfa uygulama oldugu icin elle guncelliyoruz.
 const PAGE_TITLES = {
-  "": "Talebini Bırak, Ev Sahipleri Seni Bulsun",
+  "": "Talebini Bırak, Seni Bulsunlar",
   // AJANS onaylı title (SAYFA HARİTASI 1. satır). index.html'deki <title> ile
   // AYNI olmalı — burada farklı yazılırsa tarayıcı sekmesi Google'ın gördüğünden
   // başka bir başlık gösterir.
-  home: "Talebini Bırak, Ev Sahipleri Seni Bulsun",
+  home: "Talebini Bırak, Seni Bulsunlar",
   ilanlar: "Talepler",
   talepler: "Talepler",
   ara: "Konut ara",
@@ -3541,6 +3542,8 @@ function updatePageTitle(path) {
   } else {
     const key = path.split("/")[0].split("?")[0];
     suffix = PAGE_TITLES[key] !== undefined ? PAGE_TITLES[key] : PAGE_TITLES.home;
+    // Alici modu (?tx=SALE): GA4/Ads trafiginde kiraci-alici ayrimi icin ayri baslik.
+    if (key === "talep-birak" && /tx=SALE/.test(location.hash)) suffix = "Konut satın alma talebi oluştur";
   }
   document.title = suffix ? `${base} | ${suffix}` : base;
   // Reklam inis sayfasi arama sonuclarina girmesin. Hash rotasi oldugu icin

@@ -205,6 +205,17 @@ const ISYERI_KULLANIM = ["Boş", "Kiracılı", "Sahibi kullanıyor"];
 // sehir sayfalarinin tamami kiraci tarafina odakli. Kenar cubugunda da Kiralik
 // once duruyor; varsayilan Satilik kalirsa ilk gorunen sekme ile secili sekme
 // birbirini tutmuyor.
+// =====================================================================
+// MARKA SABITLERI — MASTER (Okan). Logo alti slogan ve marka adi TEK yerden
+// yonetilir; degisiklik Okan onayi ile buradan yapilir ve siteye yansir.
+// (E-posta ve SEO sayfalari icin es degerleri server/server.mjs + seo-pages.mjs
+// icindeki MARKA sabitlerindedir - uc dosya birlikte guncellenir.)
+const MARKA = {
+  ad: "Konuttalebi",
+  slogan: "Talep ve Teklif",                          // logo alti (MASTER, 31 Tem)
+  epostaSlogan: "Sen aramazsın, teklifler sana gelir.", // e-posta imzasi (MASTER, 31 Tem)
+};
+
 let searchState = { tx: "RENT", mainCategory: "", subCategory: "", city: "", cityName: "", district: "", neighborhood: "", minPrice: "", maxPrice: "", sort: "new" };
 let _searchItems = [];
 
@@ -677,7 +688,7 @@ function header() {
       <div class="topbar-inner">
         <a class="brand" href="#/home" aria-label="Konuttalebi ana sayfa">
           <span class="brand-mark">${icon("key", 19)}</span>
-          <span class="brand-text"><strong>Konuttalebi</strong></span>
+          <span class="brand-text"><strong>${MARKA.ad}</strong><span>${MARKA.slogan}</span></span>
         </a>
         <nav class="nav" id="site-nav" aria-label="Ana menü">
           ${publicLinks.map(([path, label]) => `<a class="${active === path ? "active" : ""}" href="#/${path}">${label}</a>`).join("")}
@@ -713,7 +724,7 @@ function footer() {
         <div>
           <a class="brand" href="#/home">
             <span class="brand-mark">${icon("key", 18)}</span>
-            <span class="brand-text"><strong style="color:#fff">Konuttalebi</strong><span>Güvenli eşleşme</span></span>
+            <span class="brand-text"><strong style="color:#fff">${MARKA.ad}</strong><span>${MARKA.slogan}</span></span>
           </a>
           <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
         </div>

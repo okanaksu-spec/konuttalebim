@@ -652,9 +652,9 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
           </div>
         </td></tr>
 
-        <tr><td style="background:#f7f9fc;padding:18px 26px;font-size:12px;line-height:1.6;color:#7d8ea1">
-          <p style="margin:0 0 8px;color:#10243a;font-weight:700;font-size:13px">Konuttalebi<br>
-            <span style="color:#b08a35;font-weight:700">Sen aramazsın, teklifler sana gelir!</span></p>
+        <tr><td style="background:#f8fafc;padding:18px 26px;font-size:12px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0">
+          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">Konuttalebi Ekibi<br>
+            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;Sen aramazsın, teklifler sana gelir.&rdquo;</span></p>
           <a href="${panelUrl}" style="color:#41556d">Talebimi düzenle</a> ·
           <a href="${yardimUrl}" style="color:#41556d">Yardım</a> ·
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
@@ -778,7 +778,8 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
   const emoji = mailEmojisi(title);
   const clean = String(actionUrl || "").replace(/^#?\/*/, "");
   const link = clean ? `${APP_URL()}/#/${clean}` : APP_URL();
-  const label = clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ne git";
+  const label = /yenile|süre/i.test(String(title)) ? "Talebimi Yenile"
+    : clean.startsWith("dashboard") ? "Panelime Git" : "Konuttalebi'ne git";
   const merhaba = toName ? `Merhaba ${escapeHtmlSrv(String(toName).split(" ")[0])},` : "Merhaba,";
   // Bos satirla ayrilmis metni paragraflara cevir.
   const paragraphs = String(body || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
@@ -786,23 +787,23 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
   // closing verilirse butonun altinda o gorunur; yoksa standart gizlilik notu.
   const afterCta = closing
     ? `<p style="margin:22px 0 0;font-size:14px;line-height:1.7;color:#41556d">${escapeHtmlSrv(closing)}</p>`
-    : `<p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#7d8ea1">İletişim bilgileri yalnızca üyelikle ve karşı tarafın rızasıyla paylaşılır. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>`;
+    : `<p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#94a3b8">İletişim bilgin yalnızca ücretli üyeler ve onaylı danışmanlarca görüntülenir; her görüntülemede sana haber veririz. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>`;
   return `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10243a">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:28px 12px">
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:28px 12px">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
-        <tr><td style="background:#10243a;padding:30px 26px;text-align:center">
-          <div style="color:#d6a94a;font-size:11px;font-weight:700;letter-spacing:1.6px;margin-bottom:10px">KONUTTALEBİ</div>
-          ${emoji ? `<div style="font-size:36px;line-height:1;margin-bottom:10px">${emoji}</div>` : ""}
-          <div style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-.3px;line-height:1.3">${escapeHtmlSrv(title)}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
+        <tr><td style="background:#ffffff;padding:24px 26px 18px;text-align:left;border-bottom:1px solid #e2e8f0">
+          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px">Konuttalebi</div>
+          ${emoji ? `<div style="font-size:32px;line-height:1;margin-bottom:8px">${emoji}</div>` : ""}
+          <div style="color:#020617;font-size:21px;font-weight:700;letter-spacing:-.3px;line-height:1.3">${escapeHtmlSrv(title)}</div>
         </td></tr>
         <tr><td style="padding:26px">
           <p style="margin:0 0 14px;font-size:15px;color:#41556d">${merhaba}</p>
           ${paragraphs}
           <div style="text-align:center;margin:20px 0 4px">
-            <a href="${link}" style="display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;font-size:15px;padding:14px 30px;border-radius:10px">${label}</a>
+            <a href="${link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 28px;border-radius:8px">${label}</a>
           </div>
           ${afterCta}
         </td></tr>
@@ -1281,10 +1282,9 @@ function dogumGunuTaramasi() {
     if (son.slice(0, 4) === yil) continue;     // bu yil zaten kutlandi
     if (!mailIzniVar(u.id, "match")) continue; // bildirim tercihi kapaliysa gitmez
     db.prepare("UPDATE users SET birthdayMailedAt=? WHERE id=?").run(bugun, u.id);
-    const ad = (u.name || "").split(" ")[0] || "";
-    queueEmail(u.id, `İyi ki doğdun${ad ? ", " + ad : ""}! 🎂`,
-      `Bugün senin günün — doğum gününü içtenlikle kutlarız. Yeni yaşının sağlık, huzur ve güzel haberlerle geçmesini dileriz. Umarız bu yıl aradığın eve de kavuşursun; biz buradayız, talebini her an tazeleyebilirsin.`,
-      "dashboard", "Doğum günü kutlaması", "Nice mutlu yıllara — Konuttalebi ekibi", "match");
+    queueEmail(u.id, `Mutlu Yıllar 🎂`,
+      `Bugün senin günün. Doğum gününü içtenlikle kutluyor; yeni yaşının sağlık, mutluluk, huzur ve güzel gelişmelerle dolu olmasını diliyoruz.\n\nKonuttalebi olarak, yeni yaşında aradığın eve kavuşma yolculuğunda da yanındayız. Nice mutlu yaşlara!`,
+      "dashboard", "Doğum günü kutlaması", "", "match");
     n++;
   }
   if (n) console.log(`[mail] dogum gunu kutlamasi gonderildi: ${n} uye`);

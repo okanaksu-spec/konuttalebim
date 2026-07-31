@@ -600,26 +600,8 @@ function calculateMatchScore(demand, property) {
   return { score: Math.min(100, score), reasons, warnings };
 }
 
-function maskSensitiveInfo(text) {
-  let maskedText = text;
-  const detectedTypes = [];
-  const patterns = [
-    { type: "telefon", regex: /(\+?90\s*)?0?\s?5\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}/gi },
-    { type: "e-posta", regex: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi },
-    { type: "whatsapp", regex: /whats\s?app|wpden|wp'den|watsap|watsapp/gi },
-    { type: "instagram", regex: /(?:instagram|insta|ig)\s*[:@]?\s*[a-z0-9._]+|@[a-z0-9._]{3,}/gi },
-    { type: "url", regex: /(https?:\/\/|www\.)\S+/gi },
-    { type: "iban", regex: /TR\s?\d{2}\s?(\d{4}\s?){5}\d{2}/gi },
-    { type: "açık adres", regex: /\b(mahalle|mah\.|sokak|sok\.|cadde|cad\.|no:?\s?\d+|daire:?\s?\d+)\b.*\d+/gi }
-  ];
-  patterns.forEach((pattern) => {
-    if (pattern.regex.test(maskedText)) {
-      detectedTypes.push(pattern.type);
-      maskedText = maskedText.replace(pattern.regex, "[iletişim bilgisi gizlendi]");
-    }
-  });
-  return { maskedText, containsSensitiveInfo: detectedTypes.length > 0, detectedTypes };
-}
+// [Faz 5] maskSensitiveInfo silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function createNotification(userId, type, title, body, actionUrl) {
   state.notifications.unshift({ id: nextId("notification"), userId, type, title, body, actionUrl, readAt: null, createdAt: today() });
@@ -653,59 +635,17 @@ function uniqueByUser(matches) {
   });
 }
 
-function matchingPropertiesForDemand(demand, threshold = 70) {
-  return state.properties
-    .filter((property) => property.status === "ACTIVE")
-    .map((property) => ({ property, score: calculateMatchScore(demand, property).score, userId: property.sellerId }))
-    .filter((item) => item.score >= threshold)
-    .sort((a, b) => b.score - a.score);
-}
+// [Faz 5] matchingPropertiesForDemand silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function matchingDemandsForProperty(property, threshold = 70) {
-  return state.demands
-    .filter((demand) => demand.status === "ACTIVE")
-    .map((demand) => ({ demand, score: calculateMatchScore(demand, property).score, userId: demand.buyerId }))
-    .filter((item) => item.score >= threshold)
-    .sort((a, b) => b.score - a.score);
-}
 
-function notifySellersForDemand(demand) {
-  const matches = uniqueByUser(matchingPropertiesForDemand(demand).map((item) => ({
-    userId: item.property.sellerId,
-    property: item.property,
-    score: item.score
-  })));
-  matches.forEach((item) => {
-    createNotification(item.userId, "NEW_MATCHING_DEMAND", "Evinize uygun yeni alıcı talebi", `${demand.title} talebi ${item.property.title} ile ${item.score}/100 uyumlu görünüyor.`, "dashboard/satici/talepler");
-    queueEmail(
-      item.userId,
-      "Evinize uygun yeni alıcı talebi var",
-      `${demand.city}/${demand.district} bölgesinde ${shortMoney(demand.minBudget)}-${shortMoney(demand.maxBudget)} bütçeli yeni bir alıcı talebi var. ${item.property.title} ile uyum puanı: ${item.score}/100.`,
-      "dashboard/satici/talepler",
-      "Kriterine uyan yeni talep"
-    );
-  });
-  return matches.length;
-}
+// [Faz 5] matchingDemandsForProperty silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function notifyBuyersForProperty(property) {
-  const matches = uniqueByUser(matchingDemandsForProperty(property).map((item) => ({
-    userId: item.demand.buyerId,
-    demand: item.demand,
-    score: item.score
-  })));
-  matches.forEach((item) => {
-    createNotification(item.userId, "NEW_MATCHING_PROPERTY", "Talebinize uygun yeni ev", `${property.title} talebinizle ${item.score}/100 uyumlu görünüyor.`, "dashboard/alici/teklifler");
-    queueEmail(
-      item.userId,
-      "Talebinize uygun yeni ev eklendi",
-      `${property.city}/${property.district} bölgesinde ${money(property.price)} fiyatlı yeni bir ev eklendi. ${item.demand.title} talebinizle uyum puanı: ${item.score}/100.`,
-      "dashboard/alici/teklifler",
-      "Talep kriter eşleşmesi"
-    );
-  });
-  return matches.length;
-}
+
+// [Faz 5] notifySellersForDemand silindi - 2.0 sonrasi erisilemeyen eski akis.
+
+
+// [Faz 5] notifyBuyersForProperty silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function addAudit(action, entityType, entityId, metadata) {
   state.auditLogs.unshift({ id: nextId("audit"), actorId: currentUser().id, action, entityType, entityId, metadata, createdAt: today() });
@@ -1120,29 +1060,8 @@ function demandCard(demand, options = {}) {
   `;
 }
 
-function propertyOfferSample(property, demand, profile) {
-  const match = calculateMatchScore(demand, property);
-  return `
-    <article class="sample-card">
-      <div class="photo ${property.photoClass || ""}"></div>
-      <div class="sample-top">
-        <span class="badge badge-blue">${match.score}/100 uyum</span>
-        <span class="badge ${badgeForProfile(profile)}">${escapeHtml(profile.verificationLevel)}</span>
-      </div>
-      <div>
-        <h3>${escapeHtml(property.title)}</h3>
-        <p class="muted">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2</p>
-      </div>
-      <div class="pill-row">
-        <span class="pill">${money(property.price)}</span>
-        <span class="pill">${property.creditEligible ? "Krediye uygun" : "Krediye uygun değil"}</span>
-        <span class="pill">${property.negotiable ? "Pazarlığa açık" : "Net fiyat"}</span>
-      </div>
-      <p class="row-note">${escapeHtml(property.description)}</p>
-      ${propertyExtraPills(property)}
-    </article>
-  `;
-}
+// [Faz 5] propertyOfferSample silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function registerFlowInfo(sel) {
   // 2.0: sitede ilan yok; uyelerin isi talep havuzunu izlemek ve iletisim acmak.
@@ -2339,58 +2258,11 @@ function buyerDemandForm() {
   `;
 }
 
-function buyerOffers() {
-  const user = currentUser();
-  const offers = state.offers.filter((offer) => offer.buyerId === user.id);
-  return `
-    ${pageHead("Gelen Teklifler", "Satıcıların taleplerine özel gönderdiği teklif kartları.")}
-    <div class="toolbar">
-      <select onchange="KT.filterOffers(this.value)">
-        <option value="all">Tüm teklifler</option>
-        <option value="budget">Bütçeme uygun</option>
-        <option value="new">Yeni teklifler</option>
-        <option value="credit">Krediye uygun</option>
-      </select>
-      <span class="pill">${offers.length} teklif</span>
-    </div>
-    <div class="list" id="offer-list">${offers.map((offer) => offerRow(offer, "buyer")).join("") || empty("Henüz teklif almadın", "Talebine daha fazla detay ekleyerek satıcıların ilgisini artırabilirsin.")}</div>
-  `;
-}
+// [Faz 5] buyerOffers silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function buyerOfferDetail(id) {
-  const offer = offerById(id);
-  if (!offer) return empty("Teklif bulunamadı", "Bu teklif silinmiş veya sana ait değil.");
-  const property = propertyById(offer.propertyId);
-  const demand = demandById(offer.demandId);
-  const match = calculateMatchScore(demand, property);
-  return `
-    ${pageHead("Teklif Detayı", "Ev bilgilerini incele ve teklife yanıt ver. İlgilenirsen eşleşirsiniz; iletişim bilgisi üyelikle açılır.", `<a class="btn btn-outline" href="#/dashboard/alici/teklifler">Tüm tekliflere dön</a>`)}
-    <article class="panel">
-      <div class="grid grid-2">
-        <div class="photo ${property.photoClass || ""}" style="min-height:320px"></div>
-        <div>
-          <span class="badge badge-blue">${match.score}/100 uyum</span>
-          <h2 style="font-size:34px;margin-top:12px">${escapeHtml(property.title)}</h2>
-          <p class="lead">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2</p>
-          <div class="pill-row" style="margin-top:16px">
-            <span class="pill">${money(offer.price)}</span>
-            <span class="pill">${property.floor}</span>
-            <span class="pill">Aidat ${money(property.dues)}</span>
-            <span class="pill">${property.creditEligible ? "Krediye uygun" : "Krediye uygun değil"}</span>
-            <span class="pill">${property.negotiable ? "Pazarlığa açık" : "Net fiyat"}</span>
-          </div>
-          <p class="row-note" style="margin-top:16px">${escapeHtml(offer.message)}</p>
-          <div class="notice" style="margin-top:16px"><strong>Tam adres gizli.</strong> İlgilendiğinde eşleşme oluşur; iletişim bilgisi bilgileri görme üyeliğinle açılır.</div>
-          <div class="form-actions">
-            <button class="btn btn-primary" onclick="KT.respondOffer('${offer.id}','INTERESTED')">${icon("check", 16)} İlgileniyorum</button>
-            <button class="btn btn-outline" onclick="KT.respondOffer('${offer.id}','INFO_REQUESTED')">Daha fazla bilgi iste</button>
-            <button class="btn btn-ghost" onclick="KT.respondOffer('${offer.id}','DECLINED')">Uygun değil</button>
-          </div>
-        </div>
-      </div>
-    </article>
-  `;
-}
+
+// [Faz 5] buyerOfferDetail silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function renderSeller(path) {
   const role = state.currentRole === "agent" ? "agent" : "seller";
@@ -2485,64 +2357,11 @@ function sellerOverview() {
   `;
 }
 
-function sellerProperties() {
-  const user = currentUser();
-  const properties = state.properties.filter((property) => property.sellerId === user.id).sort((a, b) => Number(isBoosted(b)) - Number(isBoosted(a)));
-  return `
-    ${pageHead("Evlerim", "Portföyündeki evleri ve uygun alıcı sayılarını takip et.", `<a class="btn btn-primary" href="#/dashboard/satici/ev-ekle">${icon("send", 16)} Yeni ev ekle</a>`)}
-    <div class="list">${properties.map(propertyRow).join("") || empty("Henüz ev eklemedin", "Evini ekleyerek uygun alıcı taleplerini görebilirsin.")}</div>
-  `;
-}
+// [Faz 5] sellerProperties silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function propertyForm() {
-  const rent = uiTxMode === "RENT";
-  return `
-    ${pageHead(rent ? "Yeni Kiralık İlan" : "Yeni Ev Ekle", "İlanını portföye ekle; tam adres karşı tarafa gösterilmez.")}
-    <form class="panel" onsubmit="KT.createProperty(event)">
-      <div class="form-grid">
-        <div class="field full"><label for="p-txtype">İşlem tipi</label><select id="p-txtype" onchange="KT.setTxMode(this.value)"><option ${!rent ? "selected" : ""}>Satılık</option><option ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiraya vereceğin ilan (Kirala)." : "Satılık ilan (Sat)."}</span></div>
-        <div class="field"><label for="p-maincat">Ana kategori</label><select id="p-maincat" onchange="KT.onCategory('p')">${MAIN_CATEGORIES.map((c, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
-        <div class="field"><label for="p-type">Alt tip</label><select id="p-type">${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
-        ${field("Başlık", "p-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de yenilenmiş 3+1")}
-        ${locationFields("p", false)}
-        ${field("Oda sayısı", "p-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"], CAT_KONUT)}
-        ${field("Brüt m2", "p-gross", "number", rent ? "95" : "130")}
-        ${field("Net m2", "p-net", "number", rent ? "80" : "115")}
-        ${field("Bina yaşı", "p-age", "select", "", ["0-5", "6-10", "11-15", "16-20", "20+"], CAT_KONUT + "|" + CAT_ISYERI)}
-        ${field("Kat", "p-floor", "text", "4/8", [], CAT_KONUT + "|" + CAT_ISYERI)}
-        ${field("Banyo sayısı", "p-bathroom", "select", "", ["1", "2", "3", "4+"], CAT_KONUT)}
-        ${field("Isıtma tipi", "p-heating", "select", "", ["Kombi (Doğalgaz)", "Merkezi", "Yerden Isıtma", "Klima", "Soba", "Yok"], CAT_KONUT + "|" + CAT_ISYERI)}
-        ${field("Kullanım durumu", "p-occupancy", "select", "", ["Boş", "Kiracılı", "Sahibi kullanıyor"], CAT_KONUT + "|" + CAT_ISYERI)}
-        ${field("Aidat", "p-dues", "number", "950", [], CAT_KONUT + "|" + CAT_ISYERI)}
-        ${field(rent ? "Aylık kira" : "Fiyat beklentisi", "p-price", "number", rent ? "32000" : "6500000")}
-        ${rent ? field("Depozito", "p-deposit", "number", "32000") : ""}
-        <div class="field full" data-cats="${CAT_KONUT}"><label>Evde <strong>bulunan iç özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${IC_OZELLIKLER.map((f) => `<label class="check"><input class="p-ic" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full" data-cats="${CAT_KONUT}"><label>Evde/sitede <strong>bulunan dış özellikler</strong></label><div class="check-grid">${DIS_OZELLIKLER.map((f) => `<label class="check"><input class="p-dis" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full" data-cats="${CAT_ISYERI}" style="display:none"><label>İş yerinde <strong>bulunan özellikler</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${ISYERI_OZELLIKLER.map((f) => `<label class="check"><input class="p-isyeri" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full" data-cats="${CAT_ARSA}" style="display:none"><label>Arsa <strong>özellikleri</strong> <span class="muted">(birden çok seçebilirsin)</span></label><div class="check-grid">${ARSA_OZELLIKLER.map((f) => `<label class="check"><input class="p-arsa" type="checkbox" value="${escapeHtml(f)}"> ${escapeHtml(f)}</label>`).join("")}</div></div>
-        <div class="field full">
-          <label>Diğer</label>
-          <div class="check-grid">
-            ${rent
-              ? `<label class="check"><input id="p-furnished" type="checkbox"> Eşyalı</label>`
-              : `<label class="check"><input id="p-credit" type="checkbox" checked> Krediye uygun</label>`}
-            <label class="check"><input id="p-negotiable" type="checkbox" checked> Pazarlığa açık</label>
-          </div>
-        </div>
-        <div class="field full"><p class="muted" style="margin:6px 0 0;font-size:13px">${icon("shield", 13)} İletişim bilgin (telefon/e-posta) herkese kapalıdır; yalnızca eşleştiğin ve üyelik satın alan tarafa açılır. Tam adres hiçbir zaman gösterilmez.</p></div>
-        <div class="field full"><label>Açıklama</label><textarea id="p-desc" placeholder="Evin güçlü yönlerini ve tapu/kullanım durumunu yaz."></textarea></div>
-        <div class="field full">
-          <label>İlan görseli (opsiyonel)</label>
-          <input id="p-image" type="file" accept="image/*" class="file-input" onchange="KT.previewImage(event,'p-image-preview')">
-          <img id="p-image-preview" class="img-preview" alt="" style="display:none">
-          <span class="helper">Evin fotoğrafını ekleyerek ilanını öne çıkarabilirsin.</span>
-        </div>
-      </div>
-      <div id="p-error" class="error"></div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("check", 16)} ${rent ? "İlanı ekle" : "Evi ekle"}</button><a class="btn btn-outline" href="#/dashboard/satici/evlerim">Vazgeç</a></div>
-    </form>
-  `;
-}
+
+// [Faz 5] propertyForm silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 // Talep havuzu filtresi (panel ici; sayfa yenilenmeden calisir)
 let demandPoolFilter = { tx: "", city: "", touched: false };
@@ -2611,37 +2430,11 @@ function sellerDemands() {
   `;
 }
 
-function offerForm(demandId) {
-  const demand = demandById(demandId);
-  const user = currentUser();
-  const properties = state.properties.filter((p) => p.sellerId === user.id);
-  if (!demand) return empty("Talep bulunamadı", "Bu talep yayından kaldırılmış olabilir.");
-  return `
-    ${pageHead("Teklif Gönder", "Seçili alıcı talebine talebe özel teklif kartı hazırla.")}
-    <section class="panel">
-      <h3>Hedef talep</h3>
-      <div style="margin-top:12px">${demandCard(demand, { sample: true })}</div>
-    </section>
-    <form class="panel" onsubmit="KT.createOffer(event,'${demand.id}')">
-      <div class="form-grid">
-        <div class="field full"><label>Teklif edilecek ev</label><select id="o-property">${properties.map((p) => `<option value="${p.id}">${escapeHtml(p.title)} - ${money(p.price)}</option>`).join("")}</select></div>
-        ${field("Teklif fiyatı", "o-price", "number", properties[0] ? properties[0].price : 0)}
-        <div class="field full"><label>Teklif notu</label><textarea id="o-message" placeholder="Bu evi neden bu talebe uygun gördüğünü yaz."></textarea></div>
-      </div>
-      <div id="o-error" class="error"></div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">${icon("send", 16)} Teklif kartını gönder</button><a class="btn btn-outline" href="#/dashboard/satici/talepler">Vazgeç</a></div>
-    </form>
-  `;
-}
+// [Faz 5] offerForm silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function sellerOffers() {
-  const user = currentUser();
-  const offers = state.offers.filter((offer) => offer.sellerId === user.id);
-  return `
-    ${pageHead("Tekliflerim", "Gönderilen tekliflerin durumunu ve alıcı yanıtlarını takip et.")}
-    <div class="list">${offers.map((offer) => offerRow(offer, "seller")).join("") || empty("Henüz teklif göndermedin", "Alıcı talepleri ekranından ilk teklifini gönderebilirsin.")}</div>
-  `;
-}
+
+// [Faz 5] sellerOffers silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 // Faz 3: danisman kilitli mi? (belge onayi yok VE gecis suresi de gecerli degil)
 function agentKilitli(u) {
@@ -3276,116 +3069,20 @@ function adminDemands() {
   `;
 }
 
-function messagesPage(matchId, roleName) {
-  // Platform içi mesajlaşma kaldırıldı. Eşleşmeler + üyelikle iletişim ekranına yönlendirilir.
-  return matchesPage(roleName);
-}
+// [Faz 5] messagesPage silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function contactUnlockPanel(match, roleName) {
-  const membershipRole = roleName === "buyer" ? "buyer" : "seller";
-  const other = roleName === "buyer" ? userById(match.sellerId) : userById(match.buyerId);
-  const otherLabel = roleName === "buyer" ? "İlan sahibi" : "Talep sahibi";
-  const otherPossessive = roleName === "buyer" ? "İlan sahibinin" : "Talep sahibinin";
-  // Sunucu, aktif üyelik yoksa telefon/e-postayı boş döndürür.
-  const revealed = other && (other.phone || other.email);
-  if (revealed) {
-    return `
-      <div class="contact-card">
-        <strong>İletişim bilgisi açık.</strong>
-        <div style="margin-top:10px">${otherLabel}: ${escapeHtml(other.name)} · ${escapeHtml(other.phone || "-")} · ${escapeHtml(other.email || "-")}</div>
-        <p class="muted" style="margin:10px 0 0">Fiyat, pazarlık ve sözleşmeyi doğrudan kendi aranızda yürütün. Kapora ve tapu işlemlerini yalnızca resmi kanallar üzerinden yapın.</p>
-      </div>
-    `;
-  }
-  const contactPlanId = contactPlanForRole(membershipRole);
-  const contactPlan = planById(contactPlanId);
-  return `
-    <div class="unlock-panel">
-      <p class="muted">${otherPossessive} telefon ve e-postasını görmek için <strong>${escapeHtml(contactPlan?.name || "bilgileri görme üyeliği")}</strong> gerekir. Üyeliğinle bilgiyi görür, doğrudan iletişime geçersin.</p>
-      <button class="btn btn-primary" onclick="KT.mockUpgrade('${contactPlanId}', true)">${icon("card", 16)} ${escapeHtml(contactPlan?.name || "Bilgileri Gör Üyeliği")} al</button>
-    </div>
-  `;
-}
 
-function bubble(msg, userId) {
-  if (msg.senderId === "system") return `<div class="bubble system">${escapeHtml(msg.maskedBody)}</div>`;
-  return `<div class="bubble ${msg.senderId === userId ? "me" : ""}">${escapeHtml(msg.maskedBody)}${msg.containsSensitiveInfo ? `<br><span style="font-size:11px;opacity:.8">Hassas bilgi maskelendi</span>` : ""}</div>`;
-}
+// [Faz 5] contactUnlockPanel silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function matchesPage(roleName) {
-  const user = currentUser();
-  const matches = state.matches.filter((match) => roleName === "buyer" ? match.buyerId === user.id : match.sellerId === user.id);
-  return `
-    ${pageHead("Eşleşmeler", "Teklifin karşılık bulduğu eşleşmeler. İletişim bilgisini üyelikle aç, doğrudan anlaş.")}
-    <div class="list">${matches.map((match) => {
-      const offer = offerById(match.offerId);
-      const property = propertyById(offer.propertyId);
-      const other = roleName === "buyer" ? userById(match.sellerId) : userById(match.buyerId);
-      const open = other && (other.phone || other.email);
-      return `<article class="row-card" style="flex-direction:column;align-items:stretch;gap:12px">
-        <div style="display:flex;gap:12px;align-items:center">
-          <div class="thumb">${icon(open ? "key" : "lock", 24)}</div>
-          <div style="flex:1"><div class="row-title">${escapeHtml(property.title)}</div><div class="row-meta">${money(offer.price)} · ${escapeHtml(property.city || "")} ${escapeHtml(property.district || "")}</div></div>
-          <span class="badge ${open ? "badge-green" : "badge-yellow"}">${open ? "İletişim açık" : "Üyelikle açılır"}</span>
-        </div>
-        ${contactUnlockPanel(match, roleName)}
-      </article>`;
-    }).join("") || empty("Henüz eşleşme yok", "Bir teklif olumlu yanıtlandığında eşleşme burada başlar.")}</div>
-  `;
-}
 
-function budgetDeclarationPage(userId) {
-  const profile = buyerProfile(userId);
-  const userDemands = state.demands.filter((demand) => demand.buyerId === userId);
-  const primary = userDemands[0] || {};
-  const min = profile.declaredBudgetMin || primary.minBudget || 0;
-  const max = profile.declaredBudgetMax || primary.maxBudget || 0;
-  const down = profile.declaredDownPayment || primary.downPayment || 0;
-  return `
-    ${pageHead("Bütçe Beyanı", "Belge yüklemeden bütçe aralığını, peşinatını ve alım zamanını beyan et.")}
-    <section class="panel">
-      <div class="grid grid-2">
-        <div>
-          <span class="badge ${badgeForProfile(profile)}">${icon("card", 13)} ${escapeHtml(profile.verificationLevel)}</span>
-          <h3 style="margin-top:12px">Beyan görünürlüğü: ${profile.budgetTrustScore}/100</h3>
-          <p class="muted">Bu alanda belge yükleme yoktur. Üyeler yalnızca bütçe aralığını, peşinat/nakit-kredi tercihini ve talep özetini görür.</p>
-          <div class="budget-meter"><span style="width:${Math.min(100, profile.budgetTrustScore || 40)}%"></span></div>
-        </div>
-        <div class="budget-summary-card">
-          <strong>${shortMoney(min)} - ${shortMoney(max)}</strong>
-          <span>Beyan edilen bütçe aralığı</span>
-          <div class="pill-row" style="margin-top:12px">
-            <span class="pill">Peşinat: ${shortMoney(down)}</span>
-            <span class="pill">${profile.declaredCashReady ? "Nakit hazır" : "Kredi kullanabilir"}</span>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section class="panel">
-      <h3>Beyanını güncelle</h3>
-      <p class="muted" style="margin:6px 0 16px">Bu bilgiler üyelere yaklaşık bütçe niyeti olarak gösterilir; belge veya dosya istenmez.</p>
-      <div class="form-grid">
-        ${field("Minimum bütçe", "bd-min", "number", min || 3000000)}
-        ${field("Maksimum bütçe", "bd-max", "number", max || 5000000)}
-        ${field("Peşinat / hazır tutar", "bd-down", "number", down || 1000000)}
-        ${field("Alım zamanı", "bd-timeline", "select", "", ["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"])}
-        <div class="field full">
-          <label>Finansman tercihi</label>
-          <div class="check-grid">
-            <label class="check"><input id="bd-credit" type="checkbox" ${profile.declaredUsesCredit ? "checked" : ""}> Kredi kullanabilirim</label>
-            <label class="check"><input id="bd-cash" type="checkbox" ${profile.declaredCashReady ? "checked" : ""}> Nakit / hazır tutarım var</label>
-          </div>
-        </div>
-      </div>
-      <div id="bd-error" class="error"></div>
-      <div class="form-actions"><button class="btn btn-primary" onclick="KT.saveBudgetDeclaration()">${icon("check", 16)} Bütçe beyanımı kaydet</button></div>
-    </section>
-    <section class="panel">
-      <h3>Üyeye nasıl görünür?</h3>
-      <div class="list" style="margin-top:12px">${userDemands.slice(0, 2).map((demand) => demandCard(demand, { sample: true })).join("") || empty("Henüz talep yok", "Talep oluşturduğunda bütçe beyanın bu kartla birlikte görünür.")}</div>
-    </section>
-  `;
-}
+// [Faz 5] bubble silindi - 2.0 sonrasi erisilemeyen eski akis.
+
+
+// [Faz 5] matchesPage silindi - 2.0 sonrasi erisilemeyen eski akis.
+
+
+// [Faz 5] budgetDeclarationPage silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function notificationsPage(userId) {
   const rows = state.notifications.filter((notification) => notification.userId === userId);
@@ -3719,22 +3416,8 @@ function propertyExtraPills(property) {
   if (!all.length) return "";
   return `<div class="pill-row" style="margin-top:8px">${all.map((t) => `<span class="pill">${t}</span>`).join("")}</div>`;
 }
-function propertyRow(property) {
-  const matching = state.demands.filter((d) => d.city === property.city && d.propertyType === property.propertyType && (d.transactionType || "SALE") === (property.transactionType || "SALE")).length;
-  return `
-    <article class="row-card ${isBoosted(property) ? "promoted-card" : ""}">
-      ${property.imageData ? `<div class="thumb"><img class="thumb-img" src="${property.imageData}" alt=""></div>` : `<div class="thumb photo ${property.photoClass || ""}"></div>`}
-      <div>
-        <div class="row-title">${escapeHtml(property.title)}</div>
-        <div class="row-meta">${escapeHtml(property.city)} / ${escapeHtml(property.district)} · ${property.roomCount} · ${property.netSqm} m2 · ${priceText(property)}</div>
-        <div class="pill-row" style="margin-top:8px">${txPill(property)}${isBoosted(property) ? `<span class="badge badge-coral">Üste taşındı</span>` : ""}</div>
-        <p class="row-note">${escapeHtml(property.description)}</p>
-        ${propertyExtraPills(property)}
-      </div>
-      <div class="row-side"><span class="badge badge-blue">${matching} uygun talep</span><button class="btn btn-small btn-primary" onclick="KT.goSellerDemands()">Uygun talepler</button><button class="btn btn-small btn-primary" onclick="KT.mockPromote('property','${property.id}')">İlanı üste taşı · yakında</button></div>
-    </article>
-  `;
-}
+// [Faz 5] propertyRow silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 function offerRow(offer, view) {
   const property = propertyById(offer.propertyId);
@@ -3800,18 +3483,11 @@ function statusLabel(status) {
   return labels[status] || status;
 }
 
-function matchForOffer(offerId) {
-  return state.matches.find((match) => match.offerId === offerId);
-}
+// [Faz 5] matchForOffer silindi - 2.0 sonrasi erisilemeyen eski akis.
 
-function ensureMatch(offer) {
-  let match = matchForOffer(offer.id);
-  if (match) return match;
-  match = { id: nextId("match"), offerId: offer.id, buyerId: offer.buyerId, sellerId: offer.sellerId, status: "WAITING_BUYER_APPROVAL", buyerContactApproved: false, sellerContactApproved: false, buyerApprovedAt: null, sellerApprovedAt: null, contactUnlockedAt: null, createdAt: today() };
-  state.matches.unshift(match);
-  state.messages.push({ id: nextId("message"), matchId: match.id, senderId: "system", body: "Eşleşme başladı. İletişim bilgileri iki taraf onay verene kadar gizli kalır.", maskedBody: "Eşleşme başladı. İletişim bilgileri iki taraf onay verene kadar gizli kalır.", containsSensitiveInfo: false, createdAt: today() });
-  return match;
-}
+
+// [Faz 5] ensureMatch silindi - 2.0 sonrasi erisilemeyen eski akis.
+
 
 // Rotaya gore tarayici sekme basligi. Tek sayfa uygulama oldugu icin elle guncelliyoruz.
 const PAGE_TITLES = {

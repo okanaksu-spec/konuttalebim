@@ -3553,7 +3553,16 @@ function updatePageTitle(path) {
   const robots = document.querySelector('meta[name="robots"]');
   if (robots) {
     const kapali = path === "talep-birak" || path.startsWith("talep-birak");
-    robots.setAttribute("content", kapali ? "noindex, nofollow" : "index, follow");
+    // KUYRUK #26 (2026-07-31): gercek yolla gelindiginde (window.KT_PATH_ROTA)
+    // sunucu zaten "noindex, follow" basiyor — icerik istemci tarafinda cizildigi
+    // icin bu sayfalar indekslenmemeli. Burada kosulsuz "index, follow" yazmak
+    // sunucunun kararini JS calisinca geri aliyordu; Google son DOM'u gordugu
+    // icin etiket etkisiz kaliyordu. Sunucu karari korunur.
+    if (typeof window.KT_PATH_ROTA === "string" && window.KT_PATH_ROTA) {
+      if (kapali) robots.setAttribute("content", "noindex, nofollow");
+    } else {
+      robots.setAttribute("content", kapali ? "noindex, nofollow" : "index, follow");
+    }
   }
 }
 

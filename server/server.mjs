@@ -2820,6 +2820,60 @@ h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
 }
 
 
+
+// --- Gercek yol sayfalarina sunucu tarafi govde (AJANS 2026-07-31 bulgusu) ----
+// Sorun: /fiyatlandirma gibi yollar ayni bos SPA kabugunu donuyordu; Google
+// (ve Ads kalite kontrolu) yedi farkli adreste ayni bos sayfayi goruyordu.
+// Cozum: index.html'deki on cizim blogu bu yollarda sayfaya ozel metinle
+// degistirilir. app.js yuklenince blok zaten tamamen degisir; bu metin yalniz
+// ilk yanit icindir (ana sayfadaki desenin aynisi, KUYRUK #23).
+// Kisa tutulur: uzun tutulursa app.js'teki asil sayfayla surum farki olusur.
+const YOL_ICERIK = {
+  fiyatlandirma: {
+    baslik: "Fiyatlandırma ve üyelik paketleri",
+    h1: "Talep bırakmak ücretsiz; iletişim görüntüleme üyelikle",
+    p: [
+      "Konuttalebi'nde ev almak veya kiralamak isteyen için talep bırakmak tamamen ücretsizdir; komisyon alınmaz. Ücret yalnızca karşı taraf içindir: evine kiracı veya alıcı arayan üyeler ve onaylı emlak danışmanları, talep sahibinin telefon ve e-posta bilgisini görüntülemek için üyelik alır.",
+      "Bireysel üyelik aylık 199 TL'dir: kiracı ve alıcı taleplerinin tamamını görür, üyelik süresince sınırsız iletişim görüntülersin. Danışman üyeliği aylık 799 TL'dir ve Sorumlu Emlak Danışmanı (Seviye 5) belgesi şartına bağlıdır. Talebini üste taşıma ise ayrı ve isteğe bağlı bir hizmettir.",
+      "Her iletişim görüntülemesinde talep sahibine bildirim gider. Fiyata, pazarlığa veya sözleşmeye karışmayız; taraflar kendi aralarında anlaşır.",
+    ],
+    baglantilar: [["/kiralik-ev-arayan", "Kiralık ev arıyorum"], ["/evine-kiraci-bul", "Evime kiracı arıyorum"], ["/emlak-danismanlari-icin", "Emlak danışmanıyım"]],
+  },
+  "nasil-calisir": {
+    baslik: "Nasıl çalışır?",
+    h1: "Ters ilan: sen aramazsın, seni bulurlar",
+    p: [
+      "Konuttalebi'nde konut ilanı yoktur. Ev almak veya kiralamak isteyen kişi ne aradığını yazar: bölge, bütçe aralığı, oda sayısı ve taşınma ya da alım zamanı. Talep e-posta doğrulamasından geçer ve herkese açık listede yayınlanır; adın ve iletişim bilgin gizli kalır.",
+      "Evi talebe uyan kişiler ve Sorumlu Emlak Danışmanı (Seviye 5) belgeli onaylı danışmanlar bu talepleri inceler. Uygun bir talep bulduklarında ücretli üyelikle talep sahibinin iletişim bilgisini görüntüler ve doğrudan arar. Her görüntülemede talep sahibine bildirim gider.",
+      "Talepler 60 günde bir yenilenir; süresi geçen talep listeden kalkar. Gerçekçi olmayan bütçeli talepler yayına alınmaz. Fiyata, pazarlığa veya sözleşmeye karışmayız.",
+    ],
+    baglantilar: [["/kiralik-ev-arayan", "Kiralık ev arayanlar"], ["/ev-almak-isteyen", "Ev almak isteyenler"], ["/fiyatlandirma", "Üyelik paketleri"]],
+  },
+  yardim: {
+    baslik: "Yardım ve sık sorulan sorular",
+    h1: "Yardım ve sık sorulan sorular",
+    p: [
+      "Talep bırakmak için üyeliğe gerek yok: formu doldurur, e-postanı doğrularsın ve talebin yayına girer. Kimlik veya gelir belgesi istenmez. Talep bırakan kiracı ve alıcılar için hizmet tamamen ücretsizdir, komisyon alınmaz.",
+      "İletişim bilgin gizlidir. Yalnızca ücretli üyelikle görüntülenebilir ve her görüntülemede sana e-posta gider. Rahatsız edici bir arama olursa ilgili talebi panelinden bildirebilir, talebini dilediğin an duraklatabilir veya kaldırabilirsin.",
+      "Talepler 60 gün boyunca yayında kalır; süre dolmadan hatırlatma e-postası gönderilir ve tek tıkla yenileyebilirsin. Üyelik, ödeme ve iptal koşulları için fiyatlandırma sayfasına, kişisel verilerin için KVKK aydınlatma metnine bakabilirsin.",
+    ],
+    baglantilar: [["/fiyatlandirma", "Fiyatlandırma"], ["/nasil-calisir", "Nasıl çalışır?"], ["/kiralik-ev-arayan", "Kiralık ev arıyorum"]],
+  },
+};
+function yolGovdesi(rota) {
+  const y = YOL_ICERIK[rota];
+  if (!y) return null;
+  const par = y.p.map((t) => `<p style="font-size:17px;line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(t)}</p>`).join("\n        ");
+  const lin = y.baglantilar.map(([u, t]) => `<a href="${u}" style="color:#4f46e5;font-weight:600">${escapeHtmlSrv(t)}</a>`).join("\n          &nbsp;·&nbsp;\n          ");
+  return `<main style="max-width:760px;margin:0 auto;padding:48px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+        <h1 style="font-size:34px;line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(y.h1)}</h1>
+        ${par}
+        <p style="font-size:17px;line-height:1.7;margin:22px 0 0">
+          ${lin}
+        </p>
+      </main>`;
+}
+
 // --- SPA rotalari icin gercek adresler (KUYRUK #26 + #30b) --------------------
 // Reklam varliklari /#/uye-ol gibi hash adresler kullaniyordu: Google Ads acilis
 // sayfasi raporunda hash goremiyor, kalite puani ve olcum zayif kaliyor.
@@ -2848,7 +2902,17 @@ async function spaYolSayfasi(res, yol, rota, arama) {
     ).replace(
       '<meta name="robots" content="index, follow" />',
       '<meta name="robots" content="noindex, follow" />'
-    ).replace(
+    );
+    // Sayfaya ozel govde + baslik (bos kabuk sorunu, AJANS 2026-07-31)
+    const govde = yolGovdesi(rota);
+    if (govde) {
+      const y = YOL_ICERIK[rota];
+      html = html.replace(/<title>[^<]*<\/title>/, `<title>Konuttalebi | ${y.baslik}</title>`);
+      const bas = html.indexOf('<div id="app">');
+      const son = html.indexOf("</div>", html.lastIndexOf("</main>"));
+      if (bas > -1 && son > bas) html = html.slice(0, bas) + `<div id="app">\n      ${govde}\n    ` + html.slice(son);
+    }
+    html = html.replace(
       '<script src="./app.js"></script>',
       `<script>window.KT_PATH_ROTA=${JSON.stringify(tamRota)};</script>\n    <script src="./app.js"></script>`
     );
@@ -2863,6 +2927,10 @@ async function serveStatic(req, res, url) {
   if (p === "/emlak-danismanlari-icin" || p === "/emlak-danismanlari-icin/") return danismanPage(res);
   {
     const kisa = p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+    // Eski ad -> yeni ad (301). Reklamda /#/ilanlar site baglantisi hala yayinda
+    // (12 gunde 2.242 gosterim); app.js eski adi taniyor ama koddan kalktigi gun
+    // baglanti kirilirdi. Kalici yonlendirme o riski kapatir.
+    if (kisa === "/ilanlar") { res.writeHead(301, { Location: "/talepler" }); return res.end(); }
     if (SPA_YOLLARI[kisa]) return spaYolSayfasi(res, kisa, SPA_YOLLARI[kisa], url.search);
   }
   if (p === "/") p = "/index.html";

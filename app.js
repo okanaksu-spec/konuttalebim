@@ -822,12 +822,17 @@ function homePage() {
           <span class="eyebrow">${icon("shield", 15)} Türkiye'nin ilk alıcı ve kiracı odaklı emlak piyasası</span>
           <h1>Sen ne aradığını söyle, doğru mülk sahibiyle doğrudan buluş.</h1>
           <p>Ev almak veya kiralamak istiyorsan talebini bırak; evi sana uygun olanlar iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Aracı yok, komisyon yok.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+            <span style="font-size:13px;color:#334155;background:var(--soft-line);padding:6px 12px;border-radius:999px;font-weight:600">1 · Talebini bırak</span>
+            <span style="font-size:13px;color:#334155;background:var(--soft-line);padding:6px 12px;border-radius:999px;font-weight:600">2 · Kriterine uyanlara duyurulur</span>
+            <span style="font-size:13px;color:#334155;background:var(--soft-line);padding:6px 12px;border-radius:999px;font-weight:600">3 · Seni doğrudan ararlar</span>
+          </div>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
             <a class="btn btn-secondary" href="/evine-kiraci-bul">${icon("home", 17)} Evime kiracı arıyorum</a>
             <button class="btn btn-secondary" onclick="KT.startRegistration('buyer','SALE')">${icon("card", 17)} Ev almak istiyorum</button>
           </div>
-          <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:#cdd9e6;font-weight:600;font-size:14px">
+          <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:var(--muted);font-weight:600;font-size:14px">
             <span>${icon("card", 15)} Belge istenmez</span>
             <span>${icon("lock", 15)} İletişim açık rızayla</span>
             <span>${icon("shield", 15)} Komisyon yok</span>
@@ -3545,28 +3550,39 @@ function listingCard(p) {
 }
 
 // Herkese acik talep karti: kimlik yok, yalnizca ihtiyac ozeti + maskeli aciklama.
+// Kart tarihini dogal dile cevirir: bugun/dun/N gun once (aciliyet hissi).
+function tarihGoreli(t) {
+  if (!t) return "";
+  const gun = Math.floor((Date.now() - new Date(String(t).slice(0, 10)).getTime()) / 86400000);
+  if (isNaN(gun) || gun < 0) return String(t).slice(0, 10);
+  if (gun === 0) return "bugün";
+  if (gun === 1) return "dün";
+  if (gun < 30) return `${gun} gün önce`;
+  return String(t).slice(0, 10);
+}
+
+// Stil C kart hiyerarsisi (Okan onayi): butce en buyuk oge, ustte chip'ler,
+// altta dogrulama rozeti + tazelik. "Satilik" kelimesi kullanilmaz (KARARLAR #9).
 function publicDemandCard(d) {
   const rent = d.transactionType === "RENT";
   const loc = [d.city, d.district].filter(Boolean).join(", ") || "Konum belirtilmedi";
   const budget = (d.minBudget || d.maxBudget)
-    ? `${shortMoney(d.minBudget)} - ${shortMoney(d.maxBudget)}${rent ? " / ay" : ""}`
+    ? `${shortMoney(d.minBudget)} – ${shortMoney(d.maxBudget)}${rent ? " ₺/ay" : " ₺"}`
     : "Bütçe belirtilmedi";
-  const sqm = (d.minSqm || d.maxSqm) ? `${d.minSqm || "?"}-${d.maxSqm || "?"} m²` : "";
-  const detay = [d.roomCount, sqm, d.purchaseTimeline].filter(Boolean).join(" · ");
+  const sqm = (d.minSqm || d.maxSqm) ? `${d.minSqm || "?"}–${d.maxSqm || "?"} m²` : "";
   return `
     <article class="listing-card ${isBoosted(d) ? "promoted-card" : ""}" onclick="KT.searchDetail('${escapeAttr(d.id)}')">
-      <div class="lc-media">
-        <div class="lc-ph">${icon("key", 40)}</div>
-        <span class="lc-badge">${escapeHtml(d.propertyType || d.mainCategory || "Konut")}</span>
-        <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık ev arıyor" : "Satılık ev arıyor"}</span>
-        ${isBoosted(d) ? `<span class="lc-boost">Üste taşındı</span>` : ""}
-      </div>
       <div class="lc-body">
-        <div class="lc-title">${escapeHtml(d.title || "")}</div>
-        <div class="lc-loc">${icon("map", 13)} ${escapeHtml(loc)}</div>
+        <div class="lc-chips">
+          <span class="lc-tx ${rent ? "rent" : "sale"}">${rent ? "Kiralık ev arıyor" : "Konut satın almak istiyor"}</span>
+          ${d.roomCount ? `<span class="lc-chip">${escapeHtml(d.roomCount)}</span>` : ""}
+          ${sqm ? `<span class="lc-chip">${escapeHtml(sqm)}</span>` : ""}
+          ${isBoosted(d) ? `<span class="lc-boost">Üste taşındı</span>` : ""}
+        </div>
         <div class="lc-price">${escapeHtml(budget)}</div>
-        ${detay ? `<div class="lc-loc" style="margin-top:2px">${escapeHtml(detay)}</div>` : ""}
-        <div class="lc-foot"><span class="lc-lock">${icon("lock", 12)} Kimlik gizli</span><span class="lc-date">${escapeHtml(d.createdAt || "")}</span></div>
+        <div class="lc-title">${escapeHtml(d.title || "")}</div>
+        <div class="lc-loc">${icon("map", 13)} ${escapeHtml(loc)}${d.purchaseTimeline ? " · " + escapeHtml(d.purchaseTimeline) : ""}</div>
+        <div class="lc-foot"><span class="lc-lock">✓ E-posta doğrulı · ${icon("lock", 12)} kimlik gizli</span><span class="lc-date">${escapeHtml(tarihGoreli(d.createdAt))}</span></div>
       </div>
     </article>
   `;

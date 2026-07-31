@@ -1,17 +1,17 @@
 :root {
   color-scheme: light;
-  --navy: #10243a;
-  --navy-2: #183650;
-  --navy-3: #244862;
-  --ink: #182636;
-  --muted: #627386;
-  --line: #dbe4ec;
-  --soft-line: #edf2f6;
-  --paper: #f5f7fa;
+  --navy: #020617;
+  --navy-2: #0f172a;
+  --navy-3: #1e293b;
+  --ink: #020617;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --soft-line: #f1f5f9;
+  --paper: #f8fafc;
   --white: #ffffff;
-  --gold: #c49a4a;
-  --gold-2: #9b7527;
-  --gold-soft: #fbf4e5;
+  --gold: #4f46e5;
+  --gold-2: #4338ca;
+  --gold-soft: #eef2ff;
   --blue: #2b6fa6;
   --blue-soft: #e8f1f8;
   --teal: #168579;
@@ -28,12 +28,12 @@
   --red-soft: #faecec;
   --yellow: #b58117;
   --yellow-soft: #fff5d8;
-  --shadow: 0 18px 48px rgba(16, 36, 58, 0.12);
-  --shadow-strong: 0 30px 80px rgba(16, 36, 58, 0.24);
-  --shadow-soft: 0 10px 28px rgba(43, 69, 94, 0.08);
+  --shadow: 0 1px 2px rgba(2, 6, 23, 0.04);
+  --shadow-strong: 0 1px 3px rgba(2, 6, 23, 0.06);
+  --shadow-soft: 0 1px 2px rgba(2, 6, 23, 0.03);
   --radius: 8px;
   --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --serif: Georgia, "Times New Roman", serif;
+  --serif: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; /* Stil C: tek yazi ailesi */
 }
 
 * {
@@ -46,8 +46,7 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, #fbfcfd 0%, var(--paper) 38%, #eef4f7 100%);
+  background: var(--white);
   color: var(--ink);
   font-family: var(--sans);
   line-height: 1.5;
@@ -83,10 +82,9 @@ img {
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid rgba(219, 228, 236, 0.72);
-  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
-  box-shadow: 0 10px 26px rgba(16, 36, 58, 0.06);
 }
 
 .topbar-inner {
@@ -114,9 +112,8 @@ img {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: linear-gradient(145deg, var(--navy), #1d4764);
-  color: var(--gold);
-  box-shadow: 0 8px 20px rgba(16, 36, 58, 0.18);
+  background: var(--gold);
+  color: var(--white);
 }
 
 .brand-text {
@@ -236,22 +233,23 @@ img {
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #d7b15d, var(--gold));
-  color: var(--navy);
-  border-color: rgba(154, 117, 39, 0.2);
+  background: var(--gold);
+  color: var(--white);
+  border-color: var(--gold);
 }
 
 .btn-primary:hover {
-  background: #b88b35;
+  background: var(--gold-2);
 }
 
 .btn-secondary {
-  background: linear-gradient(180deg, var(--navy-2), var(--navy));
-  color: var(--white);
+  background: var(--white);
+  color: var(--ink);
+  border: 1px solid #cbd5e1;
 }
 
 .btn-secondary:hover {
-  background: var(--navy-2);
+  background: var(--soft-line);
 }
 
 .btn-outline {
@@ -287,19 +285,17 @@ img {
 
 .hero {
   position: relative;
-  min-height: 78vh;
+  min-height: 62vh;
   overflow: hidden;
-  background: var(--navy);
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
 }
 
 .hero::before {
   position: absolute;
   inset: 0;
   content: "";
-  background:
-    linear-gradient(90deg, rgba(16, 36, 58, 0.96) 0%, rgba(16, 36, 58, 0.78) 46%, rgba(16, 36, 58, 0.22) 100%),
-    linear-gradient(180deg, rgba(10, 24, 40, 0.1) 0%, rgba(10, 24, 40, 0.65) 100%),
-    url("./assets/hero-konuttalebim.webp") center right / cover no-repeat;
+  background: radial-gradient(60% 50% at 85% 20%, #eef2ff 0%, rgba(238, 242, 255, 0) 70%);
 }
 
 .hero-inner {
@@ -317,7 +313,7 @@ img {
 
 .hero-copy {
   max-width: 700px;
-  color: var(--white);
+  color: var(--ink);
 }
 
 .eyebrow {
@@ -325,11 +321,11 @@ img {
   align-items: center;
   gap: 8px;
   margin-bottom: 18px;
-  border: 1px solid rgba(196, 154, 74, 0.55);
+  border: 1px solid #c7d2fe;
   border-radius: 999px;
   padding: 7px 12px;
-  background: rgba(16, 36, 58, 0.48);
-  color: #f5d99a;
+  background: var(--gold-soft);
+  color: var(--gold);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 1.4px;
@@ -340,16 +336,16 @@ img {
   max-width: 680px;
   margin: 0;
   font-family: var(--serif);
-  font-size: clamp(44px, 6.2vw, 78px);
-  line-height: 0.98;
-  letter-spacing: 0;
+  font-size: clamp(38px, 5vw, 62px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .hero p {
   max-width: 610px;
   margin: 22px 0 0;
-  color: #d8e2ea;
+  color: var(--muted);
   font-size: 18px;
 }
 
@@ -405,13 +401,11 @@ img {
 .hero-card {
   position: relative;
   z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--white);
   color: var(--ink);
-  box-shadow: var(--shadow-strong);
-  backdrop-filter: blur(18px);
 }
 
 .hero-card h3 {
@@ -447,8 +441,9 @@ img {
   gap: 12px;
   max-width: 370px;
   margin-left: 8px;
-  background: rgba(16, 36, 58, 0.88);
-  color: var(--white);
+  background: var(--gold-soft);
+  border-color: #c7d2fe;
+  color: var(--ink);
 }
 
 .hero-card-lock strong {
@@ -456,7 +451,7 @@ img {
 }
 
 .hero-card-lock p {
-  color: #c8d8e5;
+  color: #475569;
 }
 
 .hero-progress {
@@ -1960,7 +1955,7 @@ tbody tr:hover td {
   background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
   cursor: pointer; transition: box-shadow .15s, transform .15s; display: flex; flex-direction: column;
 }
-.listing-card:hover { box-shadow: 0 12px 30px rgba(16,36,58,.13); transform: translateY(-2px); }
+.listing-card:hover { border-color: #94a3b8; background: #fcfdfe; }
 .listing-card.promoted-card { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
 .lc-media { position: relative; height: 158px; background: linear-gradient(135deg, #244862, #10243a); overflow: hidden; }
 .lc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1970,14 +1965,16 @@ tbody tr:hover td {
 .lc-ph.commercial { background: linear-gradient(135deg, #6a4b86, #35234c); }
 .lc-ph.land { background: linear-gradient(135deg, #6f7d3a, #3c4420); }
 .lc-badge { position: absolute; top: 10px; left: 10px; background: rgba(16,36,58,.82); color: #fff; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 7px; }
-.lc-tx { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 7px; color: #fff; }
-.lc-tx.sale { background: #1f9d55; }
-.lc-tx.rent { background: #2f6fed; }
-.lc-boost { position: absolute; bottom: 10px; left: 10px; background: var(--coral); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
-.lc-body { padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.lc-title { font-size: 14.5px; font-weight: 700; color: var(--navy); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lc-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.lc-tx { font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.lc-tx.sale { background: #eef2ff; color: #4338ca; }
+.lc-tx.rent { background: #ecfdf5; color: #047857; }
+.lc-chip { background: var(--soft-line); color: #475569; font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.lc-boost { background: #fff7ed; color: #c2410c; font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.lc-body { padding: 13px 14px 14px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.lc-title { font-size: 13.5px; font-weight: 500; color: #334155; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .lc-loc { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
-.lc-price { font-size: 18px; font-weight: 800; color: var(--gold-2); margin-top: 2px; }
+.lc-price { font-size: 21px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; margin-top: 4px; }
 .lc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid #eef2f6; }
 .lc-lock { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); }
 .lc-date { font-size: 11.5px; color: #9aa8b6; }

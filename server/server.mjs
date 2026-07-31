@@ -584,13 +584,13 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
   const satir = (etiket, deger) => `
     <td style="padding:0 8px 14px 0;vertical-align:top;width:50%">
       <div style="font-size:12.5px;color:#8496a8;margin-bottom:3px">${escapeHtmlSrv(etiket)}</div>
-      <div style="font-size:15px;font-weight:700;color:#10243a">${escapeHtmlSrv(deger)}</div>
+      <div style="font-size:15px;font-weight:700;color:#020617">${escapeHtmlSrv(deger)}</div>
     </td>`;
 
   // Eslesme kutusu (2.0): sayi = talebinle ilgilenen profildeki uye sayisi.
   const kutu = uygunSayi > 0
     ? `<div style="background:#eef7f0;border:1px solid #d3e8d9;border-radius:12px;padding:22px;text-align:center;margin:18px 0">
-         <div style="font-size:40px;font-weight:800;color:#10243a;line-height:1.1">${uygunSayi}</div>
+         <div style="font-size:40px;font-weight:800;color:#020617;line-height:1.1">${uygunSayi}</div>
          <div style="font-size:14.5px;color:#41556d;margin-top:6px">
            ${kira ? "ev sahibi/danışmanın" : "evine alıcı arayanın/danışmanın"} aradığı profil talebinle uyuşuyor; talebin onlara bildirildi.
          </div>
@@ -608,7 +608,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
     ["Kimse aramazsa ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; eşleşme ihtimalin artar."]
   ].map(([s, c]) => `
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#41556d">
-      <strong style="color:#10243a">${escapeHtmlSrv(s)}</strong><br>${escapeHtmlSrv(c)}
+      <strong style="color:#020617">${escapeHtmlSrv(s)}</strong><br>${escapeHtmlSrv(c)}
     </p>`).join("");
 
   return `<!doctype html>
@@ -628,8 +628,8 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
         <tr><td style="padding:26px">
           <p style="margin:0 0 6px;font-size:15px;color:#41556d">Merhaba${ad ? " " + ad : ""},</p>
           <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#41556d">
-            Talebin başarıyla yayınlandı. <strong style="color:#10243a">${escapeHtmlSrv(konum)}</strong> için
-            <strong style="color:#10243a">${escapeHtmlSrv(tur)}</strong> talebin aktif.
+            Talebin başarıyla yayınlandı. <strong style="color:#020617">${escapeHtmlSrv(konum)}</strong> için
+            <strong style="color:#020617">${escapeHtmlSrv(tur)}</strong> talebin aktif.
           </p>
 
           <div style="background:#f5f8fb;border-radius:12px;padding:18px 18px 4px">
@@ -647,7 +647,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
           </div>
 
           <div style="border-top:1px solid #e8edf3;margin-top:24px;padding-top:20px">
-            <div style="font-size:15px;font-weight:700;color:#10243a;margin-bottom:12px">Sıkça sorulanlar</div>
+            <div style="font-size:15px;font-weight:700;color:#020617;margin-bottom:12px">Sıkça sorulanlar</div>
             ${sss}
           </div>
         </td></tr>
@@ -1584,14 +1584,25 @@ async function handleApi(req, res, url) {
         db.prepare("INSERT INTO password_resets (tokenHash,userId,expiresAt,usedAt,createdAt) VALUES (?,?,?,?,?)")
           .run(sha256hex(rawToken), u.id, expiresAt, null, new Date().toISOString());
         const link = `${APP_URL()}/#/sifre-sifirla?token=${rawToken}`;
-        const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#10243a">
-          <h2 style="margin:0 0 12px">Şifre sıfırlama</h2>
-          <p>Merhaba ${escapeHtmlSrv(u.name || "")},</p>
-          <p>Konuttalebi hesabının şifresini sıfırlamak için aşağıdaki butona tıkla. Bağlantı <b>1 saat</b> geçerlidir ve yalnızca bir kez kullanılabilir.</p>
-          <p style="margin:22px 0"><a href="${link}" style="display:inline-block;background:#c8a24b;color:#10243a;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Şifremi sıfırla</a></p>
-          <p style="color:#5a6b7c;font-size:13px">Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:<br>${link}</p>
-          <p style="color:#5a6b7c;font-size:13px">Bu talebi sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.</p>
-          <p style="color:#5a6b7c;font-size:13px;border-top:1px solid #e5eaf0;padding-top:12px;margin-top:18px">Sorun yaşarsan bu e-postayı yanıtlayabilir ya da <a href="mailto:${escapeHtmlSrv(MAIL_REPLY_TO())}" style="color:#10243a">${escapeHtmlSrv(MAIL_REPLY_TO())}</a> adresine yazabilirsin.</p>
+        const html = `<div style="margin:0 auto;max-width:560px;background:#f8fafc;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">
+            <tr><td style="padding:22px 26px;border-bottom:1px solid #e2e8f0">
+              <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px">${MARKA.ad}</div>
+              <div style="color:#b08a35;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:2px">${MARKA.slogan}</div>
+            </td></tr>
+            <tr><td style="padding:26px">
+              <h2 style="margin:0 0 12px;font-size:19px;color:#020617">Şifre sıfırlama</h2>
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#41556d">Merhaba ${escapeHtmlSrv(u.name || "")},</p>
+              <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#41556d">Konuttalebi hesabının şifresini sıfırlamak için aşağıdaki butona tıkla. Bağlantı <b>1 saat</b> geçerlidir ve yalnızca bir kez kullanılabilir.</p>
+              <div style="text-align:center;margin:22px 0"><a href="${link}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 24px;border-radius:10px">Şifremi sıfırla</a></div>
+              <p style="color:#64748b;font-size:13px;line-height:1.6">Buton çalışmazsa bu bağlantıyı tarayıcına yapıştır:<br>${link}</p>
+              <p style="color:#64748b;font-size:13px;line-height:1.6">Bu talebi sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.</p>
+            </td></tr>
+            <tr><td style="background:#f8fafc;padding:18px 26px;font-size:12px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0">
+              <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">${MARKA.ad} Ekibi<br><span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;${MARKA.epostaSlogan}&rdquo;</span></p>
+              Sorun yaşarsan bu e-postayı yanıtlayabilir ya da <a href="mailto:${escapeHtmlSrv(MAIL_REPLY_TO())}" style="color:#41556d">${escapeHtmlSrv(MAIL_REPLY_TO())}</a> adresine yazabilirsin.
+            </td></tr>
+          </table>
         </div>`;
         addAudit(u.id, "PASSWORD_RESET_REQUESTED", "User", u.id, "Şifre sıfırlama talebi");
         await deliverEmail(u.id, u.email, u.name, "Konuttalebi — şifre sıfırlama", html, "Şifre sıfırlama");
@@ -1917,10 +1928,10 @@ async function handleApi(req, res, url) {
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | E-posta doğrulama</title>
 <meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
-.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
-.small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
+.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#475569;margin:0 0 12px}
+.small{font-size:13.5px;color:#64748b}a.btn{display:inline-block;margin-top:14px;background:#4f46e5;color:#ffffff;
 text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style>
 ${yayinaAlinan > 0 ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${OLCUM.ads}"></script>
 <script>
@@ -1965,10 +1976,10 @@ ${yayinaAlinan > 0 ? `<script async src="https://www.googletagmanager.com/gtag/j
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | Bildirim tercihi</title>
 <meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
-.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#cdd8e4;margin:0 0 12px}
-.small{font-size:13.5px;color:#9fb0c3}a.btn{display:inline-block;margin-top:14px;background:#d6a94a;color:#10243a;
+.box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#475569;margin:0 0 12px}
+.small{font-size:13.5px;color:#64748b}a.btn{display:inline-block;margin-top:14px;background:#4f46e5;color:#ffffff;
 text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</style></head>
 <body><div class="box">${govde}<a class="btn" href="${BASE_URL}/">Konuttalebi'ne dön</a></div></body></html>`;
     res.writeHead(gecerli ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
@@ -2674,9 +2685,9 @@ function notFoundPage(res) {
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Konuttalebi | Sayfa bulunamadı</title><meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#10243a;color:#f4f7fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-align:center;padding:24px}
-.box{max-width:520px}h1{font-size:64px;margin:0;color:#d6a94a;letter-spacing:-2px}h2{font-size:24px;margin:8px 0 12px}p{opacity:.8;line-height:1.6;margin:0 0 24px}
-a{display:inline-block;background:#d6a94a;color:#10243a;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px}</style></head>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-align:center;padding:24px}
+.box{max-width:520px}h1{font-size:64px;margin:0;color:#4f46e5;letter-spacing:-2px}h2{font-size:24px;margin:8px 0 12px}p{opacity:.8;line-height:1.6;margin:0 0 24px}
+a{display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px}</style></head>
 <body><div class="box"><h1>404</h1><h2>Bu sayfa bulunamadı</h2>
 <p>Aradığın sayfa taşınmış veya kaldırılmış olabilir. Ana sayfadan talebini oluşturabilir ya da yayındaki konutlara göz atabilirsin.</p>
 <a href="/">Ana sayfaya dön</a></div></body></html>`;

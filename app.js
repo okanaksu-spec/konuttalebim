@@ -2187,6 +2187,7 @@ function dashboardLayout(role, content, activePath) {
       ["dashboard/admin/talepler", "Alıcı Talepleri", "key"],
       ["dashboard/admin/ilanlar", "İlan Arşivi", "home"],
       ["dashboard/admin/epostalar", "E-postalar", "mail"],
+      ["dashboard/admin/danisman-onay", "Danışman Onayı", "shield"],
       ["dashboard/admin/belgeler", "Üye Belgeleri", "file"],
       ["dashboard/admin/sikayetler", "Şikayetler", "alert"],
       ["dashboard/admin/risk", "Risk Paneli", "shield"],
@@ -2561,12 +2562,20 @@ function sellerDemands() {
   const cities = [...new Set(state.demands.map((d) => d.city).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"));
   const opt = (v, label, sel) => `<option value="${escapeAttr(v)}"${sel === v ? " selected" : ""}>${escapeHtml(label)}</option>`;
   const tx = demandPoolFilter.tx;
+  // Faz 3: belgesi olmayan danismana havuz ustunde kilit bandi.
+  const u = currentUser();
+  const agentBandi = agentKilitli(u)
+    ? `<div class="notice" style="margin:0 0 14px;background:#fdf3e3;border-color:#e6c882"><strong>${icon("lock", 14)} İletişim erişimin kilitli.</strong> Sorumlu Emlak Danışmanı (Seviye 5) belgen onaylanmadan iletişim bilgisi görüntüleyemezsin. <a href="#/dashboard/satici/dogrulama">Belgeni yükle →</a></div>`
+    : (u && u.role === "AGENT" && Number(u.agentApproved) !== 1 && u.agentDocDeadline
+      ? `<div class="notice" style="margin:0 0 14px"><strong>${icon("shield", 14)} Geçiş süresi:</strong> Belgeni en geç <strong>${escapeHtml(u.agentDocDeadline)}</strong> tarihine kadar yükle; yoksa iletişim erişimin kapanır. <a href="#/dashboard/satici/dogrulama">Danışman Doğrulama →</a></div>`
+      : "");
   return `
     ${pageHead(demandPoolTitle(tx), tx === "RENT"
       ? "Evini kiralamak istiyorsan sana uygun kiracı talebini seç, iletişim bilgisini üyelikle aç ve doğrudan ara."
       : tx === "SALE"
         ? "Evine alıcı arıyorsan sana uygun konut alıcısının talebini seç, iletişim bilgisini üyelikle aç ve doğrudan ara."
         : "Yayındaki tüm talepler. Sana uygun olanı seç, iletişim bilgisini üyelikle aç, doğrudan ara.")}
+    ${agentBandi}
     <div class="toolbar">
       <select id="dp-tx" onchange="KT.setDemandPoolFilter()">
         ${opt("RENT", "Kiralık ev talepleri", tx)}
@@ -2615,11 +2624,92 @@ function sellerOffers() {
   `;
 }
 
+// Faz 3: danisman kilitli mi? (belge onayi yok VE gecis suresi de gecerli degil)
+function agentKilitli(u) {
+  if (!u || u.role !== "AGENT") return false;
+  if (Number(u.agentApproved) === 1) return false;
+  const bugun = new Date().toISOString().slice(0, 10);
+  return !(u.agentDocDeadline && u.agentDocDeadline >= bugun);
+}
+
+// Faz 3: Danisman Dogrulama sayfasi — Seviye 5 belge yukleme + durum takibi.
+function agentVerifyPage() {
+  const user = currentUser();
+  const SEVIYE5 = "Sorumlu Emlak Danışmanı (Seviye 5)";
+  const belgeler = (state.verificationDocuments || [])
+    .filter((d) => d.userId === user.id && String(d.type || "").includes("Seviye 5"))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const son = belgeler[0];
+  const onayli = Number(user.agentApproved) === 1;
+  const bugun = new Date().toISOString().slice(0, 10);
+  const gecis = user.agentDocDeadline && user.agentDocDeadline >= bugun;
+  let durumHTML;
+  if (onayli) {
+    durumHTML = `<div class="notice" style="background:#eaf6ee;border-color:#9fd0ad"><strong>✅ Belgen onaylı.</strong> Danışman üyeliğinle talep sahiplerinin iletişim bilgisini görüntüleyebilirsin.</div>`;
+  } else if (son && son.status === "PENDING") {
+    durumHTML = `<div class="notice"><strong>⏳ Belgen incelemede.</strong> ${escapeHtml(son.fileName || "Belge")} — ${escapeHtml(son.createdAt || "")} tarihinde alındı. Onaylanınca bildirim ve e-posta alacaksın.</div>`;
+  } else if (son && son.status === "REJECTED") {
+    durumHTML = `<div class="notice" style="background:#fdecec;border-color:#e8a0a0"><strong>Belgen reddedildi.</strong> Sebep: ${escapeHtml(son.rejectReason || "belirtilmedi")}. Aşağıdan yeni belge yükleyebilirsin; reddedilen dosya 30 gün içinde silinir.</div>`;
+  } else if (gecis) {
+    durumHTML = `<div class="notice" style="background:#fdf3e3;border-color:#e6c882"><strong>Geçiş süresi:</strong> Belgeni en geç <strong>${escapeHtml(user.agentDocDeadline)}</strong> tarihine kadar yüklemelisin. Süre dolarsa iletişim bilgisi görüntüleme, belgen onaylanana dek kapanır.</div>`;
+  } else {
+    durumHTML = `<div class="notice" style="background:#fdf3e3;border-color:#e6c882"><strong>Belge gerekli.</strong> Talep sahiplerinin iletişim bilgisini görüntülemek ve danışman üyeliği satın almak için belgeni yükleyip onaylatman gerekiyor.</div>`;
+  }
+  return `
+    ${pageHead("Danışman Doğrulama", "Sorumlu Emlak Danışmanı (Seviye 5) belgeni yükle; admin onayından sonra iletişim erişimin açılır.")}
+    ${durumHTML}
+    <section class="panel">
+      <h3>Belge yükle</h3>
+      <p class="muted" style="margin:8px 0 12px">e-Devlet üzerinden alınmış <strong>barkodlu</strong> "Sorumlu Emlak Danışmanı (Seviye 5)" belgeni yükle. Kabul edilen biçimler: PDF, JPG, PNG — en fazla 5 MB. Belgen yalnızca yönetici tarafından görüntülenir; talep sahipleriyle veya diğer üyelerle asla paylaşılmaz.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="ag-file">Belge dosyası</label><input id="ag-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
+      </div>
+      <div id="ag-error" class="error"></div>
+      <div class="form-actions"><button class="btn btn-primary" onclick="KT.belgeYukle()">${icon("shield", 16)} Belgeyi gönder</button></div>
+    </section>
+    <section class="panel"><h3>Belge geçmişim</h3><div class="list" style="margin-top:12px">${belgeler.map((d) => `
+      <article class="row">
+        <div class="row-main"><strong>${escapeHtml(d.fileName || d.type)}</strong>
+          <p class="muted">${escapeHtml(d.createdAt || "")} · ${statusLabel(d.status)}${d.status === "REJECTED" && d.rejectReason ? " — " + escapeHtml(d.rejectReason) : ""}</p></div>
+      </article>`).join("") || empty("Henüz belge yüklemedin", "Belgeni yükle; genellikle aynı gün incelenir.")}</div></section>
+  `;
+}
+
+// Faz 3 (senaryo E): admin Danisman Onayi ekrani — belgeyi goruntule, onayla
+// veya sebep yazarak reddet. Her islem sunucuda denetim kaydina duser.
+function adminAgentApproval() {
+  const SEVIYE5 = "Sorumlu Emlak Danışmanı (Seviye 5)";
+  const belgeler = (state.verificationDocuments || []).filter((d) => String(d.type || "").includes("Seviye 5"));
+  const bekleyen = belgeler.filter((d) => d.status === "PENDING");
+  const gecmis = belgeler.filter((d) => d.status !== "PENDING")
+    .sort((a, b) => String(b.reviewedAt || "").localeCompare(String(a.reviewedAt || ""))).slice(0, 20);
+  const uyeAdi = (uid2) => { const u = (state.users || []).find((x) => x.id === uid2); return u ? `${u.name} (${u.email || ""})` : uid2; };
+  const satir = (d, bekliyor) => `
+    <article class="row">
+      <div class="row-main">
+        <strong>${escapeHtml(uyeAdi(d.userId))}</strong>
+        <p class="muted">${escapeHtml(d.fileName || "belge")} · yükleme: ${escapeHtml(d.createdAt || "")}${d.reviewedAt ? " · inceleme: " + escapeHtml(d.reviewedAt) : ""} · ${statusLabel(d.status)}${d.rejectReason ? " — " + escapeHtml(d.rejectReason) : ""}</p>
+        <div id="agr-goruntu-${escapeAttr(d.id)}" style="margin-top:8px"></div>
+      </div>
+      <div class="row-side" style="display:flex;gap:6px;flex-wrap:wrap">
+        ${d.hasFile ? `<button class="btn btn-small btn-outline" onclick="KT.belgeGoruntule('${escapeAttr(d.id)}')">${icon("file", 14)} Belgeyi aç</button>` : `<span class="pill">dosya silinmiş</span>`}
+        ${bekliyor ? `<button class="btn btn-small btn-primary" onclick="KT.belgeIncele('${escapeAttr(d.id)}','APPROVED')">Onayla</button>
+        <button class="btn btn-small btn-outline" onclick="KT.belgeIncele('${escapeAttr(d.id)}','REJECTED')">Reddet</button>` : ""}
+      </div>
+    </article>`;
+  return `
+    ${pageHead("Danışman Onayı", "Sorumlu Emlak Danışmanı (Seviye 5) belgeleri. Onay, danışmanın iletişim erişimini açar; red sebep ister ve danışmana iletilir.")}
+    <section class="panel"><h3>Bekleyen (${bekleyen.length})</h3><div class="list" style="margin-top:12px">${bekleyen.map((d) => satir(d, true)).join("") || empty("Bekleyen belge yok", "Yeni danışman belgesi yüklendiğinde burada görünür.")}</div></section>
+    <section class="panel"><h3>Son incelenenler</h3><div class="list" style="margin-top:12px">${gecmis.map((d) => satir(d, false)).join("") || empty("Kayıt yok", "")}</div></section>
+  `;
+}
+
 function sellerVerification() {
+  if (currentUser().role === "AGENT") return agentVerifyPage();
   const user = currentUser();
   const docs = state.verificationDocuments.filter((doc) => doc.userId === user.id);
   return `
-    ${pageHead("Satıcı Doğrulama", "Tapu, yetki ve kurumsal belgelerin denetim durumunu takip et.")}
+    ${pageHead("Üye Doğrulama", "Tapu, yetki ve kurumsal belgelerin denetim durumunu takip et.")}
     <section class="panel">
       <div class="grid grid-3">
         ${featureCard("file", "Tapu / yetki belgesi", "Satış yetkisini netleştirir.")}
@@ -2645,6 +2735,7 @@ function renderAdmin(path) {
   if (path.includes("/ilanlar")) content = adminProperties();
   if (path.includes("/teklifler")) content = adminTable("Teklifler", state.offers, ["id", "demandId", "propertyId", "price", "status", "matchScore"]);
   if (path.includes("/epostalar")) content = adminEmails();
+  if (path.includes("/danisman-onay")) content = adminAgentApproval();
   if (path.includes("/belgeler")) content = adminDocuments();
   if (path.includes("/sikayetler")) content = adminTable("Şikayetler", state.complaints, ["reason", "description", "status", "priority", "createdAt"]);
   if (path.includes("/risk")) content = adminTable("Risk Paneli", state.abuseSignals, ["userId", "type", "score", "metadata", "createdAt"]);
@@ -3960,7 +4051,9 @@ window.KT = {
     if (!r.ok) {
       const mesaj = (r.data && r.data.error) || "İletişim bilgisi alınamadı.";
       toast(mesaj);
-      if (mesaj.includes("üyelik")) setTimeout(() => setRoute("fiyatlandirma"), 1200);
+      // Faz 3: belge engeli dogrulama sayfasina, uyelik engeli fiyatlandirmaya goturur.
+      if (mesaj.includes("belgen") || mesaj.includes("Belgeni")) setTimeout(() => setRoute("dashboard/satici/dogrulama"), 1200);
+      else if (mesaj.includes("üyelik")) setTimeout(() => setRoute("fiyatlandirma"), 1200);
       return;
     }
     ktTrack("iletisim_acildi", { talep: demandId });
@@ -5068,7 +5161,59 @@ window.KT = {
   },
   mockUpgrade(planId, rerender = false) {
     if (!PAYMENTS_LIVE) return toast("Ödeme altyapısı çok yakında aktifleşecek. Paketler kısa süre sonra satın alınabilir olacak.");
+    // Faz 3: belgesiz danisman, danisman uyeligi satin alamaz (sunucu da engeller).
+    const u = currentUser();
+    if (planId === "plan-pro" && agentKilitli(u)) {
+      toast("Önce Sorumlu Emlak Danışmanı (Seviye 5) belgeni yükleyip onaylatmalısın.");
+      return setRoute("dashboard/satici/dogrulama");
+    }
     KT.showPayConsent(planId, () => KT.runCheckout({ planId }, planById(planId), rerender));
+  },
+  // Faz 3: Seviye 5 belge yukleme (PDF/JPG/PNG, <=5MB) — dosya data URL olarak gider.
+  belgeYukle() {
+    const inp = document.getElementById("ag-file");
+    const hata = (m) => showFormError("ag-error", m);
+    const f = inp && inp.files && inp.files[0];
+    if (!f) return hata("Önce bir dosya seç.");
+    const izinli = ["application/pdf", "image/jpeg", "image/png"];
+    if (!izinli.includes(f.type)) return hata("Belge PDF, JPG veya PNG olmalı.");
+    if (f.size > 5 * 1024 * 1024) return hata("Belge en fazla 5 MB olabilir.");
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await api("/verification-documents", "POST", {
+        type: "Sorumlu Emlak Danışmanı (Seviye 5)", fileData: reader.result, fileName: f.name,
+      });
+      if (!r.ok) return hata(r.data.error || "Belge gönderilemedi.");
+      await refreshState();
+      toast("Belgen alındı; incelemeye alındı.");
+      render();
+    };
+    reader.onerror = () => hata("Dosya okunamadı; tekrar dene.");
+    reader.readAsDataURL(f);
+  },
+  // Admin: belgeyi satir icinde goruntule (PDF -> iframe, gorsel -> img).
+  async belgeGoruntule(docId) {
+    const kutu = document.getElementById(`agr-goruntu-${docId}`);
+    const r = await api(`/verification-documents/${docId}/file`);
+    if (!r.ok) return toast(r.data.error || "Belge dosyası alınamadı.");
+    const veri = r.data.fileData || "";
+    if (!kutu) return;
+    kutu.innerHTML = veri.startsWith("data:application/pdf")
+      ? `<iframe src="${escapeAttr(veri)}" style="width:100%;height:420px;border:1px solid #e5eaf0;border-radius:8px;background:#fff"></iframe>`
+      : `<img src="${escapeAttr(veri)}" alt="Danışman belgesi" style="max-width:100%;max-height:420px;border:1px solid #e5eaf0;border-radius:8px">`;
+  },
+  // Admin: onay/red. Red sebep ister (danismana birebir iletilir).
+  async belgeIncele(docId, durum) {
+    let sebep = "";
+    if (durum === "REJECTED") {
+      sebep = (window.prompt("Red sebebi (danışmana iletilecek):") || "").trim();
+      if (!sebep) return toast("Red için sebep yazmalısın.");
+    }
+    const r = await api(`/documents/${docId}/review`, "POST", { status: durum, reason: sebep });
+    if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
+    await refreshState();
+    toast(durum === "APPROVED" ? "Belge onaylandı; danışmanın iletişim erişimi açıldı." : "Belge reddedildi; danışmana sebep iletildi.");
+    render();
   },
   async runCheckout(body, plan, rerender = false) {
     const r = await api("/payments/checkout", "POST", body);

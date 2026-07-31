@@ -2678,7 +2678,7 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const ASSET_ONBELLEK_SN = 30 * 24 * 3600;
 // Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
 // Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
-const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html"]);
+const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html", "/ev-almak-isteyen.html", "/evine-alici-bul.html"]);
 // Duzgun 404 sayfasi: UTF-8 basligi olmadan Turkce karakterler bozuk gorunuyordu.
 function notFoundPage(res) {
   const html = `<!doctype html>
@@ -2776,6 +2776,8 @@ async function serveStatic(req, res, url) {
   if (p === "/emlak-danismanlari-icin" || p === "/emlak-danismanlari-icin/") return danismanPage(res);
   if (p === "/") p = "/index.html";
   else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
+  else if (p === "/ev-almak-isteyen") p = "/ev-almak-isteyen.html";
+  else if (p === "/evine-alici-bul") p = "/evine-alici-bul.html";
   else if (p === "/evine-kiraci-bul") p = "/evine-kiraci-bul.html";
   const isAsset = p.startsWith("/assets/") && !p.includes("..");
   if (!STATIC_ALLOW.has(p) && !isAsset) return notFoundPage(res);

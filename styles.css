@@ -929,7 +929,7 @@ h3 {
   overflow: auto;
   border-right: 1px solid rgba(12, 30, 48, 0.18);
   background:
-    linear-gradient(180deg, #0f263d 0%, #10243a 46%, #0c1d2f 100%);
+    linear-gradient(180deg, #0f172a 0%, #020617 100%);
   color: #d8e2ea;
   padding: 20px 16px;
 }
@@ -1184,9 +1184,9 @@ h3 {
   border: 1px solid #e5eaf0;
 }
 .reg-step-on {
-  background: var(--navy, #10243a);
+  background: var(--navy, #020617);
   color: #fff;
-  border-color: var(--navy, #10243a);
+  border-color: var(--navy, #020617);
 }
 .reg-step-done {
   background: #eef7f0;
@@ -1623,7 +1623,7 @@ tbody tr:hover td {
 .footer {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   background:
-    linear-gradient(180deg, #10243a 0%, #091928 100%);
+    linear-gradient(180deg, #0f172a 0%, #020617 100%);
   color: #c4d4e1;
   padding: 34px 22px;
 }
@@ -1957,7 +1957,7 @@ tbody tr:hover td {
 }
 .listing-card:hover { border-color: #94a3b8; background: #fcfdfe; }
 .listing-card.promoted-card { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
-.lc-media { position: relative; height: 158px; background: linear-gradient(135deg, #244862, #10243a); overflow: hidden; }
+.lc-media { position: relative; height: 158px; background: linear-gradient(135deg, #1e293b, #020617); overflow: hidden; }
 .lc-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lc-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.9); background: linear-gradient(135deg, var(--navy-2), var(--navy)); }
 .lc-ph.villa { background: linear-gradient(135deg, #2e6b4f, #17402c); }

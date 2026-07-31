@@ -2541,7 +2541,7 @@ function sellerVerification() {
       </div>
       <div class="section-actions"><button class="btn btn-primary" onclick="KT.addSellerDoc()">Mock belge gönder</button></div>
     </section>
-    <section class="panel"><h3>Belgelerim</h3><div class="list" style="margin-top:12px">${docs.map(documentRow).join("") || empty("Belge yok", "Belge göndererek satıcı güven skorunu yükseltebilirsin.")}</div></section>
+    <section class="panel"><h3>Belgelerim</h3><div class="list" style="margin-top:12px">${docs.map(documentRow).join("") || empty("Belge yok", "Belge göndererek güven skorunu yükseltebilirsin.")}</div></section>
   `;
 }
 
@@ -4744,7 +4744,7 @@ window.KT = {
     if (!r.ok) return showFormError("d-error", r.data.error || "Talep oluşturulamadı.");
     // Google Ads — "Talep oluşturma" dönüşümü (reklamdan gelen talep oluşturmayı ölçer)
     ktTrack("talep_olustur", { tx: rent ? "RENT" : "SALE", sehir: payload.city, kategori: payload.mainCategory });
-    toast(`Talebin yayına alındı. Uygun ${rent ? "ev sahiplerine" : "satıcılara"} bildirim hazırlandı.`);
+    toast(`Talebin yayına alındı. Uygun ${rent ? "ev sahiplerine" : "evine alıcı arayanlara"} bildirim hazırlandı.`);
     setRoute("dashboard/alici/taleplerim");
   },
   async createProperty(event) {

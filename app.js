@@ -830,7 +830,7 @@ function homePage() {
           <div class="hero-actions">
             <a class="btn btn-primary" href="#/talep-birak">${icon("key", 17)} Kiralık ev arıyorum</a>
             <a class="btn btn-secondary" href="/evine-kiraci-bul">${icon("home", 17)} Evime kiracı arıyorum</a>
-            <button class="btn btn-secondary" onclick="KT.startRegistration('buyer','SALE')">${icon("card", 17)} Ev almak istiyorum</button>
+            <a class="btn btn-secondary" href="#/talep-birak?tx=SALE">${icon("card", 17)} Ev almak istiyorum</a>
           </div>
           <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:var(--muted);font-weight:600;font-size:14px">
             <span>${icon("card", 15)} Belge istenmez</span>
@@ -1446,6 +1446,11 @@ function emailWallPage() {
    ========================================================================== */
 let misafirAdim = 1;
 let misafirVeri = {};          // 1. adimda toplanan form verisi
+// Faz 4: ayni misafir form iki modda — RENT (varsayilan) ve SALE (Ev Al).
+function misafirTx() {
+  try { if (new URLSearchParams(location.hash.split("?")[1] || "").get("tx") === "SALE") return "SALE"; } catch {}
+  return "RENT";
+}
 let misafirSonuc = null;       // { email } — gonderim basarili olunca dolar
 let misafirKisi = {};          // 2. adimdaki kisisel alanlar (geri donusta korunur)
 let misafirOlayGitti = false;  // "form basladi" olayi bir kez gonderilsin
@@ -1471,7 +1476,8 @@ function guestAdimCubugu(aktif) {
 
 function guestDemandStep1() {
   const v = misafirVeri;
-  return publicShell("Nasıl bir ev arıyorsun?",
+  const satis = misafirTx() === "SALE";
+  return publicShell(satis ? "Nasıl bir ev almak istiyorsun?" : "Nasıl bir ev arıyorsun?",
     "Üye olmadan doldur. Talebini yayına alırken tanışırız.", `
     <div class="panel" style="max-width:760px;margin:0 auto">
       ${guestAdimCubugu(1)}
@@ -1481,17 +1487,23 @@ function guestDemandStep1() {
           <select id="g-type">${CATEGORY_TREE[CAT_KONUT].map((t) => `<option ${v.propertyType === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}</select></div>
         <div class="field"><label for="g-rooms">Oda sayısı</label>
           <select id="g-rooms">${["1+1", "2+1", "3+1", "4+1", "5+1"].map((r) => `<option ${v.roomCount === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
-        <div class="field"><label for="g-minbudget">En az aylık kira <span style="color:#c0392b">*</span></label>
-          <input id="g-minbudget" type="number" inputmode="numeric" placeholder="20000" value="${escapeAttr(v.minBudget || "")}"></div>
-        <div class="field"><label for="g-maxbudget">En fazla aylık kira <span style="color:#c0392b">*</span></label>
-          <input id="g-maxbudget" type="number" inputmode="numeric" placeholder="30000" value="${escapeAttr(v.maxBudget || "")}"></div>
+        <div class="field"><label for="g-minbudget">${satis ? "En az bütçe" : "En az aylık kira"} <span style="color:#c0392b">*</span></label>
+          <input id="g-minbudget" type="number" inputmode="numeric" placeholder="${satis ? "4000000" : "20000"}" value="${escapeAttr(v.minBudget || "")}"></div>
+        <div class="field"><label for="g-maxbudget">${satis ? "En fazla bütçe" : "En fazla aylık kira"} <span style="color:#c0392b">*</span></label>
+          <input id="g-maxbudget" type="number" inputmode="numeric" placeholder="${satis ? "6000000" : "30000"}" value="${escapeAttr(v.maxBudget || "")}"></div>
         <div class="field"><label for="g-timeline">Ne zaman taşınmak istiyorsun?</label>
           <select id="g-timeline">${["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"].map((t) => `<option ${v.purchaseTimeline === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
         <div class="field"><label for="g-occupation">Meslek / çalışma durumu</label>
           <select id="g-occupation">${MESLEK_DURUMLARI.map((m) => `<option ${v.occupation === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}</select></div>
-        <div class="field full">
+        ${satis ? `<div class="field full">
+          <label style="font-weight:600">Banka kredisi kullanmayı düşünüyor musun? <span style="color:#c0392b">*</span></label>
+          <div style="display:flex;gap:16px;margin-top:6px">
+            <label class="check" style="margin:0"><input type="radio" name="g-kredi" value="EVET" ${v.creditInterest === "EVET" ? "checked" : ""}><span style="font-weight:500">Evet</span></label>
+            <label class="check" style="margin:0"><input type="radio" name="g-kredi" value="HAYIR" ${v.creditInterest === "HAYIR" ? "checked" : ""}><span style="font-weight:500">Hayır</span></label>
+          </div>
+        </div>` : `<div class="field full">
           <label class="check"><input id="g-furnished" type="checkbox" ${v.furnished ? "checked" : ""}><span style="font-weight:500">Eşyalı olsun</span></label>
-        </div>
+        </div>`}
         <div id="g-error" class="form-error"></div>
         <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" type="submit">Devam et ${icon("send", 16)}</button>
@@ -2301,7 +2313,9 @@ function buyerDemandForm() {
           <div class="check-grid">
             ${rent
               ? `<label class="check"><input id="d-furnished" type="checkbox"> Eşyalı olsun</label>`
-              : `<label class="check"><input id="d-credit" type="checkbox" checked> Kredi kullanacağım</label>
+              : `<span style="font-weight:600;display:block;margin-bottom:4px">Banka kredisi kullanmayı düşünüyor musun?</span>
+                 <label class="check" style="display:inline-flex;margin-right:14px"><input type="radio" name="d-kredi" value="EVET" checked> Evet</label>
+                 <label class="check" style="display:inline-flex"><input type="radio" name="d-kredi" value="HAYIR"> Hayır</label>
             <label class="check"><input id="d-cash" type="checkbox"> Nakit alım olabilir</label>
             <label class="check"><input id="d-exchange" type="checkbox"> Takas düşünebilirim</label>`}
           </div>
@@ -3550,6 +3564,13 @@ function listingCard(p) {
 }
 
 // Herkese acik talep karti: kimlik yok, yalnizca ihtiyac ozeti + maskeli aciklama.
+// Faz 4: 60 gunluk yayin suresinden kalan gun (0 alti gosterilmez).
+function talepKalanGun(d) {
+  const bas = new Date(String(d.renewedAt || d.createdAt || "").slice(0, 10)).getTime();
+  if (isNaN(bas)) return 60;
+  return Math.max(0, 60 - Math.floor((Date.now() - bas) / 86400000));
+}
+
 // Kart tarihini dogal dile cevirir: bugun/dun/N gun once (aciliyet hissi).
 function tarihGoreli(t) {
   if (!t) return "";
@@ -3674,8 +3695,12 @@ function demandRow(demand, sellerView, score = null) {
       <div class="row-side">
         <span class="badge ${demand.status === "ACTIVE" ? "badge-green" : "badge-neutral"}">${statusLabel(demand.status)}</span>
         ${sellerView
-          ? `<button class="btn btn-small btn-primary" onclick="KT.iletisimGor('${demand.id}')">${icon("lock", 14)} İletişim bilgisini gör</button>`
-          : `<span class="pill" title="İletişimin kaç kez görüntülendi">${(state.contactViews || []).filter((v) => v.demandId === demand.id).length} görüntülenme</span><button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı · yakında</button>`}
+          ? `<button class="btn btn-small btn-primary" onclick="KT.iletisimGor('${demand.id}')">${icon("lock", 14)} İletişim bilgisini gör</button>
+             <button class="btn btn-small btn-outline" onclick="KT.talepBildir('${demand.id}')" title="Bu talebi yöneticiye bildir">Bildir</button>`
+          : `<span class="pill" title="İletişimin kaç kez görüntülendi">${(state.contactViews || []).filter((v) => v.demandId === demand.id).length} görüntülenme</span>
+             <span class="pill" title="60 günlük yayın süresinden kalan">${talepKalanGun(demand)} gün kaldı</span>
+             <button class="btn btn-small btn-outline" onclick="KT.talepYenile('${demand.id}')">${icon("check", 14)} Yenile</button>
+             <button class="btn btn-small btn-primary" onclick="KT.mockPromote('demand','${demand.id}')">Talebi üste taşı · yakında</button>`}
       </div>
     </article>
   `;
@@ -4157,8 +4182,11 @@ window.KT = {
       purchaseTimeline: val("g-timeline"),
       occupation: sec("g-occupation"),
       furnished: el("g-furnished") ? el("g-furnished").checked : false,
-      transactionType: "RENT",
+      transactionType: misafirTx(),
+      creditInterest: (document.querySelector('input[name="g-kredi"]:checked') || {}).value || "",
     };
+    if (misafirTx() === "SALE" && !misafirVeri.creditInterest)
+      return showFormError("g-error", "Banka kredisi sorusunu yanıtla (Evet veya Hayır).");
     misafirAdim = 2;
     render();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -5005,7 +5033,8 @@ window.KT = {
       minBudget: Number(val("d-minbudget")),
       maxBudget: Number(val("d-maxbudget")),
       downPayment: Number(val("d-down") || 0),
-      usesCredit: chk("d-credit"),
+      usesCredit: (document.querySelector('input[name="d-kredi"]:checked') || {}).value !== "HAYIR",
+      creditInterest: (document.querySelector('input[name="d-kredi"]:checked') || {}).value || "",
       cashReady: chk("d-cash"),
       exchangePossible: chk("d-exchange"),
       purchaseTimeline: val("d-timeline"),
@@ -5184,6 +5213,22 @@ window.KT = {
       return setRoute("dashboard/satici/dogrulama");
     }
     KT.showPayConsent(planId, () => KT.runCheckout({ planId }, planById(planId), rerender));
+  },
+  // Faz 4: talebi yenile (60 gunluk sure bastan baslar).
+  async talepYenile(id) {
+    const r = await api(`/demands/${id}/renew`, "POST", {});
+    if (!r.ok) return toast(r.data.error || "Yenileme başarısız.");
+    await refreshState();
+    toast("Talebin yenilendi; 60 gün daha yayında.");
+    render();
+  },
+  // Faz 4: havuzdaki bir talebi yoneticiye bildir.
+  async talepBildir(id) {
+    const sebep = (window.prompt("Bu talebi neden bildiriyorsun? (örn. gerçekdışı bütçe, uygunsuz içerik)") || "").trim();
+    if (!sebep) return;
+    const r = await api(`/demands/${id}/report`, "POST", { reason: sebep.slice(0, 60), description: sebep });
+    if (!r.ok) return toast(r.data.error || "Bildirim gönderilemedi.");
+    toast("Teşekkürler; talep yönetici incelemesine iletildi.");
   },
   // Faz 3: Seviye 5 belge yukleme (PDF/JPG/PNG, <=5MB) — dosya data URL olarak gider.
   belgeYukle() {

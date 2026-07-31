@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 const SITE = "https://konuttalebi.com";
-const OG_IMAGE = `${SITE}/assets/hero-konuttalebim.webp`;
+const OG_IMAGE = `${SITE}/assets/og-image.png`;
 
 export const CITY_ORDER = ["istanbul", "ankara", "izmir", "eskisehir", "bursa", "antalya"];
 
@@ -21,8 +21,8 @@ export const CITIES = {
   istanbul: {
     name: "İstanbul",
     tenant: {
-      title: "İstanbul Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "İstanbul'da nasıl bir ev aradığını yaz, ev sahipleri sana teklif göndersin. İlan karıştırmak yok, komisyon yok, aracı yok.",
+      title: "İstanbul Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "İstanbul'da kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, İstanbul'daki evi uyanlar seni doğrudan arasın.",
       h1: "İstanbul'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "İstanbul'da ev aramak, çoğu zaman şehri baştan sona gezmek anlamına geliyor. Kadıköy ve Beşiktaş'ta metroya yürüme mesafesindeki daireler günler içinde el değiştiriyor; Şişli ve Üsküdar'da ise aynı kira aralığında bambaşka büyüklükte evler çıkabiliyor. Sen bu koşuşturmayı yapmak yerine ne aradığını bir kez yazıyorsun: hangi semtte oturmak istediğini, kira aralığını, oda sayısını ve taşınma zamanını.",
@@ -31,8 +31,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "İstanbul'da Evine Kiracı Bul | Konuttalebi",
-      description: "İstanbul'da ev arayan kiracıların taleplerini bölgeye ve bütçeye göre filtrele, uygun olana teklifini gönder. Aracı yok.",
+      title: "İstanbul'da Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "İstanbul'da ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "İstanbul'daki kiracı talepleri seni bekliyor",
       city: [
         "İstanbul'da bir daireyi boş bekletmenin maliyeti başka hiçbir şehirle kıyaslanmıyor. Burada sırayı tersine çeviriyorsun: ilan verip beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüyor ve uygun bulduğunu doğrudan arıyorsun.",
@@ -45,8 +45,8 @@ export const CITIES = {
   ankara: {
     name: "Ankara",
     tenant: {
-      title: "Ankara Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "Ankara'da aradığın evi tarif et, uygun ev sahipleri sana ulaşsın. Sen aramazsın, teklifler sana gelir. Komisyon yok.",
+      title: "Ankara Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "Ankara'da kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, Ankara'daki evi uyanlar seni doğrudan arasın.",
       h1: "Ankara'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Ankara'da kiralık ev ararken semt seçimi çoğu zaman işe ya da okula olan mesafeyle başlıyor. Çankaya'da merkeze yakın daireler hızlı el değiştiriyor, Keçiören ve Yenimahalle'de aynı kiraya daha geniş bir daire bulmak mümkün olabiliyor. Sen bu karşılaştırmayı tek tek yapmak yerine, aradığın evi tarif ediyorsun.",
@@ -55,8 +55,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "Ankara'da Evine Kiracı Bul | Konuttalebi",
-      description: "Ankara'da ev arayan kiracıların taleplerini gör, sana uygun olanı seç ve teklifini doğrudan gönder. Emlakçı aracılığı yok.",
+      title: "Ankara'da Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "Ankara'da ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "Ankara'daki kiracı talepleri seni bekliyor",
       city: [
         "Ankara'da kiracı ararken en çok vakit kaybettiren şey, evine hiç uymayan görüşme taleplerine cevap yetiştirmek. Burada süreç tersten işliyor: kiracılar ne aradıklarını önceden yazıyor, sen de yalnızca evine uyan talep sahiplerini arıyorsun.",
@@ -69,8 +69,8 @@ export const CITIES = {
   izmir: {
     name: "İzmir",
     tenant: {
-      title: "İzmir Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "İzmir'de bütçeni ve semtini yaz, ev sahipleri teklifini sana göndersin. İlan gezmek yok, komisyon yok, aracı yok.",
+      title: "İzmir Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "İzmir'de kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, İzmir'deki evi uyanlar seni doğrudan arasın.",
       h1: "İzmir'de kiralık ev arıyorsan aramayı bırak",
       city: [
         "İzmir'de kiralık ev aramak, çoğu zaman körfezin iki yakası arasında gidip gelmek demek. Karşıyaka ve Bornova'da ulaşımı kolay daireler hızla kiralanıyor, Konak çevresinde ise aynı bütçeyle bambaşka yaşlarda binalar karşına çıkabiliyor. Sen semt semt dolaşmak yerine, aradığın evi bir kez tarif ediyorsun.",
@@ -79,8 +79,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "İzmir'de Evine Kiracı Bul | Konuttalebi",
-      description: "İzmir'de ev arayan kiracıların taleplerini semte ve kira aralığına göre filtrele, uygun talebe teklifini gönder.",
+      title: "İzmir'de Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "İzmir'de ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "İzmir'deki kiracı talepleri seni bekliyor",
       city: [
         "İzmir'de evini kiraya verirken doğru kiracıyı beklemek yerine, ev arayanların taleplerini incelemekle işe başlıyorsun. Kiracılar hangi semtte, hangi kira aralığında ve nasıl bir evde oturmak istediklerini önceden yazıyor.",
@@ -93,8 +93,8 @@ export const CITIES = {
   eskisehir: {
     name: "Eskişehir",
     tenant: {
-      title: "Eskişehir Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "Eskişehir'de aradığın evi anlat, uygun ev sahipleri sana teklif getirsin. Saatlerce ilan karıştırmana gerek yok.",
+      title: "Eskişehir Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "Eskişehir'de kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, Eskişehir'deki evi uyanlar seni doğrudan arasın.",
       h1: "Eskişehir'de kiralık ev arıyorsan aramayı bırak",
       city: [
         "Eskişehir'de kiralık ev piyasası dönem başlarında hızlanıyor; uygun daireler birkaç gün içinde kiralanabiliyor. Bu tempoda tek tek gezmek yerine talebini önceden yazmak, seni sıranın önüne geçiriyor.",
@@ -103,8 +103,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "Eskişehir'de Evine Kiracı Bul | Konuttalebi",
-      description: "Eskişehir'de ev arayan kiracıların taleplerini incele, evine uygun olanı seç ve teklifini gönder. Aracı yok, komisyon yok.",
+      title: "Eskişehir'de Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "Eskişehir'de ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "Eskişehir'deki kiracı talepleri seni bekliyor",
       city: [
         "Eskişehir'de kiracı talebi dönemsel dalgalanıyor; okul dönemi yaklaştığında ev arayan sayısı belirgin biçimde artıyor. Burada bu dalgayı beklemek yerine, hâlihazırda ev arayan kiracıların taleplerini görüp uygun olanı doğrudan arıyorsun.",
@@ -117,8 +117,8 @@ export const CITIES = {
   bursa: {
     name: "Bursa",
     tenant: {
-      title: "Bursa Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "Bursa'da nasıl bir ev istediğini yaz, ev sahipleri sana ulaşsın. Sen aramazsın, teklifler sana gelir. Komisyon yok.",
+      title: "Bursa Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "Bursa'da kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, Bursa'daki evi uyanlar seni doğrudan arasın.",
       h1: "Bursa'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Bursa'da semtler arasındaki fark kiraya doğrudan yansıyor. Nilüfer'de yeni yapılar ve site içi daireler öne çıkarken, Osmangazi'de merkeze yakınlık, Yıldırım'da ise daha uygun kira aralıkları belirleyici oluyor. Sen bu karşılaştırmayı yapmak yerine aradığın evi tarif ediyorsun.",
@@ -127,8 +127,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "Bursa'da Evine Kiracı Bul | Konuttalebi",
-      description: "Bursa'da ev arayan kiracıların taleplerini bölge ve bütçeye göre filtrele, uygun talebe teklifini doğrudan gönder.",
+      title: "Bursa'da Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "Bursa'da ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "Bursa'daki kiracı talepleri seni bekliyor",
       city: [
         "Bursa'da evini kiraya verirken kiracı beklemek yerine, ev arayanların yazdığı talepleri inceleyerek başlıyorsun. Her talepte bölge, kira aralığı, oda sayısı ve taşınma zamanı yazılı oluyor.",
@@ -141,8 +141,8 @@ export const CITIES = {
   antalya: {
     name: "Antalya",
     tenant: {
-      title: "Antalya Kiralık Ev Talebi Oluştur | Konuttalebi",
-      description: "Antalya'da aradığın evi tarif et, uygun ev sahipleri teklif göndersin. İlan karıştırmak yok, komisyon yok, aracı yok.",
+      title: "Antalya Kiralık Ev: Talebini Bırak | Konuttalebi",
+      description: "Antalya'da kiralık ev arıyorsan aramayı bırak. Nasıl bir ev istediğini ve bütçeni yaz; talebin yayına girsin, Antalya'daki evi uyanlar seni doğrudan arasın.",
       h1: "Antalya'da kiralık ev arıyorsan aramayı bırak",
       city: [
         "Antalya'da uzun dönem kiralık ev bulmak, sezon hareketliliği nedeniyle çoğu şehirden daha zor olabiliyor. Muratpaşa'da merkeze yakın daireler hızla kiralanırken, Konyaaltı'nda sahile yakınlık kirayı belirleyen ilk başlık oluyor. Sen bu yarışın içinde tek tek aramak yerine talebini yazıyorsun.",
@@ -151,8 +151,8 @@ export const CITIES = {
       ]
     },
     owner: {
-      title: "Antalya'da Evine Kiracı Bul | Konuttalebi",
-      description: "Antalya'da ev arayan kiracıların taleplerini gör, evine uygun olanı seç ve teklifini gönder. Emlakçı aracılığı yok.",
+      title: "Antalya'da Evine Kiracı Bul: Talepleri Gör | Konuttalebi",
+      description: "Antalya'da ev arayan kiracıların taleplerini gör. Evine uygun talebi seç, iletişime geç, kiracıyla doğrudan konuş. Kiracıyı beklemek yok; seçim tamamen sende.",
       h1: "Antalya'daki kiracı talepleri seni bekliyor",
       city: [
         "Antalya'da uzun dönem kiracı arıyorsan, sezonluk taleplerin arasında doğru kişiyi bulmak vakit alıyor. Burada kiracılar ne aradıklarını önceden yazdığı için, evine uyanı baştan seçebiliyorsun.",

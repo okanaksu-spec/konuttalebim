@@ -2719,9 +2719,61 @@ function tryCityPage(req, res, pathname) {
   return true;
 }
 
+
+// --- Emlak danismanlari inis sayfasi (KUYRUK AJANS->TASARIM #34) -----------
+// Gecici title/meta TASARIM'indir; AJANS onayli set gelince birebir degisir
+// (SAYFA HARITASI kurali). Sitemap'e AJANS onayindan sonra eklenecek.
+function danismanPage(res) {
+  const html = `<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emlak Danışmanları İçin | Konuttalebi</title>
+<meta name="description" content="Seviye 5 belgeli emlak danışmanları için talep havuzu: kiralık ve satın alma taleplerini incele, talep sahibine doğrudan ulaş. Belgeni yükle, onayla başla.">
+<link rel="canonical" href="https://konuttalebi.com/emlak-danismanlari-icin">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Konuttalebi">
+<meta property="og:title" content="Emlak Danışmanları İçin | Konuttalebi">
+<meta property="og:description" content="Seviye 5 belgeli emlak danışmanları için talep havuzu: talepleri incele, talep sahibine doğrudan ulaş.">
+<meta property="og:url" content="https://konuttalebi.com/emlak-danismanlari-icin">
+<meta property="og:image" content="https://konuttalebi.com/assets/og-image.png">
+<style>
+body{margin:0;background:#f8fafc;color:#020617;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65}
+.wrap{max-width:820px;margin:0 auto;padding:40px 22px 64px}
+.logo{display:inline-block;text-decoration:none;color:#020617;font-weight:800;font-size:19px;letter-spacing:-.2px}
+.logo small{display:block;color:#4338ca;font-size:9.5px;font-weight:800;letter-spacing:2.2px}
+h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
+.lead{font-size:17px;color:#475569;margin:0 0 26px}
+.kart{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:22px 24px;margin:14px 0}
+.kart h2{font-size:18px;margin:0 0 8px}
+.kart p{margin:0;color:#475569;font-size:15px}
+.adim{display:flex;gap:12px;margin:10px 0;align-items:flex-start}
+.no{flex:none;width:26px;height:26px;border-radius:50%;background:#eef2ff;color:#4f46e5;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+.cta{display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;padding:13px 24px;border-radius:10px;margin:18px 12px 0 0}
+.cta2{display:inline-block;background:#fff;border:1px solid #e2e8f0;color:#020617;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:10px;margin-top:18px}
+.not{font-size:13px;color:#64748b;margin-top:26px}
+</style></head>
+<body><div class="wrap">
+<a class="logo" href="/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
+<h1>Emlak danışmanları için talep havuzu</h1>
+<p class="lead">Konuttalebi'nde ilan yok; ev arayanlar ve konut alıcıları talep bırakır. Onaylı danışman olarak bu talepleri incelersin, sana uyanların iletişim bilgisini üyelikle görüntüler ve talep sahibini doğrudan ararsın.</p>
+<div class="kart"><h2>Nasıl çalışır?</h2>
+<div class="adim"><span class="no">1</span><p>Danışman olarak üye ol ve Sorumlu Emlak Danışmanı (Seviye 5) belgeni yükle.</p></div>
+<div class="adim"><span class="no">2</span><p>Belgen yönetici tarafından incelenir; onaylanınca hesabın açılır.</p></div>
+<div class="adim"><span class="no">3</span><p>6 ildeki kiralık ve konut satın alma taleplerini incele; kriterlerine uyan yeni talepler sana bildirilir, iletişim bilgisini üyelikle görüntüleyip doğrudan ararsın.</p></div>
+</div>
+<div class="kart"><h2>Belge şartı</h2><p>Danışman hesapları yalnızca geçerli Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle çalışır. Belge yüklemeden veya onay tamamlanmadan talep sahiplerinin iletişim bilgisi görüntülenemez. Taşınmaz Ticareti Yönetmeliği'ne uyum bizim için ön şarttır.</p></div>
+<div class="kart"><h2>Ne görürsün?</h2><p>İstanbul, Ankara, İzmir, Eskişehir, Bursa ve Antalya'daki güncel talepler: bölge, bütçe aralığı, oda sayısı, taşınma veya alım zamanı. Talep sahibinin kimliği ve iletişimi, sen görüntüleyene kadar gizlidir; her görüntülemede talep sahibine haber verilir.</p></div>
+<a class="cta" href="/#/uye-ol">Danışman olarak üye ol</a>
+<a class="cta2" href="/#/fiyatlandirma">Üyelik paketlerini gör</a>
+<p class="not">Fiyata, pazarlığa veya sözleşmeye karışmayız; talep sahibiyle doğrudan görüşürsün.</p>
+</div></body></html>`;
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=600" });
+  res.end(html);
+}
+
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (tryCityPage(req, res, p)) return;
+  if (p === "/emlak-danismanlari-icin" || p === "/emlak-danismanlari-icin/") return danismanPage(res);
   if (p === "/") p = "/index.html";
   else if (p === "/kiralik-ev-arayan") p = "/kiralik-ev-arayan.html";
   else if (p === "/evine-kiraci-bul") p = "/evine-kiraci-bul.html";

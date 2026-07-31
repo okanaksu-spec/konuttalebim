@@ -619,7 +619,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
 
         <tr><td style="background:#ffffff;padding:24px 26px 18px;text-align:left;border-bottom:1px solid #e2e8f0">
-          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px">Konuttalebi</div>
+          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px">${MARKA.ad}</div><div style="color:#b08a35;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:2px 0 12px">${MARKA.slogan}</div>
           <div style="font-size:36px;line-height:1;margin-bottom:10px">&#127881;</div>
           <div style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-.3px">Talebin yayında</div>
           <div style="color:#a8bcd0;font-size:14px;margin-top:6px">Artık teklifler sana gelecek</div>
@@ -653,8 +653,8 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
         </td></tr>
 
         <tr><td style="background:#f8fafc;padding:18px 26px;font-size:12px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0">
-          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">Konuttalebi Ekibi<br>
-            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;Sen aramazsın, teklifler sana gelir.&rdquo;</span></p>
+          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">${MARKA.ad} Ekibi<br>
+            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;${MARKA.epostaSlogan}&rdquo;</span></p>
           <a href="${panelUrl}" style="color:#41556d">Talebimi düzenle</a> ·
           <a href="${yardimUrl}" style="color:#41556d">Yardım</a> ·
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
@@ -795,7 +795,7 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
         <tr><td style="background:#ffffff;padding:24px 26px 18px;text-align:left;border-bottom:1px solid #e2e8f0">
-          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px">Konuttalebi</div>
+          <div style="color:#020617;font-size:17px;font-weight:700;letter-spacing:-.2px">${MARKA.ad}</div><div style="color:#b08a35;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:2px 0 12px">${MARKA.slogan}</div>
           ${emoji ? `<div style="font-size:32px;line-height:1;margin-bottom:8px">${emoji}</div>` : ""}
           <div style="color:#020617;font-size:21px;font-weight:700;letter-spacing:-.3px;line-height:1.3">${escapeHtmlSrv(title)}</div>
         </td></tr>
@@ -808,8 +808,8 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
           ${afterCta}
         </td></tr>
         <tr><td style="background:#f8fafc;padding:18px 26px;font-size:12px;line-height:1.6;color:#64748b;border-top:1px solid #e2e8f0">
-          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">Konuttalebi Ekibi<br>
-            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;Sen aramazsın, teklifler sana gelir.&rdquo;</span></p>
+          <p style="margin:0 0 8px;color:#020617;font-weight:600;font-size:13px">${MARKA.ad} Ekibi<br>
+            <span style="color:#64748b;font-weight:500;font-style:italic">&ldquo;${MARKA.epostaSlogan}&rdquo;</span></p>
           <a href="${APP_URL()}/#/yardim" style="color:#41556d">Yardım</a> ·
           <a href="mailto:info@konuttalebi.com" style="color:#41556d">info@konuttalebi.com</a>
           ${unsubUserId ? `<br><br>Bu tür bildirimleri almak istemiyorsan
@@ -973,6 +973,9 @@ function agentBelgeGecerli(userId) {
   if (Number(u.agentApproved) === 1) return true;
   return Boolean(u.agentDocDeadline && u.agentDocDeadline >= today());
 }
+
+// MARKA SABITLERI — MASTER (Okan, 31 Tem): tek merkezden yonetilir.
+const MARKA = { ad: "Konuttalebi", slogan: "Talep ve Teklif", epostaSlogan: "Sen aramazsın, teklifler sana gelir." };
 
 const SEVIYE5_TIP = "Sorumlu Emlak Danışmanı (Seviye 5)";
 // Turkce karakterler farkli Unicode bicimlerinde gelebilir (İ birlesik/ayrik);

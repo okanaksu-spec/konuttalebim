@@ -209,7 +209,7 @@ function ownerFaq(il) {
 const HEADER_HTML = `
     <header class="site">
       <div class="wrap">
-        <a class="logo" href="${SITE}/">Konuttalebi</a>
+        <a class="logo" href="${SITE}/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
         <nav class="nav">
           <a href="${SITE}/kiralik-ev-arayan">Kiralık ev arayan</a>
           <a href="${SITE}/evine-kiraci-bul">Evine kiracı bul</a>

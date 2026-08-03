@@ -49,9 +49,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "İstanbul Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "İstanbul'da ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "İstanbul'da ev almak istiyorsan aramayı bırak",
+      title: "İstanbul Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "İstanbul'da ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; İstanbul'daki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "İstanbul'da ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "İstanbul'da ev satın almak, aynı bütçeyle bambaşka hayatlar arasında seçim yapmak demek. Kadıköy ve Beşiktaş'ta metro yakınındaki daireler hızla el değiştirirken, Beylikdüzü ve Başakşehir'de aynı rakama site içinde çok daha geniş bir daire çıkabiliyor. Sen bu karşılaştırmayı tek tek gezerek yapmak yerine ne aradığını bir kez yazıyorsun: semt, bütçe aralığı, oda sayısı ve alım zamanı.",
         "Talebini gören ev sahipleri ve onaylı danışmanlar sana ulaşıyor. Ataşehir ve Ümraniye'nin yeni projelerinden Bakırköy ve Maltepe'nin yerleşik mahallelerine, Kartal ve Pendik'in dönüşüm bölgelerine kadar farklı yakalardan aramalar gelebilir. Birden fazla semt yazarsan iki yakadan da aranırsın.",
@@ -60,8 +60,8 @@ export const CITIES = {
     },
     vendor: {
       title: "İstanbul'da Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "İstanbul'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "İstanbul'daki konut alım talepleri seni bekliyor",
+      description: "İstanbul'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "İstanbul'daki konut satın alma talepleri seni bekliyor",
       city: [
         "İstanbul'da bir evi elden çıkarmak için sıra beklemek zaman kaybı. Burada tersini yapıyorsun: hâlihazırda ev almak isteyenlerin taleplerini görüyor, evine uyanı seçip doğrudan arıyorsun.",
         "Talepleri semt ve bütçe aralığına göre süzebilirsin. Kadıköy, Beşiktaş ve Şişli tarafında talep yoğunluğu genellikle yüksek; Ataşehir, Bakırköy ve Maltepe'de aile büyüklüğüne göre net beklentiler görürsün; Beylikdüzü, Başakşehir ve Kartal'da site içi daire arayan alıcılar öne çıkar.",
@@ -93,9 +93,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "Ankara Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "Ankara'da ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "Ankara'da ev almak istiyorsan aramayı bırak",
+      title: "Ankara Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "Ankara'da ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; Ankara'daki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "Ankara'da ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "Ankara'da ev satın alırken semt seçimi çoğu zaman işe ve okula mesafeyle başlıyor. Çankaya'da merkeze yakın daireler değerini korurken, Etimesgut ve Sincan'da aynı bütçeyle daha yeni ve daha geniş bir daire mümkün olabiliyor. Sen bu hesabı tek tek yapmak yerine aradığın evi tarif ediyorsun.",
         "Talebini yazdıktan sonra Yenimahalle ve Keçiören'in yerleşik mahallelerinden, Gölbaşı ve Pursaklar'ın daha sakin bölgelerine kadar farklı yerlerden ev sahipleri ve onaylı danışmanlar seni arayabilir. Kamu kurumlarına veya üniversite kampüslerine yakınlık senin için önemliyse bunu talebine yazman yeterli.",
@@ -104,8 +104,8 @@ export const CITIES = {
     },
     vendor: {
       title: "Ankara'da Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "Ankara'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "Ankara'daki konut alım talepleri seni bekliyor",
+      description: "Ankara'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "Ankara'daki konut satın alma talepleri seni bekliyor",
       city: [
         "Ankara'da evini elden çıkarmak isteyip alıcı bekleyenlerin en çok yakındığı şey, eve hiç uymayan görüşme talepleri. Burada alıcılar ne aradığını önceden yazıyor; sen yalnızca evine uyanları arıyorsun.",
         "Çankaya'da merkeze yakın daireler için talep genellikle yoğun; Keçiören, Yenimahalle ve Mamak'ta aile büyüklüğüne göre net bütçe aralıkları görürsün. Etimesgut, Sincan ve Pursaklar'da yeni yapı ve site içi arayan alıcılar öne çıkar, Gölbaşı'nda daha sakin çevre arayanlar ağırlıkta olur.",
@@ -137,9 +137,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "İzmir Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "İzmir'de ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "İzmir'de ev almak istiyorsan aramayı bırak",
+      title: "İzmir Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "İzmir'de ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; İzmir'deki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "İzmir'de ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "İzmir'de ev satın almak, körfezin iki yakası arasında karar vermek demek. Karşıyaka ve Bornova'da ulaşımı kolay daireler hızla el değiştirirken, Buca ve Karabağlar'da aynı bütçeyle daha geniş bir daire çıkabiliyor. Sen semt semt dolaşmak yerine aradığın evi bir kez tarif ediyorsun.",
         "Talebini gören ev sahipleri ve onaylı danışmanlar sana ulaşıyor. Bayraklı'nın yeni yapıları, Gaziemir ve Çiğli'nin site içi seçenekleri, Balçova ve Narlıdere'nin merkeze yakın ama sakin mahalleleri arasından birden fazla semti aynı anda talebine yazabilirsin.",
@@ -148,8 +148,8 @@ export const CITIES = {
     },
     vendor: {
       title: "İzmir'de Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "İzmir'de ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "İzmir'deki konut alım talepleri seni bekliyor",
+      description: "İzmir'de ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "İzmir'deki konut satın alma talepleri seni bekliyor",
       city: [
         "İzmir'de evini elden çıkarırken alıcı beklemek yerine, ev almak isteyenlerin taleplerini incelemekle işe başlıyorsun. Alıcılar hangi semtte, hangi bütçeyle ve nasıl bir evde oturmak istediklerini önceden yazıyor.",
         "Karşıyaka ve Bornova'da ulaşıma yakın daireler için talep genellikle yoğun; Konak ve Balçova'da merkeze yakınlık öne çıkıyor. Buca ve Karabağlar'da geniş ve uygun bütçeli daire arayanlar, Bayraklı, Gaziemir ve Çiğli'de yeni yapı arayan alıcılar görürsün.",
@@ -181,9 +181,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "Eskişehir Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "Eskişehir'de ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "Eskişehir'de ev almak istiyorsan aramayı bırak",
+      title: "Eskişehir Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "Eskişehir'de ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; Eskişehir'deki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "Eskişehir'de ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "Eskişehir'de ev satın alırken şehrin ölçeği işi kolaylaştırıyor: çoğu semt merkeze yakın, ulaşım tramvayla çözülüyor. Yine de Odunpazarı'nın yerleşik mahalleleriyle Tepebaşı'nın yeni yapı bölgeleri arasında ciddi fiyat ve yaşam farkı var. Sen bu farkı tek tek gezerek değil, ne aradığını yazarak çözüyorsun.",
         "Talebini gören ev sahipleri ve onaylı danışmanlar seni arıyor. Üniversite çevresi, çarşıya yakınlık veya sakin bir mahalle senin için önemliyse bunu talebine yazman yeterli; aramalar o çerçevede gelir.",
@@ -192,8 +192,8 @@ export const CITIES = {
     },
     vendor: {
       title: "Eskişehir'de Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "Eskişehir'de ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "Eskişehir'deki konut alım talepleri seni bekliyor",
+      description: "Eskişehir'de ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "Eskişehir'deki konut satın alma talepleri seni bekliyor",
       city: [
         "Eskişehir'de evini elden çıkarmak için sıra beklemek yerine, ev almak isteyenlerin taleplerini görüyorsun. Şehir küçük ölçekli olduğu için evine uyan alıcıyı bulmak birkaç dakikalık iş.",
         "Odunpazarı ve Tepebaşı'ndaki talepler çoğunlukla merkeze ve tramvay hattına yakınlık üzerinden şekilleniyor; üniversite çevresinde ise daha küçük ve pratik daire arayanlar öne çıkıyor.",
@@ -225,9 +225,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "Bursa Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "Bursa'da ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "Bursa'da ev almak istiyorsan aramayı bırak",
+      title: "Bursa Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "Bursa'da ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; Bursa'daki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "Bursa'da ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "Bursa'da ev satın alırken Nilüfer'in site içi yeni yapıları ile Osmangazi ve Yıldırım'ın yerleşik mahalleleri arasında net bir tercih yapmak gerekiyor. Aynı bütçe iki bölgede bambaşka evler açıyor. Sen bu karşılaştırmayı tek tek gezmek yerine, aradığın evi bir kez tarif ediyorsun.",
         "Talebini gören ev sahipleri ve onaylı danışmanlar sana ulaşıyor. Sanayi bölgelerine, hastanelere veya okullara yakınlık senin için önemliyse talebine yazman yeterli; aramalar o ölçüye göre gelir.",
@@ -236,8 +236,8 @@ export const CITIES = {
     },
     vendor: {
       title: "Bursa'da Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "Bursa'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "Bursa'daki konut alım talepleri seni bekliyor",
+      description: "Bursa'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "Bursa'daki konut satın alma talepleri seni bekliyor",
       city: [
         "Bursa'da evini elden çıkarırken alıcı beklemek yerine hazır talepler arasından seçim yapıyorsun. Alıcılar bölgeyi, bütçeyi ve alım zamanını önceden yazıyor.",
         "Nilüfer'de site içi ve yeni yapı arayan alıcılar öne çıkarken, Osmangazi ve Yıldırım'da merkeze yakın ve uygun bütçeli daire arayanlar ağırlıkta oluyor. Mudanya tarafında ise deniz yakını arayan talepler görürsün.",
@@ -269,9 +269,9 @@ export const CITIES = {
       ]
     },
     buyer: {
-      title: "Antalya Konut Alım Talebi: Talebini Bırak | Konuttalebi",
-      description: "Antalya'da ev almak istiyorsan aramayı bırak. Bölgeni, bütçeni ve kredi tercihini yaz; evi sana uyanlar iletişim bilgine ulaşıp seni doğrudan arasın.",
-      h1: "Antalya'da ev almak istiyorsan aramayı bırak",
+      title: "Antalya Ev Almak İstiyorum: Talebini Bırak | Konuttalebi",
+      description: "Antalya'da ev almak istiyorsan aramayı bırak. Bütçeni ve nasıl bir ev istediğini yaz; Antalya'daki evi talebine uyanlar seni doğrudan arasın. Karar senin.",
+      h1: "Antalya'da ev almak istiyorsan aramayı bırak — seni bulsunlar.",
       city: [
         "Antalya'da ev satın almak, yıl boyu oturmakla sezonluk kullanım arasında bir tercih meselesi. Muratpaşa ve Konyaaltı'nda merkeze ve sahile yakın daireler değerini korurken, Kepez ve Döşemealtı'nda aynı bütçeyle daha geniş bir daire mümkün olabiliyor. Sen bu hesabı tek tek gezerek değil, talebini yazarak yapıyorsun.",
         "Talebini gören ev sahipleri ve onaylı danışmanlar seni arıyor. Sahile mesafe, site içi olması veya havuz gibi tercihler senin için belirleyiciyse talebine yazman yeterli.",
@@ -280,8 +280,8 @@ export const CITIES = {
     },
     vendor: {
       title: "Antalya'da Evine Alıcı Bul: Talepleri Gör | Konuttalebi",
-      description: "Antalya'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişim bilgisini görüntüle ve doğrudan konuş. Alıcıyı beklemek yok.",
-      h1: "Antalya'daki konut alım talepleri seni bekliyor",
+      description: "Antalya'da ev almak isteyenlerin taleplerini gör. Evine uygun alıcıyı seç, iletişime geç, doğrudan konuş. Alıcıyı bekleme; seçim tamamen sende, aracı yok.",
+      h1: "Antalya'daki konut satın alma talepleri seni bekliyor",
       city: [
         "Antalya'da evini elden çıkarırken alıcı beklemek yerine, hazır alım taleplerini inceliyorsun. Alıcılar bölgeyi, bütçeyi ve alım zamanını önceden yazıyor.",
         "Muratpaşa ve Konyaaltı'nda merkeze ve sahile yakınlık öne çıkıyor; Kepez ve Döşemealtı'nda daha geniş ve uygun bütçeli daire arayanlar ağırlıkta. Serik ve Aksu tarafında site içi ve yazlık kullanım arayan talepler görürsün.",

@@ -766,7 +766,10 @@ function homePage() {
     description: "Metroya ve okula yakın, krediye uygun, bakımlı bir aile evi arıyorum.", offerCount: 0,
   };
   // 2.0: ornek ILAN nesnesi kaldirildi — sitede arz yok, yalniz talep.
-  const profile = { verificationLevel: "Bütçe beyanı: 6–8 milyon TL", badge: "blue", budgetTrustScore: 88 };
+  // 2.0: "butce guveni" puani kaldirildi — sitede boyle bir olcum yok, hero'da
+  // uydurma metrik gostermek yaniltici. Yerine gercek olan iki bilgi: dogrulanmis
+  // e-posta rozeti ve talebin tazeligi.
+  const profile = { verificationLevel: "E-posta doğrulandı · kimlik gizli", badge: "blue" };
   return `
     <section class="hero">
       <div class="hero-inner">
@@ -786,7 +789,7 @@ function homePage() {
           </div>
           <div class="hero-trustline" style="display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;color:var(--muted);font-weight:600;font-size:14px">
             <span>${icon("card", 15)} Belge istenmez</span>
-            <span>${icon("lock", 15)} İletişim açık rızayla</span>
+            <span>${icon("lock", 15)} İletişim ücretli üyelikle</span>
             <span>${icon("shield", 15)} Komisyon yok</span>
           </div>
         </div>
@@ -794,16 +797,15 @@ function homePage() {
           <div class="hero-card hero-card-main">
             <div class="sample-top">
               <span class="badge ${badgeForProfile(profile)}">${icon("shield", 13)} ${escapeHtml(profile.verificationLevel)}</span>
-              <span class="pill">${profile.budgetTrustScore}/100 bütçe güveni</span>
+              <span class="pill">3 ay içinde alacak</span>
             </div>
             <h3>${escapeHtml(sampleDemand.title)}</h3>
             <p>${escapeHtml(sampleDemand.city)} / ${escapeHtml(sampleDemand.district)} · ${escapeHtml(sampleDemand.roomCount)} · ${shortMoney(sampleDemand.minBudget)}-${shortMoney(sampleDemand.maxBudget)}</p>
-            <div class="hero-progress"><span style="width:${profile.budgetTrustScore}%"></span></div>
           </div>
 <!-- 2.0: ornek ILAN karti kaldirildi; yerine ikinci ornek TALEP karti. -->
           <div class="hero-card hero-card-main" style="opacity:.94">
             <div class="sample-top">
-              <span class="badge badge-gold">Kiralık ev arıyor</span>
+              <span class="badge badge-blue">Kiralık ev arıyor</span>
               <span class="pill">1 ay içinde taşınacak</span>
             </div>
             <h3>Nilüfer'de eşyalı 2+1 arıyorum</h3>
@@ -853,9 +855,9 @@ function homePage() {
     </section>
     <section class="trust-strip">
       <div class="container trust-grid">
-        <div class="trust-item">${icon("card", 19)}<div><strong>Bütçe beyanı</strong><span>Alıcı sadece bütçe aralığını ve alım niyetini beyan eder.</span></div></div>
-        <div class="trust-item">${icon("lock", 19)}<div><strong>İletişim bilgisi</strong><span>Mülk sahibinin telefon ve e-postası üyelikle açılır; gerisini doğrudan siz konuşursunuz.</span></div></div>
-        <div class="trust-item">${icon("chart", 19)}<div><strong>Uyum puanı</strong><span>Bölge, bütçe, oda ve kredi uygunluğu birlikte puanlanır.</span></div></div>
+        <div class="trust-item">${icon("card", 19)}<div><strong>Belge istenmez</strong><span>Yalnızca bütçe aralığını ve alım zamanını yazarsın; kimlik veya gelir belgesi yüklemezsin.</span></div></div>
+        <div class="trust-item">${icon("lock", 19)}<div><strong>İletişim bilgisi</strong><span>Talep sahibinin telefon ve e-postası ücretli üyelikle açılır; gerisini doğrudan siz konuşursunuz.</span></div></div>
+        <div class="trust-item">${icon("chart", 19)}<div><strong>Kriterine uyan talep</strong><span>Bölge, bütçe, oda ve kredi tercihi kaydedilir; uyan yeni talepte bildirim gider.</span></div></div>
       </div>
     </section>
     <section class="color-showcase">
@@ -940,7 +942,7 @@ function homePage() {
           <div class="section-title">
             <div class="kicker">Rolünü seç</div>
             <h2>Ev al, evini sat, ev kirala veya evini kiraya ver — Konuttalebi sana göre çalışır.</h2>
-            <p class="lead">Sana uygun akışı seç: talebini oluştur, sistem seni eşleştirsin; üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanıysan profesyonel paketle tüm portföyünü yönet.</p>
+            <p class="lead">Sana uygun akışı seç: talebini bırak, kriterine uyanlar seni bulsun; ücretli üyelikle iletişim bilgisine ulaşıp doğrudan anlaşın. Emlak danışmanıysan belgeni yükle, tüm talep havuzuna eriş.</p>
           </div>
         </div>
         <div class="grid grid-2 role-areas">
@@ -975,7 +977,7 @@ function homePage() {
           <article class="card role-area" style="grid-column:1/-1">
             <span class="role-ic role-ic-gold">${icon("chart", 26)}</span>
             <h3>Emlak Danışmanı</h3>
-            <p>Alıcı ve kiracı taleplerinin tamamına profesyonel üyelikle ulaş; ilan peşinde koşma, hazır talebe çalış. Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle onaylanırsın.</p>
+            <p>Alıcı ve kiracı taleplerinin tamamına danışman üyeliğiyle ulaş; soğuk arama yapma, hazır talebe çalış. Sorumlu Emlak Danışmanı (Seviye 5) belgesiyle onaylanırsın.</p>
             <ul class="role-points"><li>Tüm talep havuzuna sınırsız erişim</li><li>Kriter kaydet, uyan talepte bildirim al</li><li>Onaylı danışman rozeti</li></ul>
             <button class="btn btn-primary" onclick="KT.startRegistration('agent')">${icon("chart", 16)} Danışman üyeliğiyle başla</button>
           </article>
@@ -1042,20 +1044,19 @@ function howSteps() {
     [illus3, "Üyelikle iletişim açılır", "Ücretli üye veya onaylı danışman, talep sahibinin telefon ve e-postasını görüntüler; her görüntülemede talep sahibine haber verilir."],
     [illus4, "Doğrudan anlaş", "Fiyata, pazarlığa veya sözleşmeye karışmayız; şartları doğrudan siz belirlersiniz."]
   ];
-  return `<div class="grid grid-4 how-steps">${steps.map(([svg, title, body], i) => `<article class="card how-step"><div class="how-illus">${svg}</div><span class="badge badge-gold">${i + 1}. adım</span><h3 style="margin-top:10px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
+  return `<div class="grid grid-4 how-steps">${steps.map(([svg, title, body], i) => `<article class="card how-step"><div class="how-illus">${svg}</div><span class="badge badge-blue">${i + 1}. adım</span><h3 style="margin-top:10px">${title}</h3><p>${body}</p></article>`).join("")}</div>`;
 }
 
 function demandCard(demand, options = {}) {
   // options.profile: temsili orneklerde ayni profili paylasmak icin (ana sayfa vitrini)
   const profile = options.profile || buyerProfile(demand.buyerId);
-  const score = profile.budgetTrustScore || 40;
   return `
     <article class="${options.sample ? "sample-card" : "row-card"}">
       ${options.sample ? "" : (demand.imageData ? `<div class="thumb"><img class="thumb-img" src="${demand.imageData}" alt=""></div>` : `<div class="thumb">${icon("key", 28)}</div>`)}
       <div>
         ${options.profile ? `<div class="sample-top">
           <span class="badge ${badgeForProfile(profile)}">${icon("shield", 13)} ${escapeHtml(profile.verificationLevel)}</span>
-          <span class="pill">${score}/100 bütçe güveni</span>
+          <span class="pill">${escapeHtml(demand.purchaseTimeline || "Talep aktif")}</span>
         </div>` : `<div class="sample-top">${txPill(demand)}</div>`}
         <h3 style="margin-top:12px">${escapeHtml(demand.title)}</h3>
         <p class="muted">${escapeHtml(demand.city)} / ${escapeHtml(demand.district)} · ${escapeHtml(demand.propertyType)} · ${escapeHtml(demand.roomCount)}</p>

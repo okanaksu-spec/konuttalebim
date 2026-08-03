@@ -1822,12 +1822,19 @@ async function handleApi(req, res, url) {
     const name = (body.name || "").trim();
     const email = norm(body.email);
     const phone = (body.phone || "").trim();
-    const password = body.password || "";
+    // SIFRESIZ MISAFIR AKISI (2026-08-03, Okan onayi)
+    // Onceki durum: kullanici 7 soruyu doldurduktan sonra bir de sifre uyduruyordu.
+    // Oysa dogrulama baglantisina tiklandiginda oturum zaten aciliyor (asagida).
+    // Sifre gonderilmezse rastgele guclu bir deger yazilir; kullanici isterse
+    // "Sifremi unuttum" ile kendi sifresini belirler. Gonderilirse eski kural isler.
+    const password = body.password || (randomBytes(18).toString("base64url") + "Aa1");
     if (name.length < 3) return err(res, 400, "Adını ve soyadını yaz.");
     if (!email.includes("@")) return err(res, 400, "Geçerli bir e-posta adresi yaz.");
     if (!normalizePhone(phone)) return err(res, 400, "Geçerli bir cep telefonu numarası gir (5xx xxx xx xx).");
-    const sifreHata = sifreGecerliMi(password);
-    if (sifreHata) return err(res, 400, sifreHata);
+    if (body.password) {
+      const sifreHata = sifreGecerliMi(body.password);
+      if (sifreHata) return err(res, 400, sifreHata);
+    }
     if (!body.termsAccepted) return err(res, 400, "Devam etmek için kullanım koşullarını ve KVKK metnini onaylaman gerekiyor.");
     if (db.prepare("SELECT 1 FROM auth_accounts WHERE email = ?").get(email))
       return err(res, 409, "Bu e-posta ile kayıtlı bir üyelik var. Giriş yapıp talebini oradan oluşturabilirsin.");

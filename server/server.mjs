@@ -15,6 +15,7 @@ import {
   isValidTckn, validateBirthDate, maskTckn, maskBirthDate, ageFromBirthDate
 } from "./identity.mjs";
 import { smsEnabled, smsDurumu, normalizePhone, maskPhone, sendSms, verificationMessage } from "./sms.mjs";
+import { turnstileEnabled, turnstileSiteKey, turnstileDurumu, turnstileKapisi } from "./turnstile.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = join(__dirname, "..");        // frontend dosyalari (index.html, app.js...)
@@ -1204,7 +1205,7 @@ function buildState(user) {
     currentRole: user ? (user.role === "BUYER" ? "buyer" : user.role === "ADMIN" ? "admin" : "seller") : "buyer",
     // smsVerification: SMS saglayicisi bagli mi? Istemci bu bayrak acikken
     // dogrulama ekranina yonlendirir; kapaliyken ozellik uykudadir.
-    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled, smsVerification: smsEnabled(), emailVerifyHours: EPOSTA_SURE_SAAT },
+    config: { paymentsLive: paymentsAreLive(), googleAuth: GOOGLE.enabled, smsVerification: smsEnabled(), emailVerifyHours: EPOSTA_SURE_SAAT, turnstileSiteKey: turnstileSiteKey() },
     auth: { currentUserId: user ? user.id : null, lastLoginAt: null },
     counters: { user: 100, demand: 100, property: 100, offer: 100, match: 100, message: 100, notification: 100, complaint: 100, audit: 100, doc: 100, abuse: 100, email: 100 },
     // Gizlilik: misafir (giris yapmamis) istekte kisisel/ters-pazar verisi donmez.
@@ -1237,6 +1238,7 @@ function buildState(user) {
     // gercek gonderimde testCode NULL kalir.
     phoneCodes: isAdmin ? db.prepare("SELECT id,userId,phone,attempts,sentAt,expiresAt,usedAt,testCode,mode FROM phone_verifications ORDER BY sentAt DESC LIMIT 50").all() : [],
     smsConfig: isAdmin ? { enabled: smsEnabled(), durum: smsDurumu() } : undefined,
+    turnstileConfig: isAdmin ? { enabled: turnstileEnabled(), durum: turnstileDurumu() } : undefined,
     complaints: [],
     abuseSignals: [],
     auditLogs: isAdmin ? all("audit_logs") : [],
@@ -1451,6 +1453,8 @@ async function handleApi(req, res, url) {
   if (seg[0] === "register" && method === "POST") {
     if (!rateLimit(`register:${clientIp(req)}`, 6, 15 * 60 * 1000))
       return err(res, 429, "Çok fazla kayıt denemesi. Lütfen biraz sonra tekrar deneyin.");
+    // Bot korumasi: Turnstile anahtari tanimliysa dogrula, degilse atla.
+    if (await turnstileKapisi(req, res, body, err, clientIp)) return;
     const name = (body.name || "").trim();
     const email = norm(body.email);
     const phone = (body.phone || "").trim();
@@ -1652,6 +1656,8 @@ async function handleApi(req, res, url) {
   if (seg[0] === "password" && seg[1] === "forgot" && method === "POST") {
     if (!rateLimit(`pwforgot:${clientIp(req)}`, 5, 15 * 60 * 1000))
       return err(res, 429, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.");
+    // Bot korumasi: baskasinin adresine toplu sifirlama maili yagdirilmasini engeller.
+    if (await turnstileKapisi(req, res, body, err, clientIp)) return;
     const email = norm(body.email);
     // Guvenlik: e-posta kayitli olsun olmasin AYNI notr yanit doner (kullanici sayimini engeller).
     const neutral = { message: "Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Gelen kutunu kontrol et." };
@@ -1852,6 +1858,8 @@ async function handleApi(req, res, url) {
   if (seg[0] === "kayit" && seg[1] === "talep" && method === "POST") {
     if (!rateLimit(`misafir-talep-ip:${clientIp(req)}`, 5, 60 * 60 * 1000))
       return err(res, 429, "Çok fazla talep denemesi. Lütfen bir süre sonra tekrar dene.");
+    // Bot korumasi: reklam inis sayfasi oldugu icin en acik hedef burasi.
+    if (await turnstileKapisi(req, res, body, err, clientIp)) return;
 
     const name = (body.name || "").trim();
     const email = norm(body.email);

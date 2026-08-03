@@ -1032,6 +1032,25 @@ function agentBelgeGecerli(userId) {
 // MARKA SABITLERI — MASTER (Okan, 31 Tem): tek merkezden yonetilir.
 const MARKA = { ad: "Konuttalebi", slogan: "Talep ve Teklif", epostaSlogan: "Sen aramazsın, teklifler sana gelir." };
 
+// Meta Pixel (2026-08-03): sunucu uretimi sayfalara da eklenir ki reklam
+// olcumu tum sayfalarda calissin. GA4/Ads etiketlerinden bagimsizdir.
+const META_PIXEL = "1067711589350052";
+const META_PIXEL_KODU = `
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '${META_PIXEL}');
+      fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=${META_PIXEL}&ev=PageView&noscript=1"/></noscript>`;
+
 const SEVIYE5_TIP = "Sorumlu Emlak Danışmanı (Seviye 5)";
 // Turkce karakterler farkli Unicode bicimlerinde gelebilir (İ birlesik/ayrik);
 // birebir esitlik yerine ayirt edici "Seviye 5" parcasina bakilir.
@@ -2803,7 +2822,7 @@ h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
   .kart{padding:18px 18px}
   .cta,.cta2{display:block;text-align:center;margin:14px 0 0}
 }
-</style></head>
+</style>${META_PIXEL_KODU}</head>
 <body><div class="wrap">
 <a class="logo" href="/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
 <h1>Müşteri talepleri burada — portföyüne uyanı sen seç.</h1>

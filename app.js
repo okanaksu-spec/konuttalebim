@@ -182,7 +182,8 @@ let uiTxMode = "RENT"; // 2.0 + Okan karari (30 Tem): varsayilan Kiralik. ?tx=SA
 try { if (new URLSearchParams(location.search).get("tx") === "SALE") uiTxMode = "SALE"; } catch {}
 let PAYMENTS_LIVE = false; // Test icin ?pay=1 ile acilir; canli-moda gecince kosulsuz true yapilacak.
 try { if (new URLSearchParams(location.search).get("pay") === "1") PAYMENTS_LIVE = true; } catch {}
-let _pendingPay = null; // odeme onay modalinda bekleyen islem
+let _pendingPay = null;
+let _pendingFatura = null;   // odeme onayinda alinan fatura bilgisi // odeme onay modalinda bekleyen islem
 
 // Kiralik talep formu — opsiyonel ozellik listeleri (kiraci modulu)
 const IC_OZELLIKLER = ["Ebeveyn Banyosu", "Giyinme Odası", "Gömme Dolap", "Kiler", "Ankastre Mutfak", "Amerikan Mutfak", "Balkon", "Teras", "Çelik Kapı", "Klima", "Şömine", "Laminat/Parke"];
@@ -2598,7 +2599,7 @@ function renderAdmin(path) {
   if (path.includes("/belgeler")) content = adminDocuments();
   if (path.includes("/sikayetler")) content = adminTable("Şikayetler", state.complaints, ["reason", "description", "status", "priority", "createdAt"]);
   if (path.includes("/risk")) content = adminTable("Risk Paneli", state.abuseSignals, ["userId", "type", "score", "metadata", "createdAt"]);
-  if (path.includes("/odemeler")) content = adminTable("Ödemeler", state.payments, ["userId", "planId", "provider", "amount", "currency", "status"]);
+  if (path.includes("/odemeler")) content = adminOdemeler();
   if (path.includes("/audit")) content = adminAudit();
   if (path.includes("/sms")) content = adminSms();
   return dashboardLayout("admin", content, path);
@@ -2797,6 +2798,56 @@ function adminDocuments() {
   return `
     ${pageHead("Üye Belgeleri", "Tapu, yetki ve kurumsal belgeler sadece yetkili admin/reviewer tarafından incelenir.")}
     <div class="list">${state.verificationDocuments.map((doc) => documentRow(doc, true)).join("")}</div>
+  `;
+}
+
+
+// Admin > Odemeler: fatura bilgileriyle birlikte. Fatura sistem disinda kesilir
+// (mali musavir / e-fatura portali); burada "kesildi" isareti ve numarasi tutulur.
+function adminOdemeler() {
+  const rows = (state.payments || []).slice().sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const kisi = (id) => (state.users || []).find((u) => u.id === id) || {};
+  const bekleyen = rows.filter((p) => p.status === "SUCCESS" && !p.invoicedAt).length;
+  return `
+    ${pageHead("Ödemeler ve fatura", "Başarılı her ödeme için fatura kesilmelidir. Fatura bilgisi ödeme anında alınır.")}
+    ${bekleyen ? `<div class="notice" style="margin-bottom:14px"><strong>${bekleyen} ödemenin faturası kesilmedi.</strong> Fatura bilgilerini aşağıdan kopyalayıp e-fatura portalında kesebilir, sonra "Fatura kesildi" ile işaretleyebilirsin.</div>` : ""}
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Tarih</th><th>Üye</th><th>Paket</th><th>Tutar</th><th>Durum</th>
+          <th>Fatura bilgisi</th><th>Fatura</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map((p) => {
+            const u = kisi(p.userId);
+            const kurumsal = p.invoiceType === "KURUMSAL";
+            const bilgi = p.invoiceTitle
+              ? `<div style="font-size:12.5px;line-height:1.5">
+                   <strong>${escapeHtml(p.invoiceTitle)}</strong> <span class="muted">(${kurumsal ? "Kurumsal" : "Bireysel"})</span><br>
+                   ${kurumsal ? "VKN" : "TCKN"}: ${escapeHtml(p.invoiceTaxNo || "-")}${kurumsal && p.invoiceTaxOffice ? " · VD: " + escapeHtml(p.invoiceTaxOffice) : ""}<br>
+                   ${escapeHtml(p.invoiceAddress || "")}<br>
+                   ${escapeHtml([p.invoiceDistrict, p.invoiceCity].filter(Boolean).join(" / "))}
+                   ${p.invoiceEmail ? `<br><span class="muted">${escapeHtml(p.invoiceEmail)}</span>` : ""}
+                 </div>`
+              : `<span class="muted">Bilgi yok (eski ödeme)</span>`;
+            const fatura = p.invoicedAt
+              ? `<span class="badge badge-green">Kesildi${p.invoiceNo ? " · " + escapeHtml(p.invoiceNo) : ""}</span>`
+              : (p.status === "SUCCESS"
+                  ? `<button class="btn btn-small btn-outline" onclick="KT.faturaKesildi('${p.id}')">Fatura kesildi</button>`
+                  : `<span class="muted">—</span>`);
+            return `<tr>
+              <td>${escapeHtml(p.createdAt || "")}</td>
+              <td>${escapeHtml(u.name || p.userId || "")}<br><span class="muted" style="font-size:12px">${escapeHtml(u.email || "")}</span></td>
+              <td>${escapeHtml(p.planId || "")}</td>
+              <td>${escapeHtml(String(p.amount || 0))} ${escapeHtml(p.currency || "TRY")}</td>
+              <td>${escapeHtml(p.status || "")}</td>
+              <td>${bilgi}</td>
+              <td>${fatura}</td>
+            </tr>`;
+          }).join("") || `<tr><td colspan="7" class="muted">Henüz ödeme yok.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -4962,6 +5013,15 @@ window.KT = {
     KT.showPayConsent(planId, () => KT.runCheckout({ planId }, planById(planId), rerender));
   },
   // Faz 4: talebi yenile (60 gunluk sure bastan baslar).
+  // Admin: odemeyi "faturasi kesildi" olarak isaretle (numara istege bagli).
+  async faturaKesildi(paymentId) {
+    const no = (window.prompt("Fatura numarası (isteğe bağlı, boş bırakabilirsin):") || "").trim();
+    const r = await api(`/payments/${paymentId}/invoiced`, "POST", { invoiceNo: no });
+    if (!r.ok) return toast(r.data.error || "İşaretlenemedi.");
+    await refreshState();
+    toast("Ödeme faturalandı olarak işaretlendi.");
+    render();
+  },
   async talepYenile(id) {
     const r = await api(`/demands/${id}/renew`, "POST", {});
     if (!r.ok) return toast(r.data.error || "Yenileme başarısız.");
@@ -5024,7 +5084,8 @@ window.KT = {
     render();
   },
   async runCheckout(body, plan, rerender = false) {
-    const r = await api("/payments/checkout", "POST", body);
+    // Fatura bilgisi onay penceresinde alindi; odeme istegiyle birlikte gider.
+    const r = await api("/payments/checkout", "POST", { ...body, ...(_pendingFatura || {}) });
     if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
     if (r.data.provider === "paytr" && r.data.iframeUrl) return KT.openPaymentFrame(r.data.iframeUrl);
     await refreshState();
@@ -5033,6 +5094,17 @@ window.KT = {
   },
   showPayConsent(planId, action) {
     const plan = planById(planId);
+    // Kayitli fatura bilgisi (varsa) formu on doldurur.
+    const _ku = currentUser() || {};
+    const fb = {
+      invoiceType: _ku.invoiceType || "BIREYSEL",
+      invoiceTitle: _ku.invoiceTitle || _ku.name || "",
+      invoiceTaxNo: _ku.invoiceTaxNo || "",
+      invoiceTaxOffice: _ku.invoiceTaxOffice || "",
+      invoiceAddress: _ku.invoiceAddress || "",
+      invoiceCity: _ku.invoiceCity || _ku.city || "",
+      invoiceDistrict: _ku.invoiceDistrict || "",
+    };
     _pendingPay = action;
     const old = document.getElementById("kt-consent-overlay");
     if (old) old.remove();
@@ -5041,7 +5113,47 @@ window.KT = {
     ov.style.cssText = "position:fixed;inset:0;background:rgba(8,18,30,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px";
     ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:470px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(8,18,30,.35)">
         <h3 style="margin:0 0 4px;font-size:18px;color:#10243a">${escapeHtml(plan ? plan.name : "Paket")}${plan && plan.price ? ` · ${plan.price} TL` : ""}</h3>
-        <p style="margin:0 0 16px;color:#5b6b7d;font-size:14px">Güvenli ödemeye geçmeden önce lütfen onaylayın:</p>
+        <p style="margin:0 0 14px;color:#5b6b7d;font-size:14px">Fatura bilgilerini gir ve koşulları onayla:</p>
+
+        <!-- FATURA BILGISI (2026-08-03): odeme alan her islem icin fatura kesilir.
+             Bilgi bir kez alinir, sonraki odemelerde profilden on dolu gelir. -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;max-height:46vh;overflow:auto">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <label style="flex:1;display:flex;gap:7px;align-items:center;font-size:13.5px;cursor:pointer;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px">
+              <input type="radio" name="fat-tip" value="BIREYSEL" ${fb.invoiceType === "KURUMSAL" ? "" : "checked"} onchange="KT.faturaTipDegisti()"> Bireysel
+            </label>
+            <label style="flex:1;display:flex;gap:7px;align-items:center;font-size:13.5px;cursor:pointer;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px 11px">
+              <input type="radio" name="fat-tip" value="KURUMSAL" ${fb.invoiceType === "KURUMSAL" ? "checked" : ""} onchange="KT.faturaTipDegisti()"> Kurumsal
+            </label>
+          </div>
+          <div class="field" style="margin-bottom:10px">
+            <label for="fat-unvan" style="font-size:13px;font-weight:600" id="fat-unvan-etiket">${fb.invoiceType === "KURUMSAL" ? "Şirket unvanı" : "Ad soyad"}</label>
+            <input id="fat-unvan" type="text" value="${escapeAttr(fb.invoiceTitle || "")}" placeholder="${fb.invoiceType === "KURUMSAL" ? "Örn. Konut Yatırım A.Ş." : "Örn. Ayşe Yılmaz"}">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="field" style="margin:0">
+              <label for="fat-vergino" style="font-size:13px;font-weight:600" id="fat-vergino-etiket">${fb.invoiceType === "KURUMSAL" ? "Vergi kimlik no (10 hane)" : "T.C. kimlik no (11 hane)"}</label>
+              <input id="fat-vergino" type="text" inputmode="numeric" maxlength="11" value="${escapeAttr(fb.invoiceTaxNo || "")}">
+            </div>
+            <div class="field" style="margin:0" id="fat-vd-kutu">
+              <label for="fat-vd" style="font-size:13px;font-weight:600">Vergi dairesi</label>
+              <input id="fat-vd" type="text" value="${escapeAttr(fb.invoiceTaxOffice || "")}" placeholder="Örn. Kadıköy">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:10px">
+            <label for="fat-adres" style="font-size:13px;font-weight:600">Fatura adresi</label>
+            <textarea id="fat-adres" rows="2" placeholder="Mahalle, cadde, no, daire">${escapeHtml(fb.invoiceAddress || "")}</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field" style="margin:0"><label for="fat-il" style="font-size:13px;font-weight:600">İl</label>
+              <input id="fat-il" type="text" value="${escapeAttr(fb.invoiceCity || "")}"></div>
+            <div class="field" style="margin:0"><label for="fat-ilce" style="font-size:13px;font-weight:600">İlçe</label>
+              <input id="fat-ilce" type="text" value="${escapeAttr(fb.invoiceDistrict || "")}"></div>
+          </div>
+          <div id="fat-error" class="form-error" style="margin-top:10px"></div>
+          <p class="muted" style="font-size:12.5px;margin:10px 0 0;line-height:1.5">Faturan e-posta adresine gönderilir. Bilgilerini sonraki ödemelerde tekrar yazman gerekmez.</p>
+        </div>
+
         <label style="display:flex;gap:11px;align-items:flex-start;font-size:13.5px;line-height:1.55;color:#26333f;cursor:pointer">
           <input id="kt-consent-cb" type="checkbox" style="margin-top:3px;flex:none;width:18px;height:18px;cursor:pointer">
           <span><a href="#/on-bilgilendirme" target="_blank" style="color:#1f6feb;text-decoration:underline">Ön Bilgilendirme Formu</a>'nu, <a href="#/mesafeli-satis" target="_blank" style="color:#1f6feb;text-decoration:underline">Mesafeli Satış Sözleşmesi</a>'ni ve <a href="#/iade-iptal" target="_blank" style="color:#1f6feb;text-decoration:underline">İade &amp; İptal koşulları</a>nı okudum, onaylıyorum. Hizmetin onay sonrası hemen başlayacağını ve dijital içerik/hizmet niteliği gereği <b>cayma hakkımın sona ereceğini</b> kabul ediyorum.</span>
@@ -5058,9 +5170,51 @@ window.KT = {
     if (ov) ov.remove();
     _pendingPay = null;
   },
+  // Fatura tipi degisince etiketler ve vergi dairesi alani guncellenir.
+  faturaTipDegisti() {
+    const kurumsal = (document.querySelector('input[name="fat-tip"]:checked') || {}).value === "KURUMSAL";
+    const et = document.getElementById("fat-unvan-etiket");
+    const vn = document.getElementById("fat-vergino-etiket");
+    const vd = document.getElementById("fat-vd-kutu");
+    const unvan = document.getElementById("fat-unvan");
+    const vergino = document.getElementById("fat-vergino");
+    if (et) et.textContent = kurumsal ? "Şirket unvanı" : "Ad soyad";
+    if (vn) vn.textContent = kurumsal ? "Vergi kimlik no (10 hane)" : "T.C. kimlik no (11 hane)";
+    if (vd) vd.style.display = kurumsal ? "" : "none";
+    if (unvan) unvan.placeholder = kurumsal ? "Örn. Konut Yatırım A.Ş." : "Örn. Ayşe Yılmaz";
+    if (vergino) vergino.maxLength = kurumsal ? 10 : 11;
+  },
+  // Fatura formunu okur ve dogrular; hata varsa null doner.
+  faturaBilgisiOku() {
+    const g = (id) => (document.getElementById(id) || {}).value || "";
+    const kurumsal = (document.querySelector('input[name="fat-tip"]:checked') || {}).value === "KURUMSAL";
+    const unvan = g("fat-unvan").trim();
+    const vergiNo = g("fat-vergino").replace(/\D/g, "");
+    const vd = g("fat-vd").trim();
+    const adres = g("fat-adres").trim();
+    const il = g("fat-il").trim();
+    const ilce = g("fat-ilce").trim();
+    const hata = (m, alan) => { showFormError("fat-error", m, alan); return null; };
+    if (unvan.length < 3) return hata(kurumsal ? "Şirket unvanını yaz." : "Ad ve soyadını yaz.", "fat-unvan");
+    if (kurumsal) {
+      if (vergiNo.length !== 10) return hata("Vergi kimlik numarası 10 haneli olmalı.", "fat-vergino");
+      if (vd.length < 2) return hata("Vergi dairesini yaz.", "fat-vd");
+    } else if (!tcknGecerliMi(vergiNo)) {
+      return hata("Geçerli bir T.C. kimlik numarası yaz.", "fat-vergino");
+    }
+    if (adres.length < 10) return hata("Fatura adresini yaz (en az 10 karakter).", "fat-adres");
+    if (!il) return hata("Fatura adresi için il yaz.", "fat-il");
+    return {
+      invoiceType: kurumsal ? "KURUMSAL" : "BIREYSEL", invoiceTitle: unvan, invoiceTaxNo: vergiNo,
+      invoiceTaxOffice: kurumsal ? vd : "", invoiceAddress: adres, invoiceCity: il, invoiceDistrict: ilce,
+    };
+  },
   confirmPayConsent() {
     const cb = document.getElementById("kt-consent-cb");
     if (!cb || !cb.checked) return toast("Devam etmek için koşulları onaylamanız gerekiyor.");
+    const fatura = KT.faturaBilgisiOku();
+    if (!fatura) return;                      // hata mesaji formda gosterildi
+    _pendingFatura = fatura;
     const action = _pendingPay;
     _pendingPay = null;
     const ov = document.getElementById("kt-consent-overlay");

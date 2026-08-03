@@ -1984,3 +1984,36 @@ tbody tr:hover td {
   .search-side { position: static; }
   .card-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 }
+
+/* HATA GORUNURLUGU (AJANS 2026-08-03 raporu, P0)
+   Onceki durum: .form-error sinifinin hicbir kurali yoktu — hata metni sayfadaki
+   normal yaziyla ayni renk ve puntoda cikiyordu, hatali alan da isaretlenmiyordu.
+   Mobilde kullanici dugmeye basiyor, sayfa gitmiyor, sebebi gorunmuyordu. */
+.form-error {
+  display: none;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 4px 0 2px;
+}
+.form-error.show { display: block; }
+.form-error::before { content: "⚠ "; }
+.field-invalid,
+input.field-invalid, select.field-invalid, textarea.field-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .12) !important;
+}
+/* Mahalle listesi acilir kutusu (P1) */
+.mahalle-katlanir { border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.mahalle-katlanir > summary {
+  cursor: pointer; padding: 12px 14px; font-weight: 600; font-size: 14.5px;
+  list-style: none; display: flex; align-items: center; justify-content: space-between;
+}
+.mahalle-katlanir > summary::after { content: "▾"; color: var(--muted); }
+.mahalle-katlanir[open] > summary::after { content: "▴"; }
+.mahalle-katlanir > .check-grid { padding: 0 14px 14px; max-height: 260px; overflow: auto; }

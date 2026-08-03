@@ -79,6 +79,12 @@ function normalizeEmail(value) {
 }
 
 function route() {
+  // Gercek yolla gelindiginde (ornegin /talep-birak) sunucu window.KT_PATH_ROTA
+  // enjekte eder. Hash yoksa o rota kullanilir; boylece adres cubugunda
+  // "/talep-birak#/talep-birak" gibi tekrar olusmaz (AJANS 2026-08-03, P2).
+  if (!location.hash && typeof window.KT_PATH_ROTA === "string" && window.KT_PATH_ROTA) {
+    return window.KT_PATH_ROTA;
+  }
   return (location.hash || "#/home").replace(/^#\/?/, "") || "home";
 }
 
@@ -409,11 +415,34 @@ async function refreshState() {
 }
 
 // Form hata kutusunu gosteren yardimci
-function showFormError(id, message) {
+function showFormError(id, message, fieldId) {
   const el = document.getElementById(id);
   if (!el) { toast(message); return; }
   el.textContent = message;
   el.classList.add("show");
+  el.setAttribute("role", "alert");
+  // AJANS 2026-08-03 (P0): hatali alani gorsel olarak isaretle, ekran okuyucuya
+  // bildir ve oraya kaydir. Alan verilmediyse formdaki ilk bos zorunlu alani bul.
+  const kap = el.closest("form") || el.closest("section") || document;
+  kap.querySelectorAll(".field-invalid").forEach((n) => {
+    n.classList.remove("field-invalid");
+    n.removeAttribute("aria-invalid");
+  });
+  let hedef = fieldId ? document.getElementById(fieldId) : null;
+  if (!hedef) {
+    hedef = [...kap.querySelectorAll("input[required],select[required],textarea[required]")]
+      .find((n) => (n.type === "checkbox" ? !n.checked : !String(n.value || "").trim()));
+  }
+  try {
+    if (hedef) {
+      hedef.classList.add("field-invalid");
+      hedef.setAttribute("aria-invalid", "true");
+      hedef.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => { try { hedef.focus({ preventScroll: true }); } catch {} }, 250);
+    } else {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  } catch { /* eski tarayici */ }
 }
 
 // Secilen gorseli okur, tarayicida kucultur (max 1100px, JPEG) ve data URL dondurur.
@@ -1416,15 +1445,15 @@ function guestDemandStep1() {
       <form class="form-grid" onsubmit="KT.misafirDevam(event)" oninput="KT.misafirFormBasladi()">
         ${locationFields("g", true)}
         <div class="field"><label for="g-type">Ev tipi</label>
-          <select id="g-type">${CATEGORY_TREE[CAT_KONUT].map((t) => `<option ${v.propertyType === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}</select></div>
+          <select id="g-type" required>${CATEGORY_TREE[CAT_KONUT].map((t) => `<option ${v.propertyType === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}</select></div>
         <div class="field"><label for="g-rooms">Oda sayısı</label>
-          <select id="g-rooms">${["1+1", "2+1", "3+1", "4+1", "5+1"].map((r) => `<option ${v.roomCount === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
+          <select id="g-rooms" required>${["1+1", "2+1", "3+1", "4+1", "5+1"].map((r) => `<option ${v.roomCount === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
         <div class="field"><label for="g-minbudget">${satis ? "En az bütçe" : "En az aylık kira"} <span style="color:#c0392b">*</span></label>
-          <input id="g-minbudget" type="number" inputmode="numeric" placeholder="${satis ? "4000000" : "20000"}" value="${escapeAttr(v.minBudget || "")}"></div>
+          <input id="g-minbudget" required type="number" inputmode="numeric" placeholder="${satis ? "4000000" : "20000"}" value="${escapeAttr(v.minBudget || "")}"></div>
         <div class="field"><label for="g-maxbudget">${satis ? "En fazla bütçe" : "En fazla aylık kira"} <span style="color:#c0392b">*</span></label>
-          <input id="g-maxbudget" type="number" inputmode="numeric" placeholder="${satis ? "6000000" : "30000"}" value="${escapeAttr(v.maxBudget || "")}"></div>
+          <input id="g-maxbudget" required type="number" inputmode="numeric" placeholder="${satis ? "6000000" : "30000"}" value="${escapeAttr(v.maxBudget || "")}"></div>
         <div class="field"><label for="g-timeline">Ne zaman taşınmak istiyorsun?</label>
-          <select id="g-timeline">${["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"].map((t) => `<option ${v.purchaseTimeline === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+          <select id="g-timeline" required>${["Hemen", "1 ay içinde", "3 ay içinde", "6 ay içinde", "Fırsat olursa"].map((t) => `<option ${v.purchaseTimeline === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
         <div class="field"><label for="g-occupation">Meslek / çalışma durumu</label>
           <select id="g-occupation">${MESLEK_DURUMLARI.map((m) => `<option ${v.occupation === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}</select></div>
         ${satis ? `<div class="field full">
@@ -1460,23 +1489,23 @@ function guestDemandStep2() {
       </div>
       <form class="form-grid" onsubmit="KT.misafirGonder(event)">
         <div class="field full"><label for="g-name">Ad Soyad <span style="color:#c0392b">*</span></label>
-          <input id="g-name" type="text" autocomplete="name" placeholder="Adın ve soyadın" value="${escapeAttr(k.name || "")}"></div>
+          <input id="g-name" required type="text" autocomplete="name" placeholder="Adın ve soyadın" value="${escapeAttr(k.name || "")}"></div>
         <div class="field full"><label for="g-email">E-posta <span style="color:#c0392b">*</span></label>
-          <input id="g-email" type="email" autocomplete="email" inputmode="email" placeholder="ornek@eposta.com" value="${escapeAttr(k.email || "")}">
+          <input id="g-email" required type="email" autocomplete="email" inputmode="email" placeholder="ornek@eposta.com" value="${escapeAttr(k.email || "")}">
           <span class="muted" style="font-size:12.5px">Talebini yayına almak için buraya bir onay bağlantısı göndereceğiz.</span></div>
         <div class="field full"><label for="g-phone">Cep telefonu <span style="color:#c0392b">*</span></label>
           <div style="display:flex;gap:8px;align-items:stretch">
             <span style="display:flex;align-items:center;padding:0 12px;border:1px solid #dde4ec;border-radius:8px;background:#f5f8fb;font-weight:600">+90</span>
-            <input id="g-phone" type="tel" autocomplete="tel" inputmode="numeric" placeholder="5xx xxx xx xx" oninput="KT.phoneFormat(this)" style="flex:1" value="${escapeAttr(k.phone || "")}">
+            <input id="g-phone" required type="tel" autocomplete="tel" inputmode="numeric" placeholder="5xx xxx xx xx" oninput="KT.phoneFormat(this)" style="flex:1" value="${escapeAttr(k.phone || "")}">
           </div>
           <span class="muted" style="font-size:12.5px">Yalnızca sen onayladıktan sonra karşı tarafa gösterilir.</span></div>
         <div class="field"><label for="g-tckn">T.C. Kimlik No <span style="color:#c0392b">*</span></label>
-          <input id="g-tckn" type="text" inputmode="numeric" placeholder="11 haneli" oninput="KT.tcknFormat(this,'g-tckn-hint')" value="${escapeAttr(k.tckn || "")}">
+          <input id="g-tckn" required type="text" inputmode="numeric" placeholder="11 haneli" oninput="KT.tcknFormat(this,'g-tckn-hint')" value="${escapeAttr(k.tckn || "")}">
           <span id="g-tckn-hint" class="muted" style="font-size:12.5px"></span></div>
         <div class="field"><label for="g-birth">Doğum tarihi <span style="color:#c0392b">*</span></label>
-          <input id="g-birth" type="date" value="${escapeAttr(k.birth || "")}" max="${escapeAttr(new Date(Date.now() - 18 * 365.25 * 864e5).toISOString().slice(0, 10))}"></div>
+          <input id="g-birth" required type="date" value="${escapeAttr(k.birth || "")}" max="${escapeAttr(new Date(Date.now() - 18 * 365.25 * 864e5).toISOString().slice(0, 10))}"></div>
         <div class="field full"><label for="g-password">Şifre <span style="color:#c0392b">*</span></label>
-          <input id="g-password" type="password" autocomplete="new-password" placeholder="En az 8 karakter" oninput="KT.sifreGucu(this,'g-password-guc')">
+          <input id="g-password" required type="password" autocomplete="new-password" placeholder="En az 8 karakter" oninput="KT.sifreGucu(this,'g-password-guc')">
           <div id="g-password-guc" class="muted" style="font-size:12.5px;margin-top:4px">En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</div></div>
 
         <div class="field full" style="background:#f5f8fb;border-radius:10px;padding:12px;font-size:13px;line-height:1.6" class="muted">
@@ -2226,7 +2255,7 @@ function buyerDemandForm() {
       <div class="form-grid">
         <div class="field full"><label for="d-txtype">İşlem tipi</label><select id="d-txtype" onchange="KT.setTxMode(this.value)"><option value="Satılık" ${!rent ? "selected" : ""}>Satın Alma</option><option value="Kiralık" ${rent ? "selected" : ""}>Kiralık</option></select><span class="helper">${rent ? "Kiralık ev arayan talebi (Ev Kirala)." : "Konut alıcısı talebi (Ev Al)."}</span></div>
         <div class="field"><label for="d-maincat">Ana kategori</label><select id="d-maincat" onchange="KT.onCategory('d')">${MAIN_CATEGORIES.map((c, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}</select></div>
-        <div class="field"><label for="d-type">Alt tip</label><select id="d-type">${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
+        <div class="field"><label for="d-type">Alt tip</label><select id="d-type" required>${CATEGORY_TREE[CAT_KONUT].map((s, i) => `<option ${i === 0 ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}</select></div>
         ${field("Başlık", "d-title", "text", rent ? "Kadıköy'de eşyalı kiralık 2+1" : "Kadıköy'de aile için 3+1")}
         ${locationFields("d", true)}
         ${field("Oda sayısı", "d-rooms", "select", "", ["1+1", "2+1", "3+1", "4+1", "5+1"], CAT_KONUT)}
@@ -4197,9 +4226,29 @@ window.KT = {
       box.innerHTML = `<select id="${prefix}-neighborhood"><option value="">Mahalle seçiniz (opsiyonel)</option>${list.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")}</select>`;
     } else {
       box.innerHTML = list.length
-        ? `<div class="check-grid">${list.map((m) => `<label class="check"><input class="${prefix}-mah" type="checkbox" value="${escapeHtml(m)}"> ${escapeHtml(m)}</label>`).join("")}</div>`
+        // AJANS 2026-08-03 (P1): mahalleler acik listelendiginde sayfa bir anda
+        // ~1.170px uzuyor ve "Devam et" dugmesi iki ekran asagi kayiyordu.
+        // Artik varsayilan KAPALI acilir kutuda; secim yapilinca sayi gosterilir.
+        ? `<details class="mahalle-katlanir">
+             <summary>Mahalle seç <span class="muted" style="font-weight:500">(isteğe bağlı · ${list.length} mahalle)</span></summary>
+             <div class="check-grid">${list.map((m) => `<label class="check"><input class="${prefix}-mah" type="checkbox" value="${escapeHtml(m)}" onchange="KT.mahalleSayac('${prefix}')"> ${escapeHtml(m)}</label>`).join("")}</div>
+           </details>`
         : `<span class="muted">Bu ilçede mahalle kaydı yok; boş bırakabilirsin.</span>`;
     }
+  },
+  // Secilen mahalle sayisini acilir kutu basliginda gosterir (kutu kapaliyken de
+  // kullanici kac secim yaptigini gorsun).
+  mahalleSayac(prefix) {
+    const box = document.getElementById(prefix + "-mahalle");
+    if (!box) return;
+    const det = box.querySelector("details.mahalle-katlanir");
+    const sum = det && det.querySelector("summary");
+    if (!sum) return;
+    const sayi = box.querySelectorAll("." + prefix + "-mah:checked").length;
+    const toplam = box.querySelectorAll("." + prefix + "-mah").length;
+    sum.innerHTML = sayi
+      ? `Mahalle seç <span class="muted" style="font-weight:500">(${sayi} seçildi)</span>`
+      : `Mahalle seç <span class="muted" style="font-weight:500">(isteğe bağlı · ${toplam} mahalle)</span>`;
   },
   resetMahalle(prefix) {
     const box = document.getElementById(prefix + "-mahalle");
@@ -5126,9 +5175,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     // Gercek adresle gelindiyse (ornegin /fiyatlandirma) sunucu window.KT_PATH_ROTA
     // enjekte eder; SPA o rotayi acar. Adres cubugunda yol oldugu gibi kalir —
     // replaceState hashchange tetiklemez, mukerrer yukleme olmaz. KUYRUK #26.
-    const yolRota = typeof window.KT_PATH_ROTA === "string" && window.KT_PATH_ROTA ? window.KT_PATH_ROTA : "home";
-    try { history.replaceState(null, "", `${location.pathname}${location.search}#/${yolRota}`); }
-    catch { location.hash = "/" + yolRota; }   // cok eski tarayici: eski davranisa dus
+    const yolRota = typeof window.KT_PATH_ROTA === "string" && window.KT_PATH_ROTA ? window.KT_PATH_ROTA : "";
+    // Gercek yolla gelindiyse hash EKLENMEZ; route() zaten KT_PATH_ROTA'yi okur.
+    // Hash yazmak adresi "/talep-birak#/talep-birak" yapiyordu (P2).
+    try { if (!yolRota) history.replaceState(null, "", `${location.pathname}${location.search}#/home`); }
+    catch { if (!yolRota) location.hash = "/home"; }   // cok eski tarayici
   }
   await refreshState();
   render();

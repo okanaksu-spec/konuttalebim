@@ -836,9 +836,9 @@ function footer() {
         <div>
           <a class="brand" href="#/home">
             <span class="brand-mark">${icon("key", 18)}</span>
-            <span class="brand-text"><strong style="color:#fff">${MARKA.ad}</strong><span>${MARKA.slogan}</span></span>
+            <span class="brand-text"><strong style="color:var(--ink)">${MARKA.ad}</strong><span>${MARKA.slogan}</span></span>
           </a>
-          <p class="muted" style="max-width:520px;margin:14px 0 0;color:#a9bfd2">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
+          <p class="muted" style="max-width:520px;margin:14px 0 0;color:var(--muted)">Konuttalebi ödeme, kapora veya tapu devri garantisi vermez. Tapu ve ödeme işlemlerini resmi kurumlar ve bankalar üzerinden yürütün.</p>
         </div>
         <div class="footer-links">
           <a href="#/iletisim">İletişim / Firma</a>
@@ -1047,7 +1047,7 @@ function homePage() {
         </div>
       </div>
     </section>
-    <section class="band band-soft" id="roller">
+    <section class="band band-white" id="roller">
       <div class="container">
         <div class="section-head">
           <div class="section-title">
@@ -1095,7 +1095,7 @@ function homePage() {
         </div>
       </div>
     </section>
-    <section class="band band-white">
+    <section class="band band-soft">
       <div class="container">
         <div class="section-head">
           <div class="section-title">
@@ -1104,6 +1104,16 @@ function homePage() {
           </div>
         </div>
         ${howSteps()}
+      </div>
+    </section>
+    <section class="band band-cta">
+      <div class="container">
+        <h2>Aramayı bırak, talebini yaz</h2>
+        <p>Nasıl bir ev istediğini bir kez anlat. Evi sana uyanlar seni bulup doğrudan arasın.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+          <a class="btn btn-primary" href="/talep-birak">Kiralık ev arıyorum</a>
+          <a class="btn btn-primary" href="/talep-birak?tx=SALE">Ev almak istiyorum</a>
+        </div>
       </div>
     </section>
   `;

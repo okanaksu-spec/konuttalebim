@@ -644,15 +644,37 @@ img {
   padding: 68px 22px;
 }
 
+/* Bölüm ritmi (2026-08-04, Okan onayı): sayfa aşırı beyaz kalmıştı, bölümler
+   birbirinden ayrılmıyordu. Zeminler artık dönüşümlü — beyaz ve açık gri.
+   Yeni renk eklenmedi, ikisi de palette zaten vardı. Gradyanlar kaldırıldı:
+   düz zemin bölüm sınırını daha net gösteriyor. */
 .band-white {
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+  background: var(--surface);
 }
 
 .band-soft {
-  background:
-    linear-gradient(180deg, #f4f8fa 0%, #eef4f7 100%);
+  background: var(--bg);
 }
+
+/* Kart kontrastı terslenir: gri bölümde kartlar beyaz, beyaz bölümde kartlar
+   açık gri. Böylece kart her iki zeminde de görünür kalır. */
+.band-soft .card { background: var(--surface); }
+.band-white .card { background: var(--bg); }
+
+/* Kapanış bandı: sayfanın doruk noktası. Marka indigosu, buton ters çevrili. */
+.band-cta {
+  background: var(--brand);
+  color: #fff;
+  text-align: center;
+}
+.band-cta h2 { color: #fff; margin: 0 0 10px; }
+.band-cta p { color: #dcd9fb; max-width: 520px; margin: 0 auto 22px; font-size: 16px; }
+.band-cta .btn-primary {
+  background: #fff;
+  color: var(--brand-dark);
+  border-color: #fff;
+}
+.band-cta .btn-primary:hover { background: #eef2ff; }
 
 .container {
   max-width: 1240px;

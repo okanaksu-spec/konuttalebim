@@ -854,7 +854,7 @@ function footer() {
           <a href="/evine-kiraci-bul">Evine kiracı bul</a>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(255,255,255,.12);margin-top:22px;padding-top:16px;color:#8ba3b8;font-size:13px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>${copyrightText()}</span>${socialLinks()}</div>
+      <div style="border-top:1px solid var(--line-2);margin-top:22px;padding-top:16px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>${copyrightText()}</span>${socialLinks()}</div>
     </footer>
   `;
 }
@@ -1925,34 +1925,66 @@ function publicShell(title, subtitle, body) {
 }
 
 function pricingCards(roleTypes = null) {
+  // 2026-08-04 yeniden tasarim (Okan): eski surumde uc kart birbirinin ayniydi,
+  // hiyerarsi yoktu, ozellikler dagini pill'lerdeydi ve fiyatin yaninda KDV/sure
+  // bilgisi eksikti. Yeni kurgu: one cikan plan cerceveyle isaretli, ozellikler
+  // isaretli liste, fiyat altinda "KDV dahil · aylik" satiri, uste tasima
+  // uyelik kartlarindan ayri bir serit.
   const plans = roleTypes ? state.plans.filter((plan) => roleTypes.includes(plan.roleType)) : state.plans;
   const meta = (id) => PLAN_META[id] || { role: "", group: "Diğer" };
+  const ONE_CIKAN = "plan-landlord-contact";   // ev sahibi bireysel uyelik
+
+  const tik = (renk) => `<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="${renk}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="M4 10.5l4 4 8-9"/></svg>`;
+
   const card = (plan) => {
     const m = meta(plan.id);
+    const one = plan.id === ONE_CIKAN;
+    const ucretsiz = !plan.price;
+    const tikRengi = ucretsiz ? "#1f8a5b" : "var(--brand)";
     const btn = m.free
-      ? `<button class="btn btn-outline" style="margin-top:16px;width:100%" onclick="KT.startRegistration('${m.free[0]}','${m.free[1]}')">Ücretsiz başla</button>`
-      : `<button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>`;
-    return `<article class="card">
-      <div class="sample-top">
-        <span class="badge ${plan.price ? "badge-gold" : "badge-neutral"}">${escapeHtml(m.role || plan.roleType)}</span>
-        <span class="pill">${escapeHtml(plan.category || "Paket")}</span>
+      ? `<button class="btn btn-outline" style="margin-top:20px;width:100%" onclick="KT.startRegistration('${m.free[0]}','${m.free[1]}')">Talep bırak</button>`
+      : `<button class="btn ${one ? "btn-primary" : "btn-outline"}" style="margin-top:20px;width:100%" onclick="KT.mockUpgrade('${plan.id}')">${planCta(plan)}</button>`;
+    // Fiyat alti aciklama: ucretsiz planda kart istenmedigi, ucretlide KDV ve sure.
+    const altSatir = ucretsiz
+      ? "Süresiz · kart bilgisi istenmez"
+      : `KDV dâhil · ${plan.interval === "ay" ? "aylık" : escapeHtml(plan.interval)}${plan.id === "plan-pro" ? " · belge zorunlu" : ""}`;
+    return `<article class="price-card${one ? " price-card-one" : ""}">
+      ${one ? `<span class="price-flag">En çok tercih edilen</span>` : ""}
+      <div class="price-role">${escapeHtml(m.role || plan.roleType)}</div>
+      <div class="price-amount">
+        <strong>${plan.price ? `${plan.price} TL` : "Ücretsiz"}</strong>${plan.price ? `<span>/ ${escapeHtml(plan.interval)}</span>` : ""}
       </div>
-      <h3 style="margin-top:12px">${escapeHtml(plan.name)}</h3>
-      <p><strong style="font-size:28px;color:var(--navy)">${plan.price ? `${plan.price} TL` : "Ücretsiz"}</strong> ${plan.price ? `/ ${plan.interval}` : ""}</p>
-      <div class="pill-row" style="margin-top:14px">${plan.features.map((f) => `<span class="pill">${escapeHtml(f)}</span>`).join("")}</div>
+      <div class="price-note">${altSatir}</div>
+      <div class="price-list">
+        ${plan.features.map((f) => `<div class="price-item">${tik(tikRengi)}<span>${escapeHtml(f)}</span></div>`).join("")}
+      </div>
       ${btn}
     </article>`;
   };
-  const sections = [
-    ["membership", "Üyelik — İletişim Erişimi", "Kayıt herkes için ücretsiz. Ödeme yalnızca talep sahibinin iletişim bilgisini görüntülemek içindir; üyelik süresince sınırsızdır. <strong>Talep bırakan (kiracı ve alıcı) tamamen ücretsizdir.</strong>"],
-    ["boost", "Üste Taşıma · opsiyonel", "İsteğe bağlı. Talebini listenin üstüne taşıyıp daha çok görünürlük al — zorunlu değildir, üyelikten ayrıdır."],
-  ];
-  return sections.map(([kind, title, sub]) => {
-    const gp = plans.filter((p) => meta(p.id).kind === kind)
-      .sort((a, b) => (meta(a.id).order || 99) - (meta(b.id).order || 99));
-    if (!gp.length) return "";
-    return `<div style="margin-bottom:30px"><div class="kicker" style="font-size:15px;color:var(--gold,#c8a24b);margin:6px 0 2px">${title}</div><p class="muted" style="margin:0 0 12px">${sub}</p><div class="grid grid-4">${gp.map(card).join("")}</div></div>`;
-  }).join("");
+
+  const uyelikler = plans.filter((p) => meta(p.id).kind === "membership")
+    .sort((a, b) => (meta(a.id).order || 99) - (meta(b.id).order || 99));
+  const boostlar = plans.filter((p) => meta(p.id).kind === "boost");
+
+  // Uste tasima uyelik degil, ek hizmet: kartlarin arasinda degil altta ince serit.
+  const boostSerit = boostlar.map((p) => `
+    <div class="boost-strip">
+      <div>
+        <div class="boost-title">${escapeHtml(p.name)} · <b>${p.price} TL</b> <span>/ ${escapeHtml(p.interval)}</span></div>
+        <div class="boost-sub">İsteğe bağlı. Talebin listenin üstünde görünür, daha çok üye fark eder.</div>
+      </div>
+      <button class="btn btn-outline btn-small" onclick="KT.mockUpgrade('${p.id}')">Detay</button>
+    </div>`).join("");
+
+  return `
+    <div class="price-lead">
+      <span class="price-eyebrow">TALEP BIRAKMAK ÜCRETSİZ</span>
+      <h2>Ödeyen taraf, iletişimi gören taraftır</h2>
+      <p>Kiracı ve alıcı hiçbir ücret ödemez. Talep sahibinin telefonunu görmek isteyen ev sahibi veya onaylı danışman üyelik alır.</p>
+    </div>
+    <div class="price-grid">${uyelikler.map(card).join("")}</div>
+    ${boostSerit}
+  `;
 }
 
 function packageOfferPage() {

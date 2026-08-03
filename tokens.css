@@ -1,0 +1,113 @@
+/* ============================================================
+   KONUTTALEBİ — TEK MERKEZLİ RENK PALETİ
+   Okan'ın MASTER emri, 2026-08-04.
+
+   BU DOSYA SİTENİN TEK RENK KAYNAĞIDIR.
+   Bir rengi değiştirmek için yalnızca burayı düzenle; site
+   genelindeki 28 sayfa birden değişir.
+
+   Önceki durum: palet dört ayrı yerde kopyalanmıştı
+   (styles.css · 4 giriş sayfası HTML · seo-pages.mjs ·
+   server.mjs). Bir yerde renk değiştirince diğerleri eski
+   kalıyordu; 4 Ağustos'ta iki kez bu yüzden eksik düzeltme
+   yapıldı ve Okan yakaladı.
+
+   Nasıl bağlanıyor:
+   - styles.css        →  @import "tokens.css" (ilk satır)
+   - 4 giriş sayfası   →  <link rel="stylesheet" href="/tokens.css">
+   - seo-pages.mjs     →  <link rel="stylesheet" href="/tokens.css">
+   - server.mjs        →  <link rel="stylesheet" href="/tokens.css">
+
+   ESKİ ADLAR KORUNDU: --gold, --indigo, --navy gibi eski
+   değişkenler yeni adlara işaret ediyor. Böylece mevcut kodun
+   hiçbir satırı bozulmadan tek merkeze geçildi. Yeni kod
+   yazarken TEMEL ADLARI kullan.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* ---- TEMEL ADLAR (yeni kodda bunları kullan) ---- */
+
+  /* Marka — indigo */
+  --brand:        #4f46e5;   /* ana marka rengi: butonlar, vurgular */
+  --brand-dark:   #4338ca;   /* koyu ton: hover, koyu zemin üstü yazı */
+  --brand-deep:   #312e81;   /* en koyu ton: koyu bloklar */
+  --brand-soft:   #eef2ff;   /* açık zemin: rozet, kart arka planı */
+  --brand-line:   #c7d2fe;   /* açık zemin üstü kenarlık */
+
+  /* Metin */
+  --ink:          #020617;   /* başlık ve ana metin */
+  --ink-2:        #0f172a;   /* ikincil koyu */
+  --ink-3:        #1e293b;   /* üçüncül koyu */
+  --text:         #334155;   /* gövde metni */
+  --muted:        #64748b;   /* soluk metin, açıklama */
+  --muted-2:      #475569;   /* biraz daha koyu soluk */
+
+  /* Yüzey ve çizgi */
+  --surface:      #ffffff;   /* kart, panel zemini */
+  --bg:           #f8fafc;   /* sayfa zemini */
+  --bg-2:         #f1f5f9;   /* ikincil zemin: alt bilgi, şerit */
+  --line:         #e2e8f0;   /* varsayılan ince çizgi */
+  --line-2:       #dbe2ec;   /* biraz belirgin çizgi */
+  --line-soft:    #f1f5f9;   /* en soluk çizgi */
+
+  /* Durum renkleri */
+  --success:      #1f8a5b;
+  --success-soft: #e6f5ee;
+  --danger:       #b54444;
+  --danger-soft:  #faecec;
+  --warning:      #b58117;
+  --warning-soft: #fff5d8;
+  --info:         #2b6fa6;
+  --info-soft:    #e8f1f8;
+
+  /* Yardımcı renkler (kart etiketleri, grafikler) */
+  --teal:         #168579;
+  --teal-soft:    #e6f6f3;
+  --coral:        #c85f51;
+  --coral-soft:   #fff0ed;
+  --sky:          #5aa6d6;
+  --sky-soft:     #eaf6fc;
+  --amber:        #e0aa33;
+  --amber-soft:   #fff6dc;
+
+  /* Gölge */
+  --shadow:       0 1px 2px rgba(2, 6, 23, .04);
+  --shadow-brand: 0 2px 6px rgba(79, 70, 229, .28);
+
+  /* Ölçü */
+  --radius:       10px;
+  --radius-card:  12px;
+  --radius-pill:  999px;
+
+  /* ---- ESKİ ADLAR (geriye dönük uyum, yeni kodda kullanma) ---- */
+
+  /* styles.css'ten */
+  --navy:       var(--ink);
+  --navy-2:     var(--ink-2);
+  --navy-3:     var(--ink-3);
+  --white:      var(--surface);
+  --paper:      var(--bg);
+  --soft-line:  var(--line-soft);
+  --gold:       var(--brand);
+  --gold-2:     var(--brand-dark);
+  --gold-soft:  var(--brand-soft);
+  --blue:       var(--info);
+  --blue-soft:  var(--info-soft);
+  --green:      var(--success);
+  --green-soft: var(--success-soft);
+  --red:        var(--danger);
+  --red-soft:   var(--danger-soft);
+  --yellow:     var(--warning);
+  --yellow-soft:var(--warning-soft);
+
+  /* 4 giriş sayfasından */
+  --indigo:     var(--brand);
+  --indigo2:    var(--brand-dark);
+  --indigosoft: var(--brand-soft);
+
+  /* seo-pages.mjs'ten */
+  --gold2:      var(--brand-dark);
+  --soft:       var(--brand-soft);
+}

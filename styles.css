@@ -2017,3 +2017,11 @@ input.field-invalid, select.field-invalid, textarea.field-invalid {
 .mahalle-katlanir > summary::after { content: "▾"; color: var(--muted); }
 .mahalle-katlanir[open] > summary::after { content: "▴"; }
 .mahalle-katlanir > .check-grid { padding: 0 14px 14px; max-height: 260px; overflow: auto; }
+
+/* Cloudflare Turnstile kutusu (bot korumasi, 2026-08-03).
+   Widget kendi genisligini yonetir; biz yalniz bosluk ve mobil tasmayi ayarliyoruz. */
+.turnstile-kutu { margin: 10px 0 4px; min-height: 0; }
+.turnstile-kutu iframe { max-width: 100%; }
+@media (max-width: 400px) {
+  .turnstile-kutu { transform: scale(0.9); transform-origin: left center; }
+}

@@ -415,6 +415,87 @@ async function refreshState() {
   }
 }
 
+/* ============================================================
+   CLOUDFLARE TURNSTILE — bot korumasi (2026-08-03, Okan onayi)
+
+   Neden: kayit, misafir talep ve sifre sifirlama uclarinda tek koruma
+   IP tabanli hiz siniriydi; proxy havuzu kullanan bir bot bunu deler.
+
+   Neden Turnstile (reCAPTCHA degil): ucretsiz, ziyaretcilerin cogu icin
+   gorunmez (resim secme yok), ziyaretci verisi Google'a gitmiyor.
+
+   ANAHTAR YOKSA HICBIR SEY DEGISMEZ: sunucu siteKey'i bos gonderirse
+   kutu cizilmez, token istenmez, formlar eskisi gibi calisir. Boylece
+   anahtar hatasi tum kayit akisini kilitleyemez.
+   ============================================================ */
+
+function turnstileSiteKey() {
+  return (state && state.config && state.config.turnstileSiteKey) || "";
+}
+
+let _turnstileYukleniyor = null;
+/** Cloudflare betigini bir kez yukler; sonraki cagrilar ayni sozu doner. */
+function turnstileBetigiYukle() {
+  if (window.turnstile) return Promise.resolve(true);
+  if (_turnstileYukleniyor) return _turnstileYukleniyor;
+  _turnstileYukleniyor = new Promise((cozumle) => {
+    const s = document.createElement("script");
+    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    s.async = true;
+    s.defer = true;
+    s.onload = () => cozumle(true);
+    s.onerror = () => cozumle(false);   // yuklenemezse akisi kilitleme
+    document.head.appendChild(s);
+  });
+  return _turnstileYukleniyor;
+}
+
+/** Forma yerlestirilecek bos kapsayici. Anahtar yoksa hic HTML uretmez. */
+function turnstileKutu(id) {
+  if (!turnstileSiteKey()) return "";
+  return `<div class="turnstile-kutu" id="${id}" data-turnstile="1"></div>`;
+}
+
+const _turnstileWidgetler = {};
+/**
+ * Sayfa cizildikten sonra cagrilir; kapsayicilari bulup widget'lari yerlestirir.
+ * render() sonunda tek yerden cagriliyor, her form ayri ayri ugrasmiyor.
+ */
+async function turnstileWidgetlariCiz() {
+  const anahtar = turnstileSiteKey();
+  if (!anahtar) return;
+  const kutular = document.querySelectorAll('[data-turnstile="1"]');
+  if (!kutular.length) return;
+  const yuklendi = await turnstileBetigiYukle();
+  if (!yuklendi || !window.turnstile) return;
+  kutular.forEach((kutu) => {
+    if (kutu.dataset.cizildi === "1") return;
+    try {
+      _turnstileWidgetler[kutu.id] = window.turnstile.render(kutu, {
+        sitekey: anahtar,
+        language: "tr",
+        theme: "light",
+      });
+      kutu.dataset.cizildi = "1";
+    } catch (e) { /* cift cizim denemesi zararsiz */ }
+  });
+}
+
+/** Gonderim aninda token okur. Anahtar yoksa bos doner (sunucu da beklemez). */
+function turnstileToken(id) {
+  if (!turnstileSiteKey() || !window.turnstile) return "";
+  const w = _turnstileWidgetler[id];
+  try { return (w !== undefined ? window.turnstile.getResponse(w) : window.turnstile.getResponse()) || ""; }
+  catch { return ""; }
+}
+
+/** Basarisiz gonderimden sonra token tek kullanimlik oldugu icin yenilenir. */
+function turnstileSifirla(id) {
+  if (!turnstileSiteKey() || !window.turnstile) return;
+  const w = _turnstileWidgetler[id];
+  try { if (w !== undefined) window.turnstile.reset(w); } catch {}
+}
+
 // Form hata kutusunu gosteren yardimci
 function showFormError(id, message, fieldId) {
   const el = document.getElementById(id);
@@ -1338,6 +1419,7 @@ function authRegisterPage(roleKey = "buyer") {
             </div>
             ${izinBloguHTML("r")}
           </div>
+          ${turnstileKutu("ts-r")}
           <div id="r-error2" class="error"></div>
           <div class="form-actions">
             <button type="button" class="btn btn-outline" onclick="KT.regBack()">Geri</button>
@@ -1523,6 +1605,7 @@ function guestDemandStep2() {
           <label class="check"><input id="g-identity-consent" type="checkbox"><span style="font-weight:500;line-height:1.55">T.C. kimlik numaramın ve doğum tarihimin, kimlik doğrulama ve sahte üyelik önleme amacıyla işlenmesine açık rıza veriyorum. <span style="color:#c0392b">*</span></span></label>
         </div>
         ${izinBloguHTML("g")}
+        <div class="field full">${turnstileKutu("ts-g")}</div>
         <div id="g-error2" class="form-error"></div>
         <div class="field full" style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" type="submit" id="g-submit">Talebimi yayına al</button>
@@ -1722,6 +1805,7 @@ function forgotPasswordPage() {
         <div class="form-grid">
           ${field("E-posta", "fp-email", "email", "adiniz@eposta.com")}
         </div>
+        ${turnstileKutu("ts-fp")}
         <div id="fp-error" class="error"></div>
         <div id="fp-ok" class="notice" style="display:none;margin:6px 0 12px">Eğer bu e-posta kayıtlıysa, sıfırlama bağlantısı gönderildi. Gelen kutunu (ve spam) kontrol et.</div>
         <div class="form-actions">
@@ -3708,6 +3792,8 @@ function render() {
   if (path === "google-tamamla" || path.startsWith("google-tamamla")) KT.loadGooglePending();
   // Sehir sayfasindan ?il= ile gelindiyse formlarda il onsecili acilsin.
   if (preselectCity) { applyPreselectCity("d"); applyPreselectCity("p"); applyPreselectCity("s"); }
+  // Bot koruma kutulari: sayfada varsa cizilir. Anahtar yoksa hicbir sey olmaz.
+  turnstileWidgetlariCiz();
 }
 
 window.KT = {
@@ -3801,9 +3887,10 @@ window.KT = {
     document.getElementById("fp-error").classList.remove("show");
     if (!email.includes("@")) return showFormError("fp-error", "Geçerli bir e-posta gir.");
     if (btn) btn.disabled = true;
-    const r = await api("/password/forgot", "POST", { email });
+    const r = await api("/password/forgot", "POST", { email, turnstileToken: turnstileToken("ts-fp") });
     if (btn) btn.disabled = false;
-    if (!r.ok) return showFormError("fp-error", (r.data && r.data.error) || "İşlem başarısız. Tekrar dene.");
+    // Token tek kullanimlik: basarisiz denemeden sonra yenilenmezse ikinci deneme de duser.
+    if (!r.ok) { turnstileSifirla("ts-fp"); return showFormError("fp-error", (r.data && r.data.error) || "İşlem başarısız. Tekrar dene."); }
     const okEl = document.getElementById("fp-ok");
     if (r.data && r.data.message) okEl.textContent = r.data.message;
     okEl.style.display = "block";
@@ -4012,9 +4099,11 @@ window.KT = {
       identityConsent: true, termsAccepted: true,
       ...izinDegerleri("g"),
       attribution: attribution(),
+      turnstileToken: turnstileToken("ts-g"),
     });
     if (btn) { btn.disabled = false; btn.textContent = "Talebimi yayına al"; }
-    if (!r.ok) return showFormError("g-error2", (r.data && r.data.error) || "Talep gönderilemedi. Lütfen tekrar dene.");
+    // Token tek kullanimlik: basarisiz denemeden sonra yenilenmezse ikinci deneme de duser.
+    if (!r.ok) { turnstileSifirla("ts-g"); return showFormError("g-error2", (r.data && r.data.error) || "Talep gönderilemedi. Lütfen tekrar dene."); }
     // Bu bir donusum DEGIL: asil donusum e-posta dogrulaninca sunucu tarafinda
     // tamamlanir. Burada yalnizca huni adimi olculur.
     ktTrack("talep_gonderildi", { akis: "misafir", sehir: misafirVeri.cityName });
@@ -4121,11 +4210,13 @@ window.KT = {
       monthlyIncome: g("r-income"),
       occupationGroup: g("r-occupation"),
       attribution: attribution(),
+      turnstileToken: turnstileToken("ts-r"),
     };
     const btn = event.submitter; if (btn) btn.disabled = true;
     const r = await api("/register", "POST", payload);
     if (btn) btn.disabled = false;
-    if (!r.ok) return showFormError("r-error2", (r.data && r.data.error) || "Üyelik oluşturulamadı.");
+    // Token tek kullanimlik: basarisiz denemeden sonra yenilenmezse ikinci deneme de duser.
+    if (!r.ok) { turnstileSifirla("ts-r"); return showFormError("r-error2", (r.data && r.data.error) || "Üyelik oluşturulamadı."); }
     ktTrack("kayit_tamamla", { rol: roleForKey(roleKey), sehir: payload.city, yontem: "sifre" });
     await refreshState();
     toast("Üyelik oluşturuldu. E-posta doğrulama bağlantısı gönderildi.");

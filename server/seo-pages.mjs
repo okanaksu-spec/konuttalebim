@@ -422,7 +422,10 @@ const STYLE = `
       .lead{color:var(--muted);font-size:18px;max-width:700px;margin:0 0 28px}
       .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
       .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
-      .card .n{width:34px;height:34px;border-radius:9px;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:12px}
+      /* Adim numarasi (2026-08-04): eskiden koyu lacivert zemin uzerine indigo
+         rakam vardi — neredeyse siyah ustune mor, okunmuyordu. Indigo zemin +
+         beyaz rakam yapildi; kontrast orani ~7:1 (WCAG AA fazlasiyla gecer). */
+      .card .n{width:34px;height:34px;border-radius:9px;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;margin-bottom:12px;box-shadow:0 2px 6px rgba(79,70,229,.28)}
       .prose p{color:#2b3b4d;font-size:16.5px;max-width:780px}
       .faq{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:12px;max-width:820px}
       .faq p{margin:6px 0 0;color:var(--muted)}

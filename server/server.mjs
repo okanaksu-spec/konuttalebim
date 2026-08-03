@@ -2304,137 +2304,16 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
 
 
   // --- teklif gonder ---
-  if (seg[0] === "offers" && method === "POST" && seg.length === 1) {
-    if (!["SELLER", "AGENT"].includes(user.role)) return err(res, 403, "Sadece satıcı teklif gönderebilir.");
-    if (requirePhone(res, user)) return;
-    const demand = db.prepare("SELECT * FROM demands WHERE id = ?").get(body.demandId);
-    const property = db.prepare("SELECT * FROM properties WHERE id = ?").get(body.propertyId);
-    if (!demand || !property) return err(res, 404, "Talep veya ilan bulunamadı.");
-    if (property.sellerId !== user.id) return err(res, 403, "Bu ilan size ait değil.");
-    const id = uid("o");
-    const score = calculateMatchScore(demand, property);
-    db.prepare("INSERT INTO offers (id,demandId,propertyId,sellerId,buyerId,price,message,matchScore,status,createdAt) VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .run(id, demand.id, property.id, user.id, demand.buyerId, +body.price || property.price, (body.message || "").trim(), score, "SENT", today());
-    db.prepare("UPDATE demands SET offerCount = offerCount + 1 WHERE id = ?").run(demand.id);
-    notify(demand.buyerId, "NEW_OFFER", "Yeni teklif geldi", `${demand.title} talebinize teklif var.`, "dashboard/alici/teklifler");
-    queueEmail(demand.buyerId, "Talebine yeni teklif geldi",
-      [`"${demand.title}" talebine bir mülk sahibi teklif gönderdi.`,
-        ilanOzeti(body.propertyId) ? `Teklif edilen konut:\n${ilanOzeti(body.propertyId)}` : "",
-        "Teklifi panelinden inceleyip ilgilendiğini belirtebilirsin; ilgilendiğinde eşleşme oluşur."
-      ].filter(Boolean).join("\n\n"),
-      "dashboard/alici/teklifler", "Yeni teklif bildirimi", null, "match");
-    addAudit(user.id, "OFFER_SENT", "Offer", id, `Skor ${score}`);
-    return ok(res, { id, matchScore: score });
-  }
+  // [2026-08-03] Olu 1.0 uclari silindi: POST /offers, /offers/:id/respond,
+  // /matches/:id/messages, /matches/:id/approve. Bu uclara zaten satir ~2215'teki
+  // 410 kapisi yaniti veriyordu (2.0'da teklif ve eslesme akisi yok); asagidaki
+  // kod erisilemezdi ve denetimlerde yanlis alarma sebep oluyordu.
 
   // --- teklife yanit (ilgileniyorum vb.) ---
-  if (seg[0] === "offers" && seg[2] === "respond" && method === "POST") {
-    const offer = db.prepare("SELECT * FROM offers WHERE id = ?").get(seg[1]);
-    if (!offer) return err(res, 404, "Teklif bulunamadı.");
-    if (offer.buyerId !== user.id) return err(res, 403, "Bu teklif size ait değil.");
-    let response = body.response === "DECLINED" ? "REJECTED" : body.response;
-    if (!["INTERESTED", "INFO_REQUESTED", "REJECTED"].includes(response)) response = "INTERESTED";
-    const status = response === "REJECTED" ? "REJECTED" : response;
-    db.prepare("UPDATE offers SET status=?, buyerResponse=?, seenAt=? WHERE id=?").run(status, response, today(), offer.id);
-    if (response === "INTERESTED") {
-      let match = db.prepare("SELECT * FROM matches WHERE offerId = ?").get(offer.id);
-      if (!match) {
-        const mid = uid("m");
-        db.prepare("INSERT INTO matches (id,offerId,buyerId,sellerId,status,createdAt) VALUES (?,?,?,?,?,?)")
-          .run(mid, offer.id, offer.buyerId, offer.sellerId, "MATCHED", today());
-        const dem = db.prepare("SELECT * FROM demands WHERE id=?").get(offer.demandId) || {};
-        const kira = (dem.transactionType || "SALE") === "RENT";
-        const konut = ilanOzeti(offer.propertyId);
-        const talep = talepOzeti(offer.demandId);
-        const adim = "Sıradaki adım: iletişim bilgilerinin paylaşılmasını onayla. İki taraf da onay verdiğinde telefon ve e-posta karşılıklı açılır; siz iletişime geçersiniz.";
-
-        // --- Satici / ev sahibi tarafi ---
-        notify(offer.sellerId, "NEW_MATCH", "Yeni eşleşme", "Teklifinle ilgilenildi. İletişim onayını verebilirsin.", "dashboard/satici/eslesmeler");
-        queueEmail(offer.sellerId, "Eşleştiniz — teklifin ilgi gördü",
-          [`Gönderdiğin teklifle ilgilenildi. ${kira ? "Kiracı" : "Alıcı"} tarafı teklifini beğendi ve eşleştiniz.`,
-            talep ? `Eşleştiğin talep:\n${talep}` : "",
-            adim].filter(Boolean).join("\n\n"),
-          "dashboard/satici/eslesmeler", "Yeni eşleşme bildirimi", null, "match");
-
-        // --- Alici / kiraci tarafi ---
-        notify(offer.buyerId, "NEW_MATCH", "Yeni eşleşme", "İlgilendiğini belirttin, eşleşme oluştu.", "dashboard/alici/eslesmeler");
-        queueEmail(offer.buyerId, "Eşleştiniz — ilgilendiğin teklif",
-          [`İlgilendiğini belirttiğin teklif için eşleşme oluştu.`,
-            konut ? `Eşleştiğin ${kira ? "kiralık" : "satılık"} konut:\n${konut}` : "",
-            adim].filter(Boolean).join("\n\n"),
-          "dashboard/alici/eslesmeler", "Yeni eşleşme bildirimi", null, "match");
-      }
-    }
-    addAudit(user.id, "OFFER_RESPONDED", "Offer", offer.id, response);
-    return ok(res);
-  }
 
   // --- mesaj gonder (sunucu tarafi maskeleme) ---
-  if (seg[0] === "matches" && seg[2] === "messages" && method === "POST") {
-    const match = db.prepare("SELECT * FROM matches WHERE id = ?").get(seg[1]);
-    if (!match) return err(res, 404, "Eşleşme bulunamadı.");
-    if (![match.buyerId, match.sellerId].includes(user.id)) return err(res, 403, "Bu eşleşmenin tarafı değilsiniz.");
-    const text = (body.body || "").trim();
-    if (!text) return err(res, 400, "Boş mesaj gönderilemez.");
-    const { maskedText, containsSensitiveInfo } = maskSensitiveInfo(text);
-    db.prepare("INSERT INTO messages (id,matchId,senderId,body,maskedBody,containsSensitiveInfo,createdAt) VALUES (?,?,?,?,?,?,?)")
-      .run(uid("msg"), match.id, user.id, text, maskedText, containsSensitiveInfo ? 1 : 0, now());
-    return ok(res, { masked: containsSensitiveInfo });
-  }
 
   // --- iletisim onayi (uyelik + cift onay kurali) ---
-  if (seg[0] === "matches" && seg[2] === "approve" && method === "POST") {
-    const match = db.prepare("SELECT * FROM matches WHERE id = ?").get(seg[1]);
-    if (!match) return err(res, 404, "Eşleşme bulunamadı.");
-    const isBuyer = match.buyerId === user.id, isSeller = match.sellerId === user.id;
-    if (!isBuyer && !isSeller) return err(res, 403, "Yetkiniz yok.");
-    if (!hasContactMembership(user.id, user.role))
-      return err(res, 402, "İletişim bilgilerini görmek için önce ilgili üyeliği almalısınız.");
-    if (isBuyer) db.prepare("UPDATE matches SET buyerContactApproved=1, buyerApprovedAt=? WHERE id=?").run(today(), match.id);
-    if (isSeller) db.prepare("UPDATE matches SET sellerContactApproved=1, sellerApprovedAt=? WHERE id=?").run(today(), match.id);
-    const m = db.prepare("SELECT * FROM matches WHERE id = ?").get(match.id);
-    let unlocked = false;
-    if (B(m.buyerContactApproved) && B(m.sellerContactApproved) &&
-        hasContactMembership(m.buyerId, "BUYER") && hasContactMembership(m.sellerId, "SELLER")) {
-      db.prepare("UPDATE matches SET status='CONTACT_UNLOCKED', contactUnlockedAt=? WHERE id=?").run(now(), m.id);
-      db.prepare("INSERT INTO messages (id,matchId,senderId,body,maskedBody,containsSensitiveInfo,createdAt) VALUES (?,?,?,?,?,?,?)")
-        .run(uid("msg"), m.id, "system", "İki taraf onay verdi. İletişim kartı açıldı.", "İki taraf onay verdi. İletişim kartı açıldı.", 0, now());
-      unlocked = true;
-    } else {
-      db.prepare("UPDATE matches SET status=? WHERE id=?").run(isBuyer ? "WAITING_SELLER_APPROVAL" : "WAITING_BUYER_APPROVAL", m.id);
-    }
-
-    // --- Bildirimler: akisin burada durmamasi icin karsi tarafa haber ver ---
-    const teklif = db.prepare("SELECT * FROM offers WHERE id=?").get(m.offerId) || {};
-    const alicidir = (id) => id === m.buyerId;
-    const panel = (id) => alicidir(id) ? "dashboard/alici/eslesmeler" : "dashboard/satici/eslesmeler";
-    if (unlocked) {
-      // Iki tarafa da: artik gorusebilirsiniz.
-      for (const uid2 of [m.buyerId, m.sellerId]) {
-        const ozet = alicidir(uid2) ? ilanOzeti(teklif.propertyId) : talepOzeti(teklif.demandId);
-        notify(uid2, "CONTACT_UNLOCKED", "İletişim açıldı", "Karşı tarafın telefon ve e-postası panelinde görünür.", panel(uid2));
-        queueEmail(uid2, "İletişim açıldı — artık doğrudan görüşebilirsiniz",
-          ["İki taraf da onay verdi. Karşı tarafın telefon ve e-posta bilgisi panelindeki Eşleşmeler bölümünde açıldı.",
-            ozet ? `Eşleşme:\n${ozet}` : "",
-            "Fiyat, pazarlık ve sözleşme için iletişime geçiniz. Kaporayı ve tapu işlemlerini yalnızca resmi kanallardan yürüt."
-          ].filter(Boolean).join("\n\n"),
-          panel(uid2), "İletişim açıldı bildirimi", null, "match");
-      }
-    } else {
-      // Tek taraf onayladi: sira karsi tarafta.
-      const bekleyen = isBuyer ? m.sellerId : m.buyerId;
-      const ozet = alicidir(bekleyen) ? ilanOzeti(teklif.propertyId) : talepOzeti(teklif.demandId);
-      notify(bekleyen, "CONTACT_WAITING", "Onayın bekleniyor", "Karşı taraf iletişim paylaşımını onayladı; sıra sende.", panel(bekleyen));
-      queueEmail(bekleyen, "Karşı taraf onay verdi — sıra sende",
-        ["Eşleştiğin taraf iletişim bilgilerinin paylaşılmasını onayladı. Sen de onay verdiğinde telefon ve e-posta karşılıklı açılır.",
-          ozet ? `Eşleşme:\n${ozet}` : "",
-          "Onaylamadığın sürece iletişim bilgilerin karşı tarafa gösterilmez."
-        ].filter(Boolean).join("\n\n"),
-        panel(bekleyen), "İletişim onayı bekleniyor", null, "match");
-    }
-    addAudit(user.id, "CONTACT_APPROVED", "Match", m.id, unlocked ? "İletişim açıldı" : "Onay verildi");
-    return ok(res, { unlocked });
-  }
 
   // --- butce beyani ---
   if (seg[0] === "buyer-profile" && method === "PUT") {
@@ -2805,6 +2684,13 @@ h1{font-size:33px;line-height:1.2;letter-spacing:-.6px;margin:30px 0 12px}
 .cta{display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;padding:13px 24px;border-radius:10px;margin:18px 12px 0 0}
 .cta2{display:inline-block;background:#fff;border:1px solid #e2e8f0;color:#020617;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:10px;margin-top:18px}
 .not{font-size:13px;color:#64748b;margin-top:26px}
+@media(max-width:640px){
+  .wrap{padding:28px 18px 48px}
+  h1{font-size:26px;line-height:1.25}
+  .lead{font-size:16px}
+  .kart{padding:18px 18px}
+  .cta,.cta2{display:block;text-align:center;margin:14px 0 0}
+}
 </style></head>
 <body><div class="wrap">
 <a class="logo" href="/">Konuttalebi<small>TALEP VE TEKLİF</small></a>
@@ -2869,10 +2755,10 @@ const YOL_ICERIK = {
 function yolGovdesi(rota) {
   const y = YOL_ICERIK[rota];
   if (!y) return null;
-  const par = y.p.map((t) => `<p style="font-size:17px;line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(t)}</p>`).join("\n        ");
+  const par = y.p.map((t) => `<p style="font-size:clamp(15.5px,4vw,17px);line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(t)}</p>`).join("\n        ");
   const lin = y.baglantilar.map(([u, t]) => `<a href="${u}" style="color:#4f46e5;font-weight:600">${escapeHtmlSrv(t)}</a>`).join("\n          &nbsp;·&nbsp;\n          ");
-  return `<main style="max-width:760px;margin:0 auto;padding:48px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
-        <h1 style="font-size:34px;line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(y.h1)}</h1>
+  return `<main style="max-width:760px;margin:0 auto;padding:clamp(28px,7vw,48px) clamp(16px,5vw,24px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+        <h1 style="font-size:clamp(24px,6vw,34px);line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(y.h1)}</h1>
         ${par}
         <p style="font-size:17px;line-height:1.7;margin:22px 0 0">
           ${lin}
@@ -2986,12 +2872,12 @@ function taleplerSayfasi(res, ilSlug, arama) {
         })),
       })}</script>`
     : "";
-  const govde = `<main style="max-width:820px;margin:0 auto;padding:48px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
-        <h1 style="font-size:33px;line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(ilAd ? ilAd + "'daki konut talepleri" : "Konut talepleri — kiracı ve alıcı talepleri")}</h1>
-        <p style="font-size:17px;line-height:1.7;margin:0 0 14px">Konuttalebi'nde konut ilanı yoktur. ${escapeHtmlSrv(yer)} ev aramak veya satın almak isteyenler ne aradıklarını yazar: bölge, bütçe aralığı, oda sayısı ve taşınma ya da alım zamanı. Bu sayfadaki talepler üye olmadan görüntülenebilir.</p>
-        <p style="font-size:17px;line-height:1.7;margin:0 0 14px">Evine uygun bir talep bulduğunda, talep sahibinin telefon ve e-posta bilgisini ücretli üyelikle görüntüler ve doğrudan ararsın. Her görüntülemede talep sahibine bildirim gider; adı ve iletişim bilgisi o ana kadar gizlidir. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
-        ${sayi ? `<h2 style="font-size:22px;margin:26px 0 12px">Yayındaki talepler${ilAd ? " — " + escapeHtmlSrv(ilAd) : ""}</h2>
-        <ul style="padding-left:20px;margin:0 0 18px">${liste.map(talepSatiri).join("")}</ul>` : `<p style="font-size:17px;line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(ilAd || "Bu listede")} şu anda yayında talep görünmüyor. Talepler 60 günde bir yenilenir; kısa süre içinde yeni talepler eklenir.</p>`}
+  const govde = `<main style="max-width:820px;margin:0 auto;padding:clamp(28px,7vw,48px) clamp(16px,5vw,24px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+        <h1 style="font-size:clamp(24px,6vw,33px);line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(ilAd ? ilAd + "'daki konut talepleri" : "Konut talepleri — kiracı ve alıcı talepleri")}</h1>
+        <p style="font-size:clamp(15.5px,4vw,17px);line-height:1.7;margin:0 0 14px">Konuttalebi'nde konut ilanı yoktur. ${escapeHtmlSrv(yer)} ev aramak veya satın almak isteyenler ne aradıklarını yazar: bölge, bütçe aralığı, oda sayısı ve taşınma ya da alım zamanı. Bu sayfadaki talepler üye olmadan görüntülenebilir.</p>
+        <p style="font-size:clamp(15.5px,4vw,17px);line-height:1.7;margin:0 0 14px">Evine uygun bir talep bulduğunda, talep sahibinin telefon ve e-posta bilgisini ücretli üyelikle görüntüler ve doğrudan ararsın. Her görüntülemede talep sahibine bildirim gider; adı ve iletişim bilgisi o ana kadar gizlidir. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
+        ${sayi ? `<h2 style="font-size:clamp(19px,5vw,22px);margin:26px 0 12px">Yayındaki talepler${ilAd ? " — " + escapeHtmlSrv(ilAd) : ""}</h2>
+        <ul style="padding-left:20px;margin:0 0 18px">${liste.map(talepSatiri).join("")}</ul>` : `<p style="font-size:clamp(15.5px,4vw,17px);line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(ilAd || "Bu listede")} şu anda yayında talep görünmüyor. Talepler 60 günde bir yenilenir; kısa süre içinde yeni talepler eklenir.</p>`}
         <p style="font-size:17px;line-height:1.7;margin:22px 0 0">
           <a href="/talep-birak" style="color:#4f46e5;font-weight:600">Kiralık ev talebi bırak</a>
           &nbsp;·&nbsp;

@@ -198,9 +198,9 @@ function dashboardPathForRole(role) {
 function welcomeBody() {
   return [
     "Konut aramanın yeni yolu Konuttalebi'ne hoş geldin.",
-    "Burada ilanların arasında kaybolmazsın. Ne aradığını söylersin, sana uygun talepler ve teklifler doğrudan karşına gelir.",
+    "Burada yüzlerce sayfayı tek tek gezmezsin. Ne aradığını bir kez yazarsın; evi sana uyanlar ve onaylı danışmanlar talebini görür ve seni doğrudan arar.",
     "Hemen paneline girerek talebini oluşturabilir veya mevcut talepleri inceleyebilirsin.",
-    "İletişim bilgilerin gizli tutulur ve yalnızca karşılıklı eşleşme sonrasında paylaşılır.",
+    "İletişim bilgilerin gizli tutulur; yalnızca ücretli üyeler ve onaylı danışmanlar görüntüleyebilir ve her görüntülemede sana haber verilir.",
     "Başlamaya hazır mısın?"
   ].join("\n\n");
 }
@@ -294,7 +294,7 @@ function epostaHatirlatmaGonder(u) {
   const html = notificationEmailHtml(u.name, "E-postanı doğrulamayı unutma",
     ["Üyeliğini açtın ama e-posta adresini henüz doğrulamadın.",
       `Doğrulama bağlantın yaklaşık ${kalanSaat} saat sonra geçersiz olacak. Aşağıdaki butona tıklaman yeterli.`,
-      "Doğrulamadığında talep ve tekliflerinle ilgili bildirimleri kaçırabilirsin."
+      "Doğrulamadığında talebinle ilgili bildirimleri kaçırabilirsin."
     ].join("\n\n"), "", null, u.id);
   const htmlLinkli = html.replace(/href="[^"]*"(\s+style="display:inline-block;background:#4f46e5)/, `href="${link}"$1`);
   addAudit(u.id, "EMAIL_VERIFY_REMINDER", "User", u.id, `${kalanSaat} saat kala hatırlatma gönderildi.`);
@@ -333,7 +333,7 @@ async function epostaSureDolduTara() {
           notificationEmailHtml(u.name, "Üyeliğin askıya alındı",
             [`E-posta adresini ${EPOSTA_SURE_SAAT} saat içinde doğrulamadığın için üyeliğin askıya alındı.`,
               "Askıyı kaldırmak için tek yapman gereken e-postanı doğrulamak. Giriş yap, çıkan uyarı ekranından yeni doğrulama bağlantısı iste ve bağlantıya tıkla — hesabın anında yeniden açılır.",
-              "Verilerin duruyor, hiçbir talebin veya teklifin silinmedi."
+              "Verilerin duruyor, hiçbir talebin silinmedi."
             ].join("\n\n"), `${BASE_URL}/#/giris`, "Konuttalebi'ne git", u.id),
           "Hesap askıya alma bildirimi");
       } catch (e) { console.error("[mail] aski bildirimi gonderilemedi:", e && e.message); }
@@ -600,7 +600,7 @@ function queueDigest(userId, kind, title, line, actionUrl) {
   db.prepare("INSERT INTO digest_queue (id,userId,kind,title,line,actionUrl,createdAt,sentAt) VALUES (?,?,?,?,?,?,?,?)")
     .run(uid("dg"), userId, kind, title, line, actionUrl || "", now(), now());
   queueEmail(userId, title, [line, "Panelinden inceleyip harekete geçebilirsin."].join("\n\n"),
-    actionUrl || "dashboard", "Uygun ilan/talep bildirimi", null, "digest");
+    actionUrl || "dashboard", "Kriterine uyan talep bildirimi", null, "digest");
 }
 
 // Eski kayitlari temizle: digest_queue artik yalnizca "ayni bildirimi 24 saat
@@ -654,7 +654,7 @@ function demandPublishedEmailHtml(toName, d, uygunSayi, userId) {
   const sss = [
     ["Beni kim arayacak?", `Talebini gören ${kira ? "ev sahipleri ve onaylı emlak danışmanları" : "evine alıcı arayanlar ve onaylı emlak danışmanları"} iletişim bilgini üyelikle görüntüler ve seni doğrudan arar. Sen aramazsın.`],
     ["İletişim bilgilerim güvende mi?", "Talebinde adın, telefonun ve e-postan herkese açık görünmez. İletişim bilgin yalnızca ücretli üyeliği olan üyeler ve onaylı emlak danışmanları tarafından görüntülenebilir; her görüntülemede sana haber veririz."],
-    ["Kimse aramazsa ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; eşleşme ihtimalin artar."]
+    ["Kimse aramazsa ne yapmalıyım?", "Talebini panelinden düzenleyip bütçe aralığını veya bölgeyi genişletebilirsin; aranma ihtimalin artar."]
   ].map(([s, c]) => `
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#41556d">
       <strong style="color:#020617">${escapeHtmlSrv(s)}</strong><br>${escapeHtmlSrv(c)}
@@ -1388,7 +1388,7 @@ function talebiYayinaAl(d) {
     queueDigest(k.userId, "demand", "Kriterine uyan yeni talep", metin, "dashboard/satici/talepler");
   }
   if (matchCount > 0) {
-    notify(d.buyerId, "MATCH_FOUND", "Talebin eşleşti", `Talebin, aradığı profil sana uyan ${matchCount} üyeye bildirildi. İlgilenen üye iletişim bilgini görüntülediğinde haber vereceğiz.`, "");
+    notify(d.buyerId, "MATCH_FOUND", "Talebin duyuruldu", `Talebin, kriterine uyan ${matchCount} üyeye bildirildi. İlgilenen üye iletişim bilgini görüntülediğinde haber vereceğiz.`, "");
   }
   // "Talebin yayında" e-postasi: her talepte bir kez, uygun ilan sayisi
   // gercek deger olarak icine yazilir. Ayri sablon kullanir.
@@ -2093,7 +2093,7 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     db.prepare("UPDATE phone_verifications SET usedAt=? WHERE id=?").run(now(), kayit.id);
     db.prepare("UPDATE users SET phoneVerified=1, phoneVerifiedAt=?, phone=? WHERE id=?").run(now(), "0" + kayit.phone, user.id);
     addAudit(user.id, "PHONE_VERIFIED", "User", user.id, maskPhone(kayit.phone));
-    notify(user.id, "PHONE_VERIFIED", "Telefonun doğrulandı", "Artık talep oluşturabilir ve teklif gönderebilirsin.", "");
+    notify(user.id, "PHONE_VERIFIED", "Telefonun doğrulandı", "Artık talep oluşturabilir ve talep sahiplerinin iletişim bilgisini görüntüleyebilirsin.", "");
     return ok(res, { verified: true });
   }
 
@@ -2210,7 +2210,7 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
      Kapatilan uclar 410 "Gone" doner ki eski istemci onbellekleri anlasilir
      bir mesaj gorsun; sessiz 404 kafa karistirirdi.
      ========================================================================= */
-  const MODEL2_MESAJ = "Konuttalebi yenilendi: artık ilan ve teklif yok. Talepleri görüntüleyip iletişim bilgisini üyelikle açabilirsin.";
+  const MODEL2_MESAJ = "Konuttalebi yenilendi: artık ilan ve teklif yok. Talepleri görüntüleyip iletişim bilgisini ücretli üyelikle açabilirsin.";
   if (seg[0] === "properties" && method === "POST") return err(res, 410, MODEL2_MESAJ);
   if (seg[0] === "offers" && method === "POST") return err(res, 410, MODEL2_MESAJ);
   if (seg[0] === "matches" && seg[2] === "messages" && method === "POST") return err(res, 410, MODEL2_MESAJ);

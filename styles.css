@@ -633,7 +633,11 @@ img {
   background-image: url("./assets/property-residence.webp");
 }
 
-.visual-card .badge {
+.visual-card /* Rozet ve etiket renkleri (2026-08-04): 1.0'dan kalan altin gradyani ve
+   Stil C paletinde olmayan #2b6fa6 mavisi temizlendi. Gradyanlar kaldirildi,
+   pill kenarligi gorunur seviyeye alindi. KARAR #12 geregi kapsam tarandi:
+   85 kullanim yeri (app.js + index.html) bu bes siniftan besleniyor. */
+.badge {
   position: absolute;
   left: 16px;
   bottom: 16px;
@@ -820,17 +824,17 @@ h3 {
 }
 
 .badge-blue {
-  background: linear-gradient(180deg, var(--blue-soft), #f4f9fc);
-  color: var(--blue);
+  background: var(--gold-soft);
+  color: var(--gold-2);
 }
 
 .badge-gold {
-  background: linear-gradient(180deg, var(--gold-soft), #fffaf0);
+  background: var(--gold-soft);
   color: var(--gold-2);
 }
 
 .badge-green {
-  background: linear-gradient(180deg, var(--green-soft), #f5fbf8);
+  background: var(--green-soft);
   color: var(--green);
 }
 
@@ -850,8 +854,8 @@ h3 {
 }
 
 .badge-neutral {
-  background: #eef2f5;
-  color: #546477;
+  background: #e8edf3;
+  color: #334155;
 }
 
 .pill-row {
@@ -864,11 +868,11 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgba(219, 228, 236, 0.92);
+  border: 1px solid #dbe2ec;
   border-radius: 999px;
   padding: 7px 10px;
-  background: linear-gradient(180deg, #ffffff, #f8fbfd);
-  color: var(--ink);
+  background: #fff;
+  color: #1e293b;
   font-size: 12px;
   font-weight: 800;
 }
@@ -1508,11 +1512,13 @@ h3 {
   color: var(--white);
 }
 
+/* Iletisim karti (2026-08-04): kenarligi altin sarisiydi (#d9b86c) ve zemini
+   krem gradyandi — ikisi de 1.0 paletinden kalmaydi. Stil C indigosuna cekildi. */
 .contact-card {
-  border: 1px solid #d9b86c;
-  border-radius: 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
   padding: 14px;
-  background: linear-gradient(180deg, var(--gold-soft), #fffaf0);
+  background: var(--gold-soft);
   color: var(--navy);
 }
 

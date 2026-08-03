@@ -2668,7 +2668,7 @@ function danismanPage(res) {
 <meta property="og:title" content="Emlak Danışmanı Müşteri Bulma: Hazır Talepler | Konuttalebi">
 <meta property="og:description" content="Soğuk arama yapmadan müşteri bul. Kiracı ve alıcılar ne aradığını yazdı; belgeli danışman olarak bölgendeki hazır talepleri gör, doğrudan iletişime geç.">
 <meta property="og:url" content="https://konuttalebi.com/emlak-danismanlari-icin">
-<meta property="og:image" content="https://konuttalebi.com/assets/og-image.png">
+<meta property="og:image" content="https://konuttalebi.com/assets/og-image.jpg">
 <style>
 body{margin:0;background:#f8fafc;color:#020617;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65}
 .wrap{max-width:820px;margin:0 auto;padding:40px 22px 64px}

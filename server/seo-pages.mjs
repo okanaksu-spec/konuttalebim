@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 const SITE = "https://konuttalebi.com";
-const OG_IMAGE = `${SITE}/assets/og-image.png`;
+const OG_IMAGE = `${SITE}/assets/og-image.jpg`;
 
 export const CITY_ORDER = ["istanbul", "ankara", "izmir", "eskisehir", "bursa", "antalya"];
 

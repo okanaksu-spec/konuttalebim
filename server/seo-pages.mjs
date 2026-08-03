@@ -15,6 +15,14 @@ export const CITY_ORDER = ["istanbul", "ankara", "izmir", "eskisehir", "bursa", 
 
 // Tum oznitelikler cift tirnakli oldugu icin kesme isareti kacisi gerekmez;
 // boylece baslik ve metinlerde "İstanbul'da" duzgun gorunur.
+// Turkce ek uyumu: son unluye gore 'da / 'de (Izmir'de, Ankara'da).
+const ekDA = (il) => {
+  const u = String(il).toLowerCase().split("").reverse().find((h) => "aeıioöuü".includes(h)) || "a";
+  return "aıou".includes(u) ? "da" : "de";
+};
+const ilDA = (il) => `${il}'${ekDA(il)}`;
+const ilDAKI = (il) => `${il}'${ekDA(il)}ki`;
+
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export const CITIES = {
@@ -392,7 +400,7 @@ const FOOTER_HTML = `
     </footer>`;
 
 const STYLE = `
-      :root{--navy:#10243a;--navy2:#1b3552;--gold:#c8a24b;--ink:#14263b;--muted:#5b6b7d;--bg:#f6f8fb;--line:#e5eaf0}
+      :root{--navy:#020617;--navy2:#0f172a;--gold:#4f46e5;--gold2:#4338ca;--ink:#020617;--muted:#475569;--bg:#f8fafc;--line:#e2e8f0;--soft:#eef2ff}
       *{box-sizing:border-box}
       body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
       a{color:inherit}
@@ -400,14 +408,14 @@ const STYLE = `
       header.site{background:#fff;border-bottom:1px solid var(--line)}
       header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:66px}
       .logo{font-weight:800;font-size:20px;color:var(--navy);text-decoration:none;letter-spacing:.3px}
-      .logo small{display:block;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--gold)}
+      .logo small{display:block;font-size:9.5px;font-weight:800;letter-spacing:2.2px;color:var(--gold2)}
       .nav a{margin-left:20px;text-decoration:none;color:var(--muted);font-weight:600;font-size:15px}
-      .btn{display:inline-block;background:var(--gold);color:#231a06;padding:14px 24px;border-radius:12px;font-weight:800;text-decoration:none;border:0;font-size:16px;cursor:pointer}
+      .btn{display:inline-block;background:var(--gold);color:#fff;padding:13px 24px;border-radius:10px;font-weight:600;text-decoration:none;border:0;font-size:15.5px;cursor:pointer}
       .btn.ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.25)}
-      .hero{background:linear-gradient(180deg,var(--navy),var(--navy2));color:#fff;padding:64px 0 70px}
-      .eyebrow{display:inline-block;background:rgba(200,162,75,.16);color:var(--gold);font-weight:800;font-size:12.5px;letter-spacing:1.4px;padding:8px 14px;border-radius:999px;text-transform:uppercase}
-      .hero h1{font-size:42px;line-height:1.12;margin:20px 0 14px;letter-spacing:-.5px}
-      .hero p{font-size:19px;color:#cdd9e6;max-width:640px;margin:0 0 26px}
+      .hero{background:radial-gradient(900px 420px at 20% -10%,var(--soft),transparent),#fff;color:var(--ink);border-bottom:1px solid var(--line);padding:60px 0 66px}
+      .eyebrow{display:inline-block;background:var(--soft);color:var(--gold);font-weight:700;font-size:12px;letter-spacing:1.6px;padding:7px 14px;border-radius:999px;text-transform:uppercase}
+      .hero h1{font-size:41px;line-height:1.14;margin:18px 0 14px;letter-spacing:-.8px}
+      .hero p{font-size:18px;color:var(--muted);max-width:660px;margin:0 0 26px}
       section{padding:52px 0}
       h2{font-size:28px;letter-spacing:-.4px;margin:0 0 12px;color:var(--navy)}
       h3{font-size:18px;color:var(--navy);margin:0 0 6px}
@@ -419,10 +427,10 @@ const STYLE = `
       .faq{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:12px;max-width:820px}
       .faq p{margin:6px 0 0;color:var(--muted)}
       .cross{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;max-width:820px}
-      .band{background:var(--navy);color:#fff;text-align:center;border-radius:22px;padding:44px 24px}
+      .band{background:var(--ink);color:#fff;text-align:center;border-radius:18px;padding:44px 24px}
       .band h2{color:#fff}.band p{color:#cdd9e6;max-width:560px;margin:0 auto 22px}
-      footer.site{background:#0c1c2e;color:#9fb0c2;padding:34px 0;margin-top:52px;font-size:14px}
-      footer.site a{color:#cdd9e6;text-decoration:none;margin-right:16px}
+      footer.site{background:#fff;border-top:1px solid var(--line);color:var(--muted);padding:30px 0;margin-top:52px;font-size:13.5px}
+      footer.site a{color:var(--muted);text-decoration:none;margin-right:16px;font-weight:600}
       @media(max-width:820px){.grid{grid-template-columns:1fr}.hero h1{font-size:31px}.nav{display:none}}`;
 
 function jsonLd({ title, description, path, ilAdi, ustAd, ustPath, faq }) {
@@ -449,15 +457,93 @@ function jsonLd({ title, description, path, ilAdi, ustAd, ustPath, faq }) {
  * @param {"tenant"|"owner"} side
  * @param {string} slug  istanbul | ankara | izmir | eskisehir | bursa | antalya
  */
+
+// Sayfa hacmini artiran taraf bazli detay bolumu (Okan, 2026-07-31: "daha cok
+// aciklama"). Sehir metinleri zaten ozgun; bu bolum hizmetin isleyisini anlatir.
+const DETAY = {
+  tenant: {
+    baslik: (il) => `${ilDA(il)} kiralık ev talebi bırakmak ne demek?`,
+    p: [
+      "Klasik yöntemde ev arayan kişi yüzlerce sayfayı gezer, ilgilendiği evi arar, çoğu zaman \"kiralandı\" cevabını alır. Konuttalebi bu sırayı tersine çevirir: arayan taraf ne istediğini bir kez yazar, evi bu tarife uyanlar ona ulaşır. Böylece boşa telefon trafiği ortadan kalkar; yalnızca gerçekten uygun evler için görüşme yaparsın.",
+      "Talebinde bölge, oda sayısı, aylık kira aralığı, taşınma zamanı, meslek ve eşyalı tercihini belirtirsin. Bu bilgiler kartında görünür; adın, telefonun ve e-postan görünmez. Ev sahibi veya onaylı danışman iletişim bilgini ancak ücretli üyelikle görüntüleyebilir ve her görüntülemede sana e-posta gider.",
+    ],
+    m: [
+      "Talep bırakmak ve aranmak kiracı için tamamen ücretsizdir; komisyon alınmaz.",
+      "Kimlik veya gelir belgesi yüklemezsin; yalnızca tercihlerini beyan edersin.",
+      "Talebin 60 gün yayında kalır, süre dolmadan hatırlatma gelir ve tek tıkla yenilenir.",
+      "Aynı anda birden fazla semt yazabilirsin; aramalar hepsinden gelir.",
+      "Rahatsız edici bir arama olursa talebi panelinden bildirebilir veya duraklatabilirsin.",
+    ],
+    kapanis: "Kirayı, depozitoyu ve sözleşme şartlarını doğrudan ev sahibiyle konuşursun; fiyata ve pazarlığa karışmayız.",
+  },
+  owner: {
+    baslik: (il) => `${ilDA(il)} kiracı talebi nasıl değerlendirilir?`,
+    p: [
+      "Evini boş bekletmenin maliyeti her ay cebinden çıkar. Burada beklemek yerine hazır talepler arasından seçim yaparsın: kiracılar hangi bölgede, hangi kira aralığında ve ne zaman taşınmak istediklerini önceden yazmıştır.",
+      "Talep kartında bölge, oda sayısı, kira aralığı, taşınma zamanı, meslek ve eşyalı tercihi görünür. Kimlik ve iletişim bilgisi gizlidir. Evine uyan talebi bulduğunda ücretli üyelikle telefonu görüntüler, kiracıyı kendin ararsın.",
+    ],
+    m: [
+      "Talepleri üye olmadan da inceleyebilirsin; ödeme yalnızca iletişim görüntülemek içindir.",
+      "Üyelik süresince sınırsız talep görüntülersin, tek tek ücret ödemezsin.",
+      "Her talep e-posta doğrulamasından geçer; gerçekçi olmayan bütçeler yayına alınmaz.",
+      "Talepler 60 günde bir yenilenir; listede gördüğün talep günceldir.",
+      "Kriter kaydedersen, uyan yeni talep geldiğinde sana bildirim gelir.",
+    ],
+    kapanis: "Kirayı ve şartları sen belirlersin; görüşme tamamen kiracıyla senin aranda geçer.",
+  },
+  buyer: {
+    baslik: (il) => `${ilDA(il)} konut alım talebi bırakmak ne demek?`,
+    p: [
+      "Ev satın almak, kiralamaktan daha uzun ve daha yorucu bir süreç. Klasik yöntemde yüzlerce sayfa gezilir, çoğu görüşme boşa çıkar. Konuttalebi'nde sırayı tersine çevirirsin: nasıl bir ev almak istediğini bir kez yazarsın, evi bu tarife uyanlar sana ulaşır.",
+      "Talebinde bölge, bütçe aralığı, oda sayısı, alım zamanı ve banka kredisi kullanıp kullanmayacağını belirtirsin. Kredi bilgisi özellikle önemlidir: seni arayan taraf ödeme planını baştan bilerek arar, ilk telefonda konu netleşir. Adın ve iletişim bilgin talebinde görünmez.",
+    ],
+    m: [
+      "Talep bırakmak ve aranmak alıcı için tamamen ücretsizdir; komisyon alınmaz.",
+      "İletişim bilgini yalnızca ücretli üyeler ve Seviye 5 belgeli onaylı danışmanlar görüntüleyebilir.",
+      "Her görüntülemede sana e-posta gider; kimin ulaştığını takip edersin.",
+      "Talebin 60 gün yayında kalır, hatırlatmayla tek tıkla yenilenir.",
+      "Bütçe aralığını sonradan panelinden değiştirebilir, talebini duraklatabilirsin.",
+    ],
+    kapanis: "Fiyatı, ödeme planını ve tapu sürecini doğrudan karşı tarafla konuşursun; pazarlığa ve sözleşmeye karışmayız.",
+  },
+  vendor: {
+    baslik: (il) => `${ilDA(il)} konut alım talepleri nasıl değerlendirilir?`,
+    p: [
+      "Bir evi elden çıkarırken en zor kısım, gerçekten alım niyeti olan kişiye ulaşmaktır. Burada alıcılar ne aradıklarını, bütçelerini ve alım zamanlarını önceden yazar; sen yalnızca evine uyan talebi seçersin.",
+      "Talep kartında bölge, bütçe aralığı, oda sayısı, alım zamanı ve banka kredisi tercihi görünür. Peşin alıcıyla krediyle alacak olanı aramadan önce ayırt edersin. Kimlik ve iletişim bilgisi, sen görüntüleyene kadar gizlidir.",
+    ],
+    m: [
+      "Talepleri üye olmadan da inceleyebilirsin; ödeme yalnızca iletişim görüntülemek içindir.",
+      "Üyelik süresince sınırsız talep görüntülersin.",
+      "Her talep e-posta doğrulamasından geçer; gerçekçi olmayan bütçeler yayına alınmaz.",
+      "Kredi tercihi talepte yazılıdır; ödeme planını aramadan önce bilirsin.",
+      "Kriter kaydedersen, uyan yeni talep geldiğinde bildirim alırsın.",
+    ],
+    kapanis: "Fiyatı ve şartları sen belirlersin; alıcıyla doğrudan görüşürsün, araya kimse girmez.",
+  },
+};
+
 export function renderCityPage(side, slug) {
   const city = CITIES[slug];
   if (!city) return null;
   // 2026-07-31: dort taraf — kiralik (tenant/owner) + satin alma (buyer/vendor).
   const TARAF = {
-    tenant: { veri: "tenant", yol: "/kiralik-ev-arayan", ustAd: "Kiralık Ev Arayanlar", karsi: "owner",  cta: "Talep Oluştur",  talepTarafi: true,  tx: "RENT" },
-    owner:  { veri: "owner",  yol: "/evine-kiraci-bul",  ustAd: "Evine Kiracı Bul",     karsi: "tenant", cta: "Kiracı Taleplerini Gör", talepTarafi: false, tx: "RENT" },
-    buyer:  { veri: "buyer",  yol: "/ev-almak-isteyen",  ustAd: "Ev Almak İsteyenler",  karsi: "vendor", cta: "Talep Oluştur",  talepTarafi: true,  tx: "SALE" },
-    vendor: { veri: "vendor", yol: "/evine-alici-bul",   ustAd: "Evine Alıcı Bul",      karsi: "buyer",  cta: "Alım Taleplerini Gör", talepTarafi: false, tx: "SALE" },
+    tenant: { veri: "tenant", yol: "/kiralik-ev-arayan", ustAd: "Kiralık Ev Arayanlar", karsi: "owner",  cta: "Talep Oluştur",  talepTarafi: true,  tx: "RENT",
+      nasilLead: (il) => `${ilDA(il)} kiralık ev aramanın üç adımı. Komisyon yok; şartları doğrudan ev sahibiyle konuşursun.`,
+      bant: (il) => `${ilDA(il)} aradığın evi tarif et`,
+      bolgeBaslik: (il) => `${ilDA(il)} hangi bölgelerde çalışıyor?` },
+    owner:  { veri: "owner",  yol: "/evine-kiraci-bul",  ustAd: "Evine Kiracı Bul",     karsi: "tenant", cta: "Kiracı Taleplerini Gör", talepTarafi: false, tx: "RENT",
+      nasilLead: (il) => `${ilDA(il)} kiracı bulmanın üç adımı. Komisyon yok; kirayı ve şartları sen belirlersin.`,
+      bant: (il) => `${ilDAKI(il)} kiracı taleplerini incele`,
+      bolgeBaslik: (il) => `${ilDA(il)} hangi bölgelerde kiracı talebi var?` },
+    buyer:  { veri: "buyer",  yol: "/ev-almak-isteyen",  ustAd: "Ev Almak İsteyenler",  karsi: "vendor", cta: "Talep Oluştur",  talepTarafi: true,  tx: "SALE",
+      nasilLead: (il) => `${ilDA(il)} ev satın almanın üç adımı. Komisyon yok; fiyatı doğrudan ev sahibiyle konuşursun.`,
+      bant: (il) => `${ilDA(il)} almak istediğin evi tarif et`,
+      bolgeBaslik: (il) => `${ilDA(il)} hangi bölgelerde çalışıyor?` },
+    vendor: { veri: "vendor", yol: "/evine-alici-bul",   ustAd: "Evine Alıcı Bul",      karsi: "buyer",  cta: "Alım Taleplerini Gör", talepTarafi: false, tx: "SALE",
+      nasilLead: (il) => `${ilDA(il)} alıcı bulmanın üç adımı. Komisyon yok; fiyatı ve şartları sen belirlersin.`,
+      bant: (il) => `${ilDAKI(il)} konut alım taleplerini incele`,
+      bolgeBaslik: (il) => `${ilDA(il)} hangi bölgelerde alıcı talebi var?` },
   };
   const T = TARAF[side] || TARAF.tenant;
   const K = TARAF[T.karsi];
@@ -480,27 +566,28 @@ export function renderCityPage(side, slug) {
   const crossPath = `${K.yol}/${slug}`;
   const CAPRAZ = {
     tenant: {
-      baslik: `${city.name}'da evini kiraya mı vereceksin?`,
-      metin: `Aynı şehirde evi olan tarafa geç: ${city.name}'daki kiracı taleplerini görebilir, uygun bulduğunun iletişim bilgisini ücretli üyelikle açabilirsin.`,
-      etiket: `${city.name}'da evine kiracı bul`,
+      baslik: `${ilDA(city.name)} evini kiraya mı vereceksin?`,
+      metin: `Aynı şehirde evi olan tarafa geç: ${ilDAKI(city.name)} kiracı taleplerini görebilir, uygun bulduğunun iletişim bilgisini ücretli üyelikle açabilirsin.`,
+      etiket: `${ilDA(city.name)} evine kiracı bul`,
     },
     owner: {
-      baslik: `${city.name}'da kiralık ev mi arıyorsun?`,
-      metin: `Aynı şehirde ev arayan tarafa geç: ${city.name}'da kiralık ev talebini oluştur; evi sana uyanlar seni bulup doğrudan arasın.`,
-      etiket: `${city.name}'da kiralık ev talebi oluştur`,
+      baslik: `${ilDA(city.name)} kiralık ev mi arıyorsun?`,
+      metin: `Aynı şehirde ev arayan tarafa geç: ${ilDA(city.name)} kiralık ev talebini oluştur; evi sana uyanlar seni bulup doğrudan arasın.`,
+      etiket: `${ilDA(city.name)} kiralık ev talebi oluştur`,
     },
     buyer: {
-      baslik: `${city.name}'da evine alıcı mı arıyorsun?`,
-      metin: `Aynı şehirde evi olan tarafa geç: ${city.name}'daki konut alım taleplerini görebilir, uygun bulduğunun iletişim bilgisini ücretli üyelikle açabilirsin.`,
-      etiket: `${city.name}'da evine alıcı bul`,
+      baslik: `${ilDA(city.name)} evine alıcı mı arıyorsun?`,
+      metin: `Aynı şehirde evi olan tarafa geç: ${ilDAKI(city.name)} konut alım taleplerini görebilir, uygun bulduğunun iletişim bilgisini ücretli üyelikle açabilirsin.`,
+      etiket: `${ilDA(city.name)} evine alıcı bul`,
     },
     vendor: {
-      baslik: `${city.name}'da ev mi almak istiyorsun?`,
-      metin: `Aynı şehirde alan tarafa geç: ${city.name}'da konut alım talebini oluştur; evi sana uyanlar seni bulup doğrudan arasın.`,
-      etiket: `${city.name}'da konut alım talebi oluştur`,
+      baslik: `${ilDA(city.name)} ev mi almak istiyorsun?`,
+      metin: `Aynı şehirde alan tarafa geç: ${ilDA(city.name)} konut alım talebini oluştur; evi sana uyanlar seni bulup doğrudan arasın.`,
+      etiket: `${ilDA(city.name)} konut alım talebi oluştur`,
     },
   };
   const C = CAPRAZ[side] || CAPRAZ.tenant;
+  const D = DETAY[side] || DETAY.tenant;
   const crossTitle = C.baslik;
   const crossText = C.metin;
   const crossLabel = C.etiket;
@@ -563,7 +650,7 @@ ${HEADER_HTML}
 
     <div class="hero">
       <div class="wrap">
-        <span class="eyebrow">${isTenant ? "Kiralık ev arayanlar" : "Evine kiracı bul"} · ${esc(city.name)}</span>
+        <span class="eyebrow">${esc(T.ustAd)} · ${esc(city.name)}</span>
         <h1>${esc(data.h1)}</h1>
         <p>${esc(sub)}</p>
         <a class="btn" href="${ctaHref}" ${ctaAttr('hero')}>${ctaLabel}</a>
@@ -573,9 +660,7 @@ ${HEADER_HTML}
     <section>
       <div class="wrap">
         <h2>Nasıl çalışır?</h2>
-        <p class="lead">${isTenant
-          ? `${esc(city.name)}'da ev aramanın üç adımı. Aracı yok, komisyon yok; taraflar doğrudan anlaşır.`
-          : `${esc(city.name)}'da kiracı bulmanın üç adımı. Aracı yok, komisyon yok; şartları sen belirlersin.`}</p>
+        <p class="lead">${esc(T.nasilLead(city.name))}</p>
         <div class="grid">
           ${steps.map(([t, d], i) => `<article class="card"><div class="n">${i + 1}</div><h3>${esc(t)}</h3><p>${esc(d)}</p></article>`).join("")}
         </div>
@@ -584,7 +669,7 @@ ${HEADER_HTML}
 
     <section style="background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
       <div class="wrap prose">
-        <h2>${esc(city.name)}'da hangi bölgelerde çalışıyor?</h2>
+        <h2>${esc(T.bolgeBaslik(city.name))}</h2>
         ${data.city.map((p) => `<p>${esc(p)}</p>`).join("\n        ")}
       </div>
     </section>
@@ -599,6 +684,17 @@ ${HEADER_HTML}
       </div>
     </section>
 
+    <section>
+      <div class="wrap prose">
+        <h2>${esc(D.baslik(city.name))}</h2>
+        ${D.p.map((t) => `<p>${esc(t)}</p>`).join("\n        ")}
+        <ul style="margin:18px 0;padding-left:20px;color:var(--muted)">
+          ${D.m.map((t) => `<li style="margin:8px 0">${esc(t)}</li>`).join("\n          ")}
+        </ul>
+        <p>${esc(D.kapanis)}</p>
+      </div>
+    </section>
+
     <section style="background:#fff;border-top:1px solid var(--line)">
       <div class="wrap">
         <h2>Sık sorulan sorular</h2>
@@ -609,7 +705,7 @@ ${HEADER_HTML}
     <section>
       <div class="wrap">
         <div class="band">
-          <h2>${isTenant ? `${esc(city.name)}'da aradığın evi tarif et` : `${esc(city.name)}'daki talepleri incele`}</h2>
+          <h2>${esc(T.bant(city.name))}</h2>
           <p>${esc(sub)}</p>
           <a class="btn" href="${ctaHref}" ${ctaAttr('bant')}>${ctaLabel}</a>
         </div>

@@ -430,8 +430,12 @@ const STYLE = `
       .faq{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:12px;max-width:820px}
       .faq p{margin:6px 0 0;color:var(--muted)}
       .cross{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;max-width:820px}
-      .band{background:var(--ink);color:#fff;text-align:center;border-radius:18px;padding:44px 24px}
-      .band h2{color:#fff}.band p{color:#cdd9e6;max-width:560px;margin:0 auto 22px}
+      /* Kapanis banti (2026-08-04): eskiden siyaha yakin lacivert zemindi (--ink),
+         Okan begenmedi. Marka rengi indigo dolu zemin + beyaz buton yapildi.
+         Buton .band icinde tersine cevriliyor: beyaz zemin, indigo yazi. */
+      .band{background:var(--gold);color:#fff;text-align:center;border-radius:18px;padding:44px 24px}
+      .band h2{color:#fff}.band p{color:#dcd9fb;max-width:560px;margin:0 auto 22px}
+      .band .btn{background:#fff;color:var(--gold2)}
       footer.site{background:#fff;border-top:1px solid var(--line);color:var(--muted);padding:30px 0;margin-top:52px;font-size:13.5px}
       footer.site a{color:var(--muted);text-decoration:none;margin-right:16px;font-weight:600}
       @media(max-width:820px){.grid{grid-template-columns:1fr}.hero h1{font-size:31px}.nav a:not(.btn){display:none}}@media(max-width:520px){.wrap{padding:0 16px}.hero{padding:40px 0 44px}.hero h1{font-size:26px;line-height:1.24}.hero p{font-size:16px}h2{font-size:23px}.btn{display:block;text-align:center}.band{padding:32px 18px}.prose p{font-size:15.5px}.card{padding:18px}}`;

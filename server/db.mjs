@@ -272,6 +272,27 @@ for (const alter of [
 // creditInterest: ev almak isteyene "Banka kredisi kullanmayi dusunuyor musun?" (EVET/HAYIR — Okan karari, Kararsizim yok).
 // birthdayMailedAt: dogum gunu kutlamasi yilda bir gitsin diye son gonderim tarihi.
 for (const alter of [
+  // FATURA BILGISI (2026-08-03): odeme alan her islem icin fatura kesilmesi
+  // gerekiyor (2027'den itibaren tutar farketmeksizin e-fatura zorunlu).
+  // Bilgi ODEME ANINDA alinir ve o odemeye baglanir; kullanicinin profilinde de
+  // saklanir ki sonraki odemede tekrar yazmasin.
+  "ALTER TABLE payments ADD COLUMN invoiceType TEXT",        // BIREYSEL | KURUMSAL
+  "ALTER TABLE payments ADD COLUMN invoiceTitle TEXT",       // ad soyad veya unvan
+  "ALTER TABLE payments ADD COLUMN invoiceTaxNo TEXT",       // TCKN (11) veya VKN (10)
+  "ALTER TABLE payments ADD COLUMN invoiceTaxOffice TEXT",   // vergi dairesi (kurumsal)
+  "ALTER TABLE payments ADD COLUMN invoiceAddress TEXT",
+  "ALTER TABLE payments ADD COLUMN invoiceCity TEXT",
+  "ALTER TABLE payments ADD COLUMN invoiceDistrict TEXT",
+  "ALTER TABLE payments ADD COLUMN invoiceEmail TEXT",       // fatura gonderim adresi
+  "ALTER TABLE payments ADD COLUMN invoicedAt TEXT",         // fatura kesildi isareti (admin)
+  "ALTER TABLE payments ADD COLUMN invoiceNo TEXT",          // kesilen fatura numarasi
+  "ALTER TABLE users ADD COLUMN invoiceType TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceTitle TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceTaxNo TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceTaxOffice TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceAddress TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceCity TEXT",
+  "ALTER TABLE users ADD COLUMN invoiceDistrict TEXT",
   "ALTER TABLE demands ADD COLUMN renewedAt TEXT",
   // dogrulamaHatirlatildiAt: misafir talebi 24. saatte tek hatirlatma (KUYRUK #29a).
   "ALTER TABLE demands ADD COLUMN dogrulamaHatirlatildiAt TEXT",

@@ -1121,6 +1121,15 @@ function buildState(user) {
       partnerTransferConsent: (self || isAdmin) ? (u.partnerTransferConsent ? 1 : 0) : undefined,
       // Telefon dogrulama durumu: kendisi ve admin gorur. Karsi tarafa
       // "dogrulanmis uye" bilgisi guven sinyali olarak da gosterilebilir.
+      // Fatura bilgisi: kullanici kendi kayitli bilgisini gorur (odemede on dolu
+      // gelsin diye), admin de gorur (fatura kesimi icin). Baskasina gitmez.
+      invoiceType: (self || isAdmin) ? (u.invoiceType || "") : undefined,
+      invoiceTitle: (self || isAdmin) ? (u.invoiceTitle || "") : undefined,
+      invoiceTaxNo: (self || isAdmin) ? (u.invoiceTaxNo || "") : undefined,
+      invoiceTaxOffice: (self || isAdmin) ? (u.invoiceTaxOffice || "") : undefined,
+      invoiceAddress: (self || isAdmin) ? (u.invoiceAddress || "") : undefined,
+      invoiceCity: (self || isAdmin) ? (u.invoiceCity || "") : undefined,
+      invoiceDistrict: (self || isAdmin) ? (u.invoiceDistrict || "") : undefined,
       phoneVerified: u.phoneVerified ? 1 : 0,
       phoneVerifiedAt: (self || isAdmin) ? (u.phoneVerifiedAt || "") : undefined,
       // Kayit formu 2. adim beyanlari + e-posta dogrulama suresi: kendisi ve admin gorur.
@@ -2334,6 +2343,48 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
   }
 
   // --- odeme / uyelik satin alma (PayTR iFrame API ya da mock) ---
+
+// --- Fatura bilgisi dogrulama (2026-08-03) --------------------------------
+// Odeme alan her islem icin fatura kesilecek; bilgiler odeme aninda alinir.
+// Bireysel: ad soyad + TCKN + adres. Kurumsal: unvan + VKN + vergi dairesi + adres.
+// TCKN dogrulamasi identity.mjs'teki algoritmayi kullanir; VKN 10 hane sayidir.
+function faturaBilgisiHazirla(body, user) {
+  const tip = body.invoiceType === "KURUMSAL" ? "KURUMSAL" : "BIREYSEL";
+  const kirp = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
+  const unvan = kirp(body.invoiceTitle, 160);
+  const vergiNo = kirp(body.invoiceTaxNo, 11).replace(/\D/g, "");
+  const vd = kirp(body.invoiceTaxOffice, 80);
+  const adres = kirp(body.invoiceAddress, 240);
+  const il = kirp(body.invoiceCity, 60);
+  const ilce = kirp(body.invoiceDistrict, 60);
+  const eposta = kirp(body.invoiceEmail, 160).toLowerCase();
+
+  if (unvan.length < 3) return { ok: false, error: tip === "KURUMSAL" ? "Fatura için şirket unvanını yaz." : "Fatura için ad ve soyadını yaz." };
+  if (tip === "KURUMSAL") {
+    if (vergiNo.length !== 10) return { ok: false, error: "Vergi kimlik numarası 10 haneli olmalı." };
+    if (vd.length < 2) return { ok: false, error: "Vergi dairesini yaz." };
+  } else {
+    if (vergiNo.length !== 11 || !isValidTckn(vergiNo)) return { ok: false, error: "Fatura için geçerli bir T.C. kimlik numarası yaz." };
+  }
+  if (adres.length < 10) return { ok: false, error: "Fatura adresini yaz (en az 10 karakter)." };
+  if (!il) return { ok: false, error: "Fatura adresi için il seç." };
+  if (eposta && !eposta.includes("@")) return { ok: false, error: "Fatura e-posta adresi geçersiz." };
+
+  return {
+    ok: true,
+    invoiceType: tip, invoiceTitle: unvan, invoiceTaxNo: vergiNo, invoiceTaxOffice: tip === "KURUMSAL" ? vd : "",
+    invoiceAddress: adres, invoiceCity: il, invoiceDistrict: ilce,
+    invoiceEmail: eposta || (user && user.email) || "",
+  };
+}
+function faturaBilgisiniProfileYaz(userId, f) {
+  try {
+    db.prepare(`UPDATE users SET invoiceType=?, invoiceTitle=?, invoiceTaxNo=?, invoiceTaxOffice=?,
+      invoiceAddress=?, invoiceCity=?, invoiceDistrict=? WHERE id=?`)
+      .run(f.invoiceType, f.invoiceTitle, f.invoiceTaxNo, f.invoiceTaxOffice, f.invoiceAddress, f.invoiceCity, f.invoiceDistrict, userId);
+  } catch (e) { console.error("[fatura] profile yazilamadi:", e && e.message); }
+}
+
   if (seg[0] === "payments" && seg[1] === "checkout" && method === "POST") {
     const plan = db.prepare("SELECT * FROM plans WHERE id = ?").get(body.planId);
     if (!plan) return err(res, 404, "Paket bulunamadı.");
@@ -2342,12 +2393,22 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
     // Gecis donemindeki mevcut danismanlar (deadline sure iciyse) muaftir.
     if (plan.id === "plan-pro" && user.role === "AGENT" && !agentBelgeGecerli(user.id))
       return err(res, 403, "Danışman üyeliği satın almadan önce Sorumlu Emlak Danışmanı (Seviye 5) belgenin onaylanması gerekiyor. Belgeni Danışman Doğrulama sayfasından yükle.");
+    // Fatura bilgisi olmadan odeme baslatilmaz (2026-08-03).
+    const fatura = faturaBilgisiHazirla(body, user);
+    if (!fatura.ok) return err(res, 400, fatura.error);
+    faturaBilgisiniProfileYaz(user.id, fatura);
+
     const pid = uid("pay").replace(/[^a-zA-Z0-9]/g, "");
     const boostType = (plan.id === "plan-buyer-boost" || plan.id === "plan-seller-boost") ? (body.itemType || null) : null;
     const boostId = boostType ? (body.itemId || null) : null;
     const provider = paymentProvider();
-    db.prepare("INSERT INTO payments (id,userId,planId,provider,amount,currency,status,createdAt,boostItemType,boostItemId) VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .run(pid, user.id, plan.id, provider.name, plan.price, "TRY", "PENDING", today(), boostType, boostId);
+    db.prepare(`INSERT INTO payments
+      (id,userId,planId,provider,amount,currency,status,createdAt,boostItemType,boostItemId,
+       invoiceType,invoiceTitle,invoiceTaxNo,invoiceTaxOffice,invoiceAddress,invoiceCity,invoiceDistrict,invoiceEmail)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(pid, user.id, plan.id, provider.name, plan.price, "TRY", "PENDING", today(), boostType, boostId,
+           fatura.invoiceType, fatura.invoiceTitle, fatura.invoiceTaxNo, fatura.invoiceTaxOffice,
+           fatura.invoiceAddress, fatura.invoiceCity, fatura.invoiceDistrict, fatura.invoiceEmail);
     if (provider.name === "mock") {
       fulfillPayment(pid);
       return ok(res, { provider: "mock", paymentId: pid, done: true });
@@ -2367,6 +2428,20 @@ text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}</styl
       db.prepare("UPDATE payments SET status='FAILED' WHERE id=?").run(pid);
       return err(res, 502, "Ödeme başlatılamadı: " + (e.message || "bilinmeyen hata"));
     }
+  }
+
+
+  // --- Fatura kesildi isareti (admin) ---------------------------------------
+  // Fatura sistem disinda (mali musavir / e-fatura portali) kesiliyor; burada
+  // yalnizca "kesildi" isareti ve fatura numarasi tutulur ki takip kaybolmasin.
+  if (seg[0] === "payments" && seg[2] === "invoiced" && method === "POST") {
+    if (user.role !== "ADMIN") return err(res, 403, "Bu işlem yalnızca yönetici içindir.");
+    const pay = db.prepare("SELECT * FROM payments WHERE id=?").get(seg[1]);
+    if (!pay) return err(res, 404, "Ödeme kaydı bulunamadı.");
+    const no = String(body.invoiceNo || "").trim().slice(0, 40);
+    db.prepare("UPDATE payments SET invoicedAt=?, invoiceNo=? WHERE id=?").run(now(), no, pay.id);
+    addAudit(user.id, "INVOICE_MARKED", "Payment", pay.id, no || "fatura kesildi");
+    return ok(res, {});
   }
 
   // --- uye/danisman dogrulama belgesi yukle ---

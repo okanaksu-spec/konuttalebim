@@ -405,7 +405,7 @@ const STYLE = `
       body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
       a{color:inherit}
       .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
-      header.site{background:#fff;border-bottom:1px solid var(--line)}
+      header.site{background:#f4f7fb;border-bottom:1px solid var(--line-2)}
       header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:66px}
       .logo{font-weight:800;font-size:20px;color:var(--navy);text-decoration:none;letter-spacing:.3px}
       .logo small{display:block;font-size:9.5px;font-weight:800;letter-spacing:2.2px;color:var(--gold2)}

@@ -872,7 +872,7 @@ function notificationEmailHtml(toName, title, body, actionUrl, closing, unsubUse
 }
 
 
-async function deliverEmail(userId, toEmail, toName, subject, html, reason, unsubUserId) {
+async function deliverEmail(userId, toEmail, toName, subject, html, reason, unsubUserId, ekler) {
   const key = (process.env.RESEND_API_KEY || "").trim();
   let status = "MOCK_SENT";
   if (key && toEmail) {
@@ -886,7 +886,13 @@ async function deliverEmail(userId, toEmail, toName, subject, html, reason, unsu
       const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: MAIL_FROM(), to: [toEmail], reply_to: MAIL_REPLY_TO(), subject, html, ...(headers ? { headers } : {}) })
+        // Ekler (2026-08-03): fatura PDF'i e-postaya ek olarak gider.
+        // Resend "attachments": [{ filename, content(base64) }] bekler.
+        body: JSON.stringify({
+          from: MAIL_FROM(), to: [toEmail], reply_to: MAIL_REPLY_TO(), subject, html,
+          ...(headers ? { headers } : {}),
+          ...(Array.isArray(ekler) && ekler.length ? { attachments: ekler } : {}),
+        })
       });
       status = resp.ok ? "SENT" : "FAILED";
       if (!resp.ok) console.error("[mail] Resend hata:", resp.status, await resp.text().catch(() => ""));
@@ -2439,9 +2445,33 @@ function faturaBilgisiniProfileYaz(userId, f) {
     const pay = db.prepare("SELECT * FROM payments WHERE id=?").get(seg[1]);
     if (!pay) return err(res, 404, "Ödeme kaydı bulunamadı.");
     const no = String(body.invoiceNo || "").trim().slice(0, 40);
+    const dosyaAdi = String(body.fileName || "").trim().slice(0, 120) || (no ? `fatura-${no}.pdf` : "fatura.pdf");
+    const veri = String(body.fileData || "");
+
+    // Fatura PDF'i verildiyse musteriye e-posta ile gonderilir (Okan karari,
+    // 2026-08-03). Dosya saklanmaz; yalnizca adi ve gonderim zamani kaydedilir —
+    // KVKK hijyeni geregi gereksiz veri tutulmaz, fatura zaten musavirde arsivli.
+    let gonderim = "";
+    if (veri) {
+      if (!veri.startsWith("data:application/pdf")) return err(res, 400, "Fatura dosyası PDF olmalı.");
+      const b64 = veri.split(",")[1] || "";
+      if (b64.length > 8 * 1024 * 1024) return err(res, 400, "Fatura dosyası en fazla 6 MB olabilir.");
+      const alici = pay.invoiceEmail || (db.prepare("SELECT email FROM users WHERE id=?").get(pay.userId) || {}).email || "";
+      if (!alici) return err(res, 400, "Bu ödemede fatura e-posta adresi yok.");
+      const isim = pay.invoiceTitle || "";
+      const planAd = (db.prepare("SELECT name FROM plans WHERE id=?").get(pay.planId) || {}).name || "Üyelik";
+      const html = notificationEmailHtml(isim, "Faturan hazır",
+        [`${planAd} ödemene ait faturan ektedir.`,
+         `Tutar: ${paraTR(pay.amount)}${no ? ` · Fatura no: ${no}` : ""}`,
+         `Faturayla ilgili bir sorun görürsen bu e-postayı yanıtlaman yeterli.`].join("\n\n"),
+        "", null, pay.userId);
+      gonderim = await deliverEmail(pay.userId, alici, isim, `Konuttalebi — Faturan (${planAd})`, html, "Fatura gönderimi", null,
+        [{ filename: dosyaAdi, content: b64 }]);
+      db.prepare("UPDATE payments SET invoiceFileName=?, invoiceSentAt=? WHERE id=?").run(dosyaAdi, now(), pay.id);
+    }
     db.prepare("UPDATE payments SET invoicedAt=?, invoiceNo=? WHERE id=?").run(now(), no, pay.id);
-    addAudit(user.id, "INVOICE_MARKED", "Payment", pay.id, no || "fatura kesildi");
-    return ok(res, {});
+    addAudit(user.id, "INVOICE_MARKED", "Payment", pay.id, `${no || "fatura kesildi"}${gonderim ? " · e-posta: " + gonderim : ""}`);
+    return ok(res, { emailStatus: gonderim || "gonderilmedi" });
   }
 
   // --- uye/danisman dogrulama belgesi yukle ---

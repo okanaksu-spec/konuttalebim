@@ -286,6 +286,8 @@ for (const alter of [
   "ALTER TABLE payments ADD COLUMN invoiceEmail TEXT",       // fatura gonderim adresi
   "ALTER TABLE payments ADD COLUMN invoicedAt TEXT",         // fatura kesildi isareti (admin)
   "ALTER TABLE payments ADD COLUMN invoiceNo TEXT",          // kesilen fatura numarasi
+  "ALTER TABLE payments ADD COLUMN invoiceFileName TEXT",   // gonderilen fatura PDF adi
+  "ALTER TABLE payments ADD COLUMN invoiceSentAt TEXT",     // musteriye e-posta ile gonderim zamani
   "ALTER TABLE users ADD COLUMN invoiceType TEXT",
   "ALTER TABLE users ADD COLUMN invoiceTitle TEXT",
   "ALTER TABLE users ADD COLUMN invoiceTaxNo TEXT",

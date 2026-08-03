@@ -2810,7 +2810,7 @@ function adminOdemeler() {
   const bekleyen = rows.filter((p) => p.status === "SUCCESS" && !p.invoicedAt).length;
   return `
     ${pageHead("Ödemeler ve fatura", "Başarılı her ödeme için fatura kesilmelidir. Fatura bilgisi ödeme anında alınır.")}
-    ${bekleyen ? `<div class="notice" style="margin-bottom:14px"><strong>${bekleyen} ödemenin faturası kesilmedi.</strong> Fatura bilgilerini aşağıdan kopyalayıp e-fatura portalında kesebilir, sonra "Fatura kesildi" ile işaretleyebilirsin.</div>` : ""}
+    ${bekleyen ? `<div class="notice" style="margin-bottom:14px"><strong>${bekleyen} ödemenin faturası kesilmedi.</strong> Fatura bilgilerini aşağıdan kopyalayıp e-fatura portalında kesebilir, sonra <strong>Fatura PDF yükle ve gönder</strong> ile müşteriye e-postayla iletebilirsin. Dosya sistemde saklanmaz; yalnızca gönderim kaydı tutulur.</div>` : ""}
     <div class="table-wrap">
       <table>
         <thead><tr>
@@ -2830,11 +2830,19 @@ function adminOdemeler() {
                    ${p.invoiceEmail ? `<br><span class="muted">${escapeHtml(p.invoiceEmail)}</span>` : ""}
                  </div>`
               : `<span class="muted">Bilgi yok (eski ödeme)</span>`;
+            const gonderildi = p.invoiceSentAt
+              ? `<br><span class="muted" style="font-size:12px">Gönderildi: ${escapeHtml(String(p.invoiceSentAt).slice(0, 16))}</span>`
+              : "";
             const fatura = p.invoicedAt
-              ? `<span class="badge badge-green">Kesildi${p.invoiceNo ? " · " + escapeHtml(p.invoiceNo) : ""}</span>`
+              ? `<span class="badge badge-green">Kesildi${p.invoiceNo ? " · " + escapeHtml(p.invoiceNo) : ""}</span>${gonderildi}`
+              + (p.invoiceSentAt ? "" : `<br><button class="btn btn-small btn-outline" style="margin-top:4px" onclick="KT.faturaKesildi('${p.id}')">PDF gönder</button>`)
               : (p.status === "SUCCESS"
-                  ? `<button class="btn btn-small btn-outline" onclick="KT.faturaKesildi('${p.id}')">Fatura kesildi</button>`
+                  ? `<button class="btn btn-small btn-primary" onclick="KT.faturaKesildi('${p.id}')">Fatura PDF'i yükle ve gönder</button>`
+                    + `<br><button class="btn btn-small btn-outline" style="margin-top:4px" onclick="KT.faturaGonder('${p.id}', null)">Yalnızca işaretle</button>`
                   : `<span class="muted">—</span>`);
+            const gizliInput = p.status === "SUCCESS"
+              ? `<input id="fat-file-${p.id}" type="file" accept="application/pdf" style="display:none" onchange="KT.faturaSecildi('${p.id}', this)">`
+              : "";
             return `<tr>
               <td>${escapeHtml(p.createdAt || "")}</td>
               <td>${escapeHtml(u.name || p.userId || "")}<br><span class="muted" style="font-size:12px">${escapeHtml(u.email || "")}</span></td>
@@ -2842,7 +2850,7 @@ function adminOdemeler() {
               <td>${escapeHtml(String(p.amount || 0))} ${escapeHtml(p.currency || "TRY")}</td>
               <td>${escapeHtml(p.status || "")}</td>
               <td>${bilgi}</td>
-              <td>${fatura}</td>
+              <td>${fatura}${gizliInput}</td>
             </tr>`;
           }).join("") || `<tr><td colspan="7" class="muted">Henüz ödeme yok.</td></tr>`}
         </tbody>
@@ -5013,13 +5021,33 @@ window.KT = {
     KT.showPayConsent(planId, () => KT.runCheckout({ planId }, planById(planId), rerender));
   },
   // Faz 4: talebi yenile (60 gunluk sure bastan baslar).
-  // Admin: odemeyi "faturasi kesildi" olarak isaretle (numara istege bagli).
-  async faturaKesildi(paymentId) {
-    const no = (window.prompt("Fatura numarası (isteğe bağlı, boş bırakabilirsin):") || "").trim();
-    const r = await api(`/payments/${paymentId}/invoiced`, "POST", { invoiceNo: no });
-    if (!r.ok) return toast(r.data.error || "İşaretlenemedi.");
+  // Admin: fatura PDF'ini sec, musteriye e-posta ile gonder ve odemeyi isaretle.
+  // Fatura sistem disinda (mali musavir/e-fatura portali) kesilir; buradan
+  // yalnizca musteriye ulastirilir. Dosya saklanmaz, yalnizca adi kaydedilir.
+  faturaKesildi(paymentId) {
+    const inp = document.getElementById(`fat-file-${paymentId}`);
+    if (inp) { inp.click(); return; }
+    KT.faturaGonder(paymentId, null);
+  },
+  async faturaSecildi(paymentId, input) {
+    const f = input && input.files && input.files[0];
+    if (!f) return;
+    if (f.type !== "application/pdf") { input.value = ""; return toast("Fatura dosyası PDF olmalı."); }
+    if (f.size > 6 * 1024 * 1024) { input.value = ""; return toast("Fatura dosyası en fazla 6 MB olabilir."); }
+    const reader = new FileReader();
+    reader.onload = () => KT.faturaGonder(paymentId, { fileData: reader.result, fileName: f.name });
+    reader.onerror = () => toast("Dosya okunamadı; tekrar dene.");
+    reader.readAsDataURL(f);
+  },
+  async faturaGonder(paymentId, dosya) {
+    const no = (window.prompt("Fatura numarası (isteğe bağlı):") || "").trim();
+    const r = await api(`/payments/${paymentId}/invoiced`, "POST", { invoiceNo: no, ...(dosya || {}) });
+    if (!r.ok) return toast(r.data.error || "İşlem başarısız.");
     await refreshState();
-    toast("Ödeme faturalandı olarak işaretlendi.");
+    const durum = r.data.emailStatus;
+    toast(dosya
+      ? (durum === "SENT" ? "Fatura müşteriye e-postayla gönderildi." : `Fatura işaretlendi (e-posta durumu: ${durum}).`)
+      : "Ödeme faturalandı olarak işaretlendi.");
     render();
   },
   async talepYenile(id) {

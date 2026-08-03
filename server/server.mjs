@@ -2746,7 +2746,7 @@ a{display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;fon
 // --- Sehir bazli SEO sayfalari -------------------------------------------
 // /kiralik-ev-arayan/{il} ve /evine-kiraci-bul/{il}: sunucudan tam HTML.
 // Sondaki slash ve buyuk harf 301 ile normalize edilir; bilinmeyen il 404 doner.
-const CITY_ROUTE = /^\/(kiralik-ev-arayan|evine-kiraci-bul)\/([^/]+)\/?$/i;
+const CITY_ROUTE = /^\/(kiralik-ev-arayan|evine-kiraci-bul|ev-almak-isteyen|evine-alici-bul)\/([^/]+)\/?$/i;
 function tryCityPage(req, res, pathname) {
   const m = pathname.match(CITY_ROUTE);
   if (!m) return false;
@@ -2761,7 +2761,13 @@ function tryCityPage(req, res, pathname) {
     return true;
   }
   if (!CITIES[slug]) return false;   // listede olmayan il -> 404
-  const html = renderCityPage(base === "kiralik-ev-arayan" ? "tenant" : "owner", slug);
+  const TARAF_YOL = {
+    "kiralik-ev-arayan": "tenant",
+    "evine-kiraci-bul": "owner",
+    "ev-almak-isteyen": "buyer",
+    "evine-alici-bul": "vendor",
+  };
+  const html = renderCityPage(TARAF_YOL[base] || "tenant", slug);
   if (!html) return false;
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=600" });
   res.end(html);

@@ -400,7 +400,7 @@ const FOOTER_HTML = `
     </footer>`;
 
 const STYLE = `
-      :root{--navy:#020617;--navy2:#0f172a;--gold:#4f46e5;--gold2:#4338ca;--ink:#020617;--muted:#475569;--bg:#f8fafc;--line:#e2e8f0;--soft:#eef2ff}
+      /* Renkler tokens.css'te — tek merkez (MASTER emir, 2026-08-04) */
       *{box-sizing:border-box}
       body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
       a{color:inherit}

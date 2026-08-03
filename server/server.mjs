@@ -2026,6 +2026,7 @@ async function handleApi(req, res, url) {
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | E-posta doğrulama</title>
 <meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/tokens.css">
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
 .box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#475569;margin:0 0 12px}
@@ -2074,6 +2075,7 @@ ${yayinaAlinan > 0 ? `<script async src="https://www.googletagmanager.com/gtag/j
     const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Konuttalebi | Bildirim tercihi</title>
 <meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/tokens.css">
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;
 font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px}
 .box{max-width:520px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{line-height:1.65;color:#475569;margin:0 0 12px}
@@ -2745,13 +2747,14 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const ASSET_ONBELLEK_SN = 30 * 24 * 3600;
 // Yalnizca bu dosyalar ve /assets/ altindaki gorseller disariya servis edilir.
 // Boylece server/data/app.db, *.mjs, render.yaml, *.md gibi hassas dosyalar HTTP'den indirilemez.
-const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html", "/ev-almak-isteyen.html", "/evine-alici-bul.html"]);
+const STATIC_ALLOW = new Set(["/index.html", "/app.js", "/styles.css", "/tokens.css", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/google65cc11299e6e1d55.html", "/kiralik-ev-arayan.html", "/evine-kiraci-bul.html", "/ev-almak-isteyen.html", "/evine-alici-bul.html"]);
 // Duzgun 404 sayfasi: UTF-8 basligi olmadan Turkce karakterler bozuk gorunuyordu.
 function notFoundPage(res) {
   const html = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Konuttalebi | Sayfa bulunamadı</title><meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/tokens.css">
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#020617;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;text-align:center;padding:24px}
 .box{max-width:520px}h1{font-size:64px;margin:0;color:#4f46e5;letter-spacing:-2px}h2{font-size:24px;margin:8px 0 12px}p{opacity:.8;line-height:1.6;margin:0 0 24px}
 a{display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px}</style></head>
@@ -2808,6 +2811,7 @@ function danismanPage(res) {
 <meta property="og:description" content="Soğuk arama yapmadan müşteri bul. Kiracı ve alıcılar ne aradığını yazdı; belgeli danışman olarak bölgendeki hazır talepleri gör, doğrudan iletişime geç.">
 <meta property="og:url" content="https://konuttalebi.com/emlak-danismanlari-icin">
 <meta property="og:image" content="https://konuttalebi.com/assets/og-image.jpg">
+<link rel="stylesheet" href="/tokens.css">
 <style>
 body{margin:0;background:#f8fafc;color:#020617;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.65}
 .wrap{max-width:820px;margin:0 auto;padding:40px 22px 64px}

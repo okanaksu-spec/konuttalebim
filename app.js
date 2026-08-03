@@ -605,7 +605,7 @@ function calculateMatchScore(demand, property) {
   if (demand.purchaseTimeline.includes("1 ay") || demand.purchaseTimeline.includes("3 ay")) score += 5;
   if (!demand.usesCredit || property.creditEligible) {
     score += 5;
-    reasons.push("Kredi uygunluğu beklentiyle eşleşiyor");
+    reasons.push("Kredi tercihi beklentiye uyuyor");
   }
   const profile = buyerProfile(demand.buyerId);
   if (profile.budgetTrustScore >= 75) score += 5;
@@ -1011,7 +1011,7 @@ function howSteps() {
     <rect x="58" y="54" width="12" height="10" fill="#eef3f8"/>
     <rect x="44" y="71" width="40" height="5" rx="2.5" fill="#e0a83e"/>
   </svg>`;
-  const illus2 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sistem eşleştirir">
+  const illus2 = `<svg viewBox="0 0 128 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kriterine uyanlara duyurulur">
     <rect x="10" y="10" width="108" height="80" rx="14" fill="#eef3f8"/>
     <rect x="26" y="22" width="76" height="16" rx="5" fill="#fff" stroke="#cdd9e6" stroke-width="2"/>
     <rect x="32" y="28" width="24" height="4" rx="2" fill="#12243b"/>
@@ -2649,7 +2649,7 @@ function adminOverview() {
             </div>`).join("") || `<p class="muted">Henüz kaynak verisi yok.</p>`}
         </div>
       </section>
-      <section class="panel"><h3>Bekleyen üye belgeleri</h3><div class="list" style="margin-top:12px">${(state.verificationDocuments || []).filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni satıcı belgesi gelirse burada görünür.")}</div></section>
+      <section class="panel"><h3>Bekleyen belge başvuruları</h3><div class="list" style="margin-top:12px">${(state.verificationDocuments || []).filter((doc) => doc.status === "PENDING").map(documentRow).join("") || empty("Bekleyen belge yok", "Yeni belge başvurusu gelirse burada görünür.")}</div></section>
     </div>
   `;
 }

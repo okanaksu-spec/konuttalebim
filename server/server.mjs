@@ -2927,6 +2927,96 @@ async function spaYolSayfasi(res, yol, rota, arama) {
   } catch { return notFoundPage(res); }
 }
 
+
+// --- Talepler sayfasi: sunucudan icerikli govde (C2, 2026-07-31) ------------
+// AJANS 29 Tem brief'i: talep havuzu uzun vadede en degerli organik varlik ama
+// istemci tarafinda cizildigi icin arama motoru bos sayfa goruyordu.
+// Burada /talepler ve /talepler/{il} sunucudan tam HTML doner: baslik, aciklama,
+// canli talep ozeti (anonim), sehir baglantilari ve ItemList yapilandirilmis veri.
+// Kisisel veri YOK: yalniz il/ilce, oda, butce araligi, zaman ve tazelik.
+const TALEP_IL = {
+  istanbul: "İstanbul", ankara: "Ankara", izmir: "İzmir",
+  eskisehir: "Eskişehir", bursa: "Bursa", antalya: "Antalya",
+};
+function talepOzetleri(il, tx) {
+  let rows = [];
+  try {
+    rows = db.prepare("SELECT city, district, roomCount, minBudget, maxBudget, transactionType, purchaseTimeline, createdAt FROM demands WHERE status='ACTIVE' ORDER BY createdAt DESC LIMIT 200").all();
+  } catch { return []; }
+  return rows
+    .filter((d) => (!il || String(d.city || "").toLowerCase() === String(il).toLowerCase()))
+    .filter((d) => (!tx || (d.transactionType || "SALE") === tx))
+    .slice(0, 20);
+}
+function talepSatiri(d) {
+  const kira = (d.transactionType || "SALE") === "RENT";
+  const konum = [d.city, d.district].filter(Boolean).join(" / ") || "Konum belirtilmedi";
+  const butce = d.minBudget || d.maxBudget
+    ? `${paraTR(d.minBudget)} – ${paraTR(d.maxBudget)}${kira ? " / ay" : ""}`
+    : "Bütçe belirtilmedi";
+  const oda = d.roomCount ? `${d.roomCount} · ` : "";
+  return `<li style="margin:0 0 10px;line-height:1.6">
+          <strong>${escapeHtmlSrv(konum)}</strong> — ${escapeHtmlSrv(oda)}${escapeHtmlSrv(kira ? "kiralık ev arıyor" : "konut almak istiyor")}<br>
+          <span style="color:#475569">${escapeHtmlSrv(butce)}${d.purchaseTimeline ? " · " + escapeHtmlSrv(d.purchaseTimeline) : ""}</span>
+        </li>`;
+}
+function taleplerSayfasi(res, ilSlug, arama) {
+  const ilAd = ilSlug ? TALEP_IL[ilSlug] : "";
+  if (ilSlug && !ilAd) return notFoundPage(res);
+  const tx = /tx=SALE/.test(arama || "") ? "SALE" : /tx=RENT/.test(arama || "") ? "RENT" : "";
+  const liste = talepOzetleri(ilAd, tx);
+  const sayi = liste.length;
+  const yer = ilAd ? `${ilAd}'da` : "Türkiye'nin altı şehrinde";
+  const baslik = ilAd ? `${ilAd} Konut Talepleri: Kiracı ve Alıcı Talepleri` : "Konut Talepleri: Kiracı ve Alıcı Talepleri";
+  const aciklama = ilAd
+    ? `${ilAd}'da ev arayan kiracıların ve konut almak isteyenlerin güncel taleplerini gör. Evine uygun talebi seç, iletişim bilgisini ücretli üyelikle görüntüle ve doğrudan ara.`
+    : "Ev arayan kiracıların ve konut almak isteyenlerin güncel taleplerini gör. Evine uygun talebi seç, iletişim bilgisini ücretli üyelikle görüntüle ve doğrudan ara.";
+  const yol = ilSlug ? `/talepler/${ilSlug}` : "/talepler";
+  const ilLinkleri = Object.entries(TALEP_IL)
+    .filter(([sl]) => sl !== ilSlug)
+    .map(([sl, ad]) => `<a href="/talepler/${sl}" style="color:#4f46e5;font-weight:600">${escapeHtmlSrv(ad)} talepleri</a>`)
+    .join("\n          &nbsp;·&nbsp;\n          ");
+  const itemList = sayi
+    ? `<script type="application/ld+json">${JSON.stringify({
+        "@context": "https://schema.org", "@type": "ItemList",
+        name: baslik, numberOfItems: sayi,
+        itemListElement: liste.slice(0, 10).map((d, i) => ({
+          "@type": "ListItem", position: i + 1,
+          name: `${[d.city, d.district].filter(Boolean).join(" / ")} · ${d.roomCount || ""} ${(d.transactionType || "SALE") === "RENT" ? "kiralık ev talebi" : "konut alım talebi"}`.trim(),
+        })),
+      })}</script>`
+    : "";
+  const govde = `<main style="max-width:820px;margin:0 auto;padding:48px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#020617">
+        <h1 style="font-size:33px;line-height:1.25;margin:0 0 14px">${escapeHtmlSrv(ilAd ? ilAd + "'daki konut talepleri" : "Konut talepleri — kiracı ve alıcı talepleri")}</h1>
+        <p style="font-size:17px;line-height:1.7;margin:0 0 14px">Konuttalebi'nde konut ilanı yoktur. ${escapeHtmlSrv(yer)} ev aramak veya satın almak isteyenler ne aradıklarını yazar: bölge, bütçe aralığı, oda sayısı ve taşınma ya da alım zamanı. Bu sayfadaki talepler üye olmadan görüntülenebilir.</p>
+        <p style="font-size:17px;line-height:1.7;margin:0 0 14px">Evine uygun bir talep bulduğunda, talep sahibinin telefon ve e-posta bilgisini ücretli üyelikle görüntüler ve doğrudan ararsın. Her görüntülemede talep sahibine bildirim gider; adı ve iletişim bilgisi o ana kadar gizlidir. Fiyata, pazarlığa veya sözleşmeye karışmayız.</p>
+        ${sayi ? `<h2 style="font-size:22px;margin:26px 0 12px">Yayındaki talepler${ilAd ? " — " + escapeHtmlSrv(ilAd) : ""}</h2>
+        <ul style="padding-left:20px;margin:0 0 18px">${liste.map(talepSatiri).join("")}</ul>` : `<p style="font-size:17px;line-height:1.7;margin:0 0 14px">${escapeHtmlSrv(ilAd || "Bu listede")} şu anda yayında talep görünmüyor. Talepler 60 günde bir yenilenir; kısa süre içinde yeni talepler eklenir.</p>`}
+        <p style="font-size:17px;line-height:1.7;margin:22px 0 0">
+          <a href="/talep-birak" style="color:#4f46e5;font-weight:600">Kiralık ev talebi bırak</a>
+          &nbsp;·&nbsp;
+          <a href="/talep-birak?tx=SALE" style="color:#4f46e5;font-weight:600">Konut alım talebi bırak</a>
+        </p>
+        <p style="font-size:15px;line-height:1.7;color:#475569;margin:22px 0 0">
+          ${ilLinkleri}
+        </p>
+      </main>`;
+  readFile(join(WEB_DIR, "index.html"), "utf-8").then((html) => {
+    html = html
+      .replace(/<title>[^<]*<\/title>/, `<title>Konuttalebi | ${escapeHtmlSrv(baslik)}</title>`)
+      .replace(/(name="description"\s*\n?\s*content=)"[^"]*"/, `$1"${escapeHtmlSrv(aciklama)}"`)
+      .replace('<link rel="canonical" href="https://konuttalebi.com/" />', `<link rel="canonical" href="https://konuttalebi.com${yol}" />`)
+      .replace('<meta name="robots" content="index, follow" />', '<meta name="robots" content="noindex, follow" />');
+    const bas = html.indexOf('<div id="app">');
+    const son = html.indexOf("</div>", html.lastIndexOf("</main>"));
+    if (bas > -1 && son > bas) html = html.slice(0, bas) + `<div id="app">\n      ${govde}\n    ` + html.slice(son);
+    html = html.replace('<script src="./app.js"></script>',
+      `${itemList}\n    <script>window.KT_PATH_ROTA=${JSON.stringify("talepler")};window.KT_IL=${JSON.stringify(ilAd || "")};</script>\n    <script src="./app.js"></script>`);
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" });
+    res.end(html);
+  }).catch(() => notFoundPage(res));
+}
+
 async function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (tryCityPage(req, res, p)) return;
@@ -2937,6 +3027,9 @@ async function serveStatic(req, res, url) {
     // (12 gunde 2.242 gosterim); app.js eski adi taniyor ama koddan kalktigi gun
     // baglanti kirilirdi. Kalici yonlendirme o riski kapatir.
     if (kisa === "/ilanlar") { res.writeHead(301, { Location: "/talepler" }); return res.end(); }
+    if (kisa === "/talepler") return taleplerSayfasi(res, "", url.search);
+    const ilM = kisa.match(/^\/talepler\/([a-z]+)$/);
+    if (ilM) return taleplerSayfasi(res, ilM[1], url.search);
     if (SPA_YOLLARI[kisa]) return spaYolSayfasi(res, kisa, SPA_YOLLARI[kisa], url.search);
   }
   if (p === "/") p = "/index.html";

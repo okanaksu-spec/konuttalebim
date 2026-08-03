@@ -1502,11 +1502,16 @@ function guestDemandStep2() {
         <div class="field"><label for="g-tckn">T.C. Kimlik No <span style="color:#c0392b">*</span></label>
           <input id="g-tckn" required type="text" inputmode="numeric" placeholder="11 haneli" oninput="KT.tcknFormat(this,'g-tckn-hint')" value="${escapeAttr(k.tckn || "")}">
           <span id="g-tckn-hint" class="muted" style="font-size:12.5px"></span></div>
-        <div class="field"><label for="g-birth">Doğum tarihi <span style="color:#c0392b">*</span></label>
-          <input id="g-birth" required type="date" value="${escapeAttr(k.birth || "")}" max="${escapeAttr(new Date(Date.now() - 18 * 365.25 * 864e5).toISOString().slice(0, 10))}"></div>
-        <div class="field full"><label for="g-password">Şifre <span style="color:#c0392b">*</span></label>
-          <input id="g-password" required type="password" autocomplete="new-password" placeholder="En az 8 karakter" oninput="KT.sifreGucu(this,'g-password-guc')">
-          <div id="g-password-guc" class="muted" style="font-size:12.5px;margin-top:4px">En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam.</div></div>
+        <div class="field"><label for="g-birth">Doğum tarihi <span class="muted" style="font-weight:500">(isteğe bağlı)</span></label>
+          <input id="g-birth" type="date" value="${escapeAttr(k.birth || "")}" max="${escapeAttr(new Date(Date.now() - 18 * 365.25 * 864e5).toISOString().slice(0, 10))}"></div>
+        <!-- Sifre alani kaldirildi (2026-08-03, Okan onayi). Sebep: kullanici 7 soruyu
+             doldurduktan sonra bir de sifre uyduruyordu; oysa dogrulama baglantisina
+             tikladiginda oturum zaten aciliyor. Sifreyi isteyen panelden belirler. -->
+        <div class="field full">
+          <div class="muted" style="font-size:13.5px;background:var(--soft-line);border-radius:10px;padding:11px 13px;line-height:1.6">
+            Şifre belirlemene gerek yok. E-postana gelen bağlantıya tıkladığında talebin yayına girer ve hesabına giriş yapmış olursun. Şifreyi istersen sonra panelinden belirleyebilirsin.
+          </div>
+        </div>
 
         <div class="field full" style="background:#f5f8fb;border-radius:10px;padding:12px;font-size:13px;line-height:1.6" class="muted">
           <strong>Kimlik bilgin neden isteniyor?</strong> Sahte üyeliği önlemek ve eşleşen tarafların gerçek kişiler
@@ -3926,20 +3931,13 @@ window.KT = {
     const val = (id) => { const e = document.getElementById(id); return e ? e.value.trim() : ""; };
     const chk = (id) => { const e = document.getElementById(id); return e ? e.checked : false; };
     const name = val("g-name"), email = val("g-email"), phone = val("g-phone");
-    const tckn = val("g-tckn"), birth = val("g-birth"), password = document.getElementById("g-password").value;
+    const tckn = val("g-tckn"), birth = val("g-birth");
     if (name.length < 3) return showFormError("g-error2", "Adını ve soyadını yaz.");
     if (!email.includes("@")) return showFormError("g-error2", "Geçerli bir e-posta adresi yaz.");
     if (phone.replace(/\D/g, "").length !== 10) return showFormError("g-error2", "Cep telefonunu 10 hane olarak yaz (5xx xxx xx xx).");
     if (!tcknGecerliMi(tckn)) return showFormError("g-error2", "T.C. kimlik numarası geçersiz. Lütfen kontrol et.");
-    if (!birth) return showFormError("g-error2", "Doğum tarihini gir.");
-    const sifreEksik = (() => {
-      if (password.length < 8) return "Şifre en az 8 karakter olmalı.";
-      if (!/[a-zçğıöşü]/.test(password)) return "Şifre en az bir küçük harf içermeli.";
-      if (!/[A-ZÇĞİÖŞÜ]/.test(password)) return "Şifre en az bir büyük harf içermeli.";
-      if (!/\d/.test(password)) return "Şifre en az bir rakam içermeli.";
-      return "";
-    })();
-    if (sifreEksik) return showFormError("g-error2", sifreEksik);
+    // Dogum tarihi istege bagli (2026-08-03): yalnizca dogum gunu kutlamasi icin
+    // kullaniliyordu, ugruna talep kaybedilmez. Sifre alani da kaldirildi.
     if (!chk("g-identity-consent")) return showFormError("g-error2", "Kimlik bilgilerinin işlenmesi için açık rıza gerekiyor.");
     if (!chk("g-terms")) return showFormError("g-error2", "Kullanım Koşulları'nı kabul etmelisin.");
 
@@ -3951,7 +3949,7 @@ window.KT = {
     if (btn) { btn.disabled = true; btn.textContent = "Gönderiliyor…"; }
     const r = await api("/kayit/talep", "POST", {
       ...misafirVeri,
-      name, email, phone, password, tckn, birthDate: birth,
+      name, email, phone, tckn, birthDate: birth,   // sifre gonderilmiyor (2026-08-03)
       identityConsent: true, termsAccepted: true,
       ...izinDegerleri("g"),
       attribution: attribution(),
